@@ -11,20 +11,28 @@ version = "1.0-SNAPSHOT"
 
 repositories {
     mavenCentral()
+//    VC
     maven {
         name = "papermc"
         url = uri("https://repo.papermc.io/repository/maven-public/")
     }
-
+//    mixin
     maven {
         url = uri("https://maven.fabricmc.net/")
+    }
+//    limbo
+    maven {
+        url = uri("https://maven.elytrium.net/repo/")
     }
 
 }
 
 dependencies {
-//    kotlin
-//    implementation("org.jetbrains.kotlin:kotlin-reflect:2.3.0")
+//    VC
+    compileOnly("com.velocitypowered:velocity-api:3.4.0-SNAPSHOT")
+    compileOnly("com.velocitypowered:velocity-proxy:3.4.0-SNAPSHOT") // From Elytrium Repo.
+//    limbo
+    compileOnly("net.elytrium.limboapi:api:1.1.26")
 
 //    mixin
     compileOnly("space.vectrix.ignite:ignite-api:1.1.0")
@@ -34,8 +42,7 @@ dependencies {
 
     implementation("org.spongepowered:configurate-extra-kotlin:4.2.0")
     compileOnly("org.spongepowered:configurate-hocon:4.2.0")
-    compileOnly(fileTree("libs") { include("*.jar") })
-    compileOnly("io.netty:netty-all:4.1.63.Final")
+    compileOnly("io.netty:netty-all:4.2.5.Final")
     compileOnly("com.google.code.gson:gson:2.8.9")
     compileOnly("org.apache.logging.log4j:log4j-api:2.14.1")
     compileOnly("net.kyori:adventure-text-serializer-gson:4.19.0")
