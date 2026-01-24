@@ -1,4 +1,4 @@
-rootProject.name = "MixedLogin"
+rootProject.name = "HyperzoneLogin"
 
 include("openvc")
 

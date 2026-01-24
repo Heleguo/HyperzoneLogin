@@ -1,5 +1,6 @@
+
 plugins {
-    kotlin("jvm") version "2.0.21" // max version of mckotlin-velocity
+    kotlin("jvm") version "2.3.0" // max version of mckotlin-velocity
     java
 //    shadow
     alias(libs.plugins.shadow)
@@ -14,9 +15,23 @@ repositories {
         name = "papermc"
         url = uri("https://repo.papermc.io/repository/maven-public/")
     }
+
+    maven {
+        url = uri("https://maven.fabricmc.net/")
+    }
+
 }
 
 dependencies {
+//    kotlin
+//    implementation("org.jetbrains.kotlin:kotlin-reflect:2.3.0")
+
+//    mixin
+    compileOnly("space.vectrix.ignite:ignite-api:1.1.0")
+    compileOnly("net.fabricmc:sponge-mixin:0.16.5+mixin.0.8.7")
+    compileOnly("io.github.llamalad7:mixinextras-common:0.5.0")
+    annotationProcessor("io.github.llamalad7:mixinextras-common:0.5.0")
+
     implementation("org.spongepowered:configurate-extra-kotlin:4.2.0")
     compileOnly("org.spongepowered:configurate-hocon:4.2.0")
     compileOnly(fileTree("libs") { include("*.jar") })
@@ -40,8 +55,11 @@ tasks {
     shadowJar {
         archiveBaseName.set("MixedLogin-OpenVelocity")
         archiveClassifier.set("")
-        dependencies{
-            exclude(dependency("org.jetbrains.kotlin:kotlin-stdlib"))
+        dependencies {
+//            不加会导致mixin之后认不到
+            include(dependency("org.jetbrains.kotlin:kotlin-stdlib"))
+            include(dependency("org.jetbrains.kotlin:kotlin-reflect"))
+
             exclude(dependency("org.jetbrains:annotations"))
 //            extra-kotlin
             include(dependency("org.spongepowered:configurate-extra-kotlin"))

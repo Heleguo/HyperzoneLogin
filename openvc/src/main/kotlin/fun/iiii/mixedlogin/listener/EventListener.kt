@@ -4,16 +4,9 @@ import com.velocitypowered.api.event.Subscribe
 import `fun`.iiii.mixedlogin.MixedLoginMain
 import `fun`.iiii.mixedlogin.type.OfflineUUIDType
 import `fun`.iiii.mixedlogin.util.ExtraUuidUtils
-import `fun`.iiii.openvelocity.api.event.connection.BackendEncryptRequestEvent
 import `fun`.iiii.openvelocity.api.event.connection.OpenPreLoginEvent
 
 class EventListener {
-    @Subscribe
-    fun onBackendLogin(event: BackendEncryptRequestEvent) {
-        MixedLoginMain.getInstance().loginServerManager.startSubRequest(event.serverId, event.gameProfile)
-        event.isSuccess = true
-    }
-
     @Subscribe
     fun onPreLogin(event: OpenPreLoginEvent) {
         val uuid = event.uuid

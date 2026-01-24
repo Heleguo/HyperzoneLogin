@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "minVersion": "0.8.7",
+  "package": "fun.iiii.openvelocity.mixin.trans",
+  "plugin": "fun.iiii.openvelocity.mixin.CorePlugin",
+  "target": "@env(DEFAULT)",
+  "compatibilityLevel": "JAVA_21",
+  "server": [
+    "MixinVelocity",
+    "MixinAuthSessionHandler",
+    "MixinInitialLoginSessionHandler",
+    "MixinLoginInboundConnection"
+  ]
+}
