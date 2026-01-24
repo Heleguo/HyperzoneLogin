@@ -1,7 +1,8 @@
-package `fun`.iiii.mixedlogin.util.uuid
+package `fun`.iiii.hyperzone.login.util.uuid
 
-import `fun`.iiii.mixedlogin.MixedLoginMain
+import `fun`.iiii.hyperzone.login.HyperzoneLoginMain
 import java.util.*
+import kotlin.text.iterator
 
 object PCL2UUIDUtil {
     //        PCL2/Plain Craft Launcher 2/Modules/Minecraft/ModLaunch.vb 1120行
@@ -127,8 +128,8 @@ object PCL2UUIDUtil {
     fun isPCL2UUID(
         uuid: UUID,
         name: String,
-        hashMatch: Boolean = MixedLoginMain.getConfig().uuidMatch.pcl2.hash,
-        slimMatch: Boolean = MixedLoginMain.getConfig().uuidMatch.pcl2.slim
+        hashMatch: Boolean = HyperzoneLoginMain.getConfig().uuidMatch.pcl2.hash,
+        slimMatch: Boolean = HyperzoneLoginMain.getConfig().uuidMatch.pcl2.slim
     ): Boolean {
         if (!hashMatch) return hasPCL2Info(uuid, name)
 

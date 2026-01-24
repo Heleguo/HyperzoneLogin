@@ -1,10 +1,8 @@
-package `fun`.iiii.mixedlogin.command
+package `fun`.iiii.hyperzone.login.command
 
-import com.velocitypowered.api.command.CommandSource
 import com.velocitypowered.api.command.SimpleCommand
-import net.kyori.adventure.text.TextComponent
 
-class MixedLoginCommand : SimpleCommand {
+class HyperZoneLoginCommand : SimpleCommand {
     override fun execute(invocation: SimpleCommand.Invocation) {
         val args = invocation.arguments()
         val sender = invocation.source()

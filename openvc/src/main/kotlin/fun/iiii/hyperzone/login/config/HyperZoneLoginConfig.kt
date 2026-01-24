@@ -1,12 +1,12 @@
-package `fun`.iiii.mixedlogin.config
+package `fun`.iiii.hyperzone.login.config
 
-import `fun`.iiii.mixedlogin.enums.SendMode
+import `fun`.iiii.hyperzone.login.enums.SendMode
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Comment
 import kotlin.jvm.JvmField
 
 @ConfigSerializable
-class MixedLoginConfig {
+class HyperZoneLoginConfig {
 
     @Comment("下层服务器yggd服务器配置,非必要勿动")
     val subYggdrasil = SubYggdrasil()

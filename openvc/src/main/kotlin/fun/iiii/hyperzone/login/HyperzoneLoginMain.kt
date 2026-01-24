@@ -1,4 +1,4 @@
-package `fun`.iiii.mixedlogin
+package `fun`.iiii.hyperzone.login
 
 import com.google.inject.Inject
 import com.google.inject.Injector
@@ -6,10 +6,10 @@ import com.velocitypowered.api.event.Subscribe
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent
 import com.velocitypowered.api.plugin.annotation.DataDirectory
 import com.velocitypowered.api.proxy.ProxyServer
-import `fun`.iiii.mixedlogin.command.MixedLoginCommand
-import `fun`.iiii.mixedlogin.config.MixedLoginConfig
-import `fun`.iiii.mixedlogin.listener.EventListener
-import `fun`.iiii.mixedlogin.manager.AuthMeManager
+import `fun`.iiii.hyperzone.LoginServerManager
+import `fun`.iiii.hyperzone.login.command.HyperZoneLoginCommand
+import `fun`.iiii.hyperzone.login.config.HyperZoneLoginConfig
+import `fun`.iiii.hyperzone.login.listener.EventListener
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger
 import org.spongepowered.configurate.ConfigurationOptions
 import org.spongepowered.configurate.hocon.HoconConfigurationLoader
@@ -19,7 +19,7 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.util.function.Supplier
 
-class MixedLoginMain @Inject constructor(
+class HyperzoneLoginMain @Inject constructor(
     private val server: ProxyServer,
     val logger: ComponentLogger,
     @DataDirectory private val dataDirectory: Path,
@@ -28,15 +28,14 @@ class MixedLoginMain @Inject constructor(
     lateinit var loginServerManager: LoginServerManager
 
     companion object {
-        private lateinit var instance: MixedLoginMain
-        private lateinit var mixedLoginConfig: MixedLoginConfig
-        private lateinit var authMeManager: AuthMeManager
+        private lateinit var instance: HyperzoneLoginMain
+        private lateinit var hyperZoneLoginConfig: HyperZoneLoginConfig
 
         @JvmStatic
-        fun getInstance(): MixedLoginMain = instance
+        fun getInstance(): HyperzoneLoginMain = instance
 
         @JvmStatic
-        fun getConfig(): MixedLoginConfig = mixedLoginConfig
+        fun getConfig(): HyperZoneLoginConfig = hyperZoneLoginConfig
     }
 
     init {
@@ -48,12 +47,8 @@ class MixedLoginMain @Inject constructor(
         loadConfig()
         loginServerManager = LoginServerManager()
 
-        proxy.commandManager.register("mixedlogin", MixedLoginCommand())
+        proxy.commandManager.register("hzl", HyperZoneLoginCommand())
         proxy.eventManager.register(this, EventListener())
-        loginServerManager.start()
-
-        authMeManager = AuthMeManager(this)
-        authMeManager.onProxyInitialization(injector, server)
 
     }
 
@@ -69,7 +64,7 @@ class MixedLoginMain @Inject constructor(
                     .shouldCopyDefaults(true)
                     .header(
                         """
-                            MixedLogin | by ksqeib
+                            HyperzoneLogin | by ksqeib
                             
                         """.trimIndent()
                     ).serializers { s ->
@@ -81,13 +76,13 @@ class MixedLoginMain @Inject constructor(
             .path(path)
             .build()
         val node = loader.load()
-        val config = node.get(MixedLoginConfig::class.java)
+        val config = node.get(HyperZoneLoginConfig::class.java)
         if (firstCreation) {
             node.set(config)
             loader.save(node)
         }
         if (config != null) {
-            mixedLoginConfig = config
+            hyperZoneLoginConfig = config
         }
     }
 
@@ -97,13 +92,13 @@ class MixedLoginMain @Inject constructor(
     }
 
     fun logDebug(msg: String) {
-        if (mixedLoginConfig.advanced.debug) {
+        if (hyperZoneLoginConfig.advanced.debug) {
             logger.info("[DEBUG] $msg")
         }
     }
 
     fun logDebug(msg: Supplier<String>) {
-        if (mixedLoginConfig.advanced.debug) {
+        if (hyperZoneLoginConfig.advanced.debug) {
             logger.info("[DEBUG] ${msg.get()}")
         }
     }

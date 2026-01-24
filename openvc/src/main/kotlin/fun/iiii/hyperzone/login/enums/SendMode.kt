@@ -1,4 +1,4 @@
-package `fun`.iiii.mixedlogin.enums
+package `fun`.iiii.hyperzone.login.enums
 
 enum class SendMode {
     TO_FIRST,
