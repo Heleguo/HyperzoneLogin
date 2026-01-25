@@ -238,6 +238,9 @@ public class MixinInitialLoginSessionHandler {
                     // is enabled.
                     try {
                         if (online) {
+                            logger.info(
+                                    "已开启加密为 {} ({})",
+                                    login.getUsername(), playerIp);
                             mcConnection.enableEncryption(decryptedSharedSecret);
                         }
                     } catch (GeneralSecurityException e) {
@@ -256,13 +259,25 @@ public class MixinInitialLoginSessionHandler {
                                     && inbound.getIdentifiedKey().getKeyRevision() == IdentifiedKey.Revision.LINKED_V2
                                     && inbound.getIdentifiedKey() instanceof final IdentifiedKeyImpl key) {
                                 if (!key.internalAddHolder(profile.getId())) {
-                                    inbound.disconnect(
-                                            Component.translatable("multiplayer.disconnect.invalid_public_key"));
+                                    inbound.disconnect(Component.text("无效的公钥"));
                                 }
                             }
                         }
+                        logger.info(
+                                "公钥认证成功 {} whilst contacting Mojang to log in {} ({})",
+                                onlineAuthEvent.isIgnoreKey(), login.getUsername(), playerIp);
                         // All went well, initialize the session.
-                        mcConnection.setActiveSessionHandler(StateRegistry.LOGIN, createHandler(server, inbound, profile, online));
+                        AuthSessionHandler authSessionHandler = createHandler(server, inbound, profile, online);
+                        logger.info(
+                                "authSessionHandler创建成功 {} whilst contacting Mojang to log in {} ({})",
+                                authSessionHandler, login.getUsername(), playerIp);
+                        if (authSessionHandler == null) {
+                            inbound.disconnect(Component.text("内部错误"));
+                        }
+                        mcConnection.setActiveSessionHandler(StateRegistry.LOGIN, authSessionHandler);
+                        logger.error(
+                                "验证成功 {} whilst contacting Mojang to log in {} ({})",
+                                mcConnection.getActiveSessionHandler().getClass().getName(), login.getUsername(), playerIp);
                     } else {
                         // Something else went wrong
                         logger.error(
@@ -274,6 +289,11 @@ public class MixinInitialLoginSessionHandler {
     }
 
     private static AuthSessionHandler createHandler(VelocityServer server, LoginInboundConnection inbound, GameProfile profile, boolean onlineMode) {
-        return AuthSessionHandlerFactory.create(server, inbound, profile, onlineMode);
+        try {
+            return AuthSessionHandlerFactory.create(server, inbound, profile, onlineMode);
+        } catch (Throwable e) {
+            e.printStackTrace();
+        }
+        return null;
     }
 }
