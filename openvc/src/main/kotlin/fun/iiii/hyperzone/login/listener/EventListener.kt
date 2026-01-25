@@ -1,6 +1,7 @@
 package `fun`.iiii.hyperzone.login.listener
 
 import com.velocitypowered.api.event.Subscribe
+import com.velocitypowered.api.util.GameProfile
 import `fun`.iiii.hyperzone.login.HyperzoneLoginMain
 import `fun`.iiii.hyperzone.login.type.OfflineUUIDType
 import `fun`.iiii.hyperzone.login.util.ExtraUuidUtils
@@ -19,12 +20,12 @@ class EventListener {
         if (offlineHost) {
             HyperzoneLoginMain.getInstance().logger.info("匹配到离线host 玩家: $name")
         }
-        HyperzoneLoginMain.getInstance().logger.info("传入uuid信息 玩家: $name UUID:$uuid 类型: $offlineUUIDType")
         if (offlineUUIDType != OfflineUUIDType.UNKNOWN || offlineHost) {
             event.isOnline = false
         } else {
             event.isOnline = true
         }
+        HyperzoneLoginMain.getInstance().logger.info("传入uuid信息 玩家: $name UUID:$uuid 类型: $offlineUUIDType 在线:${event.isOnline}")
     }
 
     @Subscribe
@@ -32,5 +33,6 @@ class EventListener {
 //        测试
         HyperzoneLoginMain.getInstance().logger.info("已跳过登入")
         event.isSuccess = true
+        event.gameProfile= GameProfile.forOfflinePlayer(event.userName)
     }
 } 

@@ -33,32 +33,14 @@ public class LimboAuthSessionHandler implements LimboSessionHandler {
     @Override
     public void onSpawn(Limbo server, LimboPlayer player) {
         this.player = player;
+        this.player.disableFalling();
     }
 
     @Override
     public void onChat(String message) {
-
         this.proxyPlayer.sendPlainMessage("SUCCESS MES");
-        finishLogin();
-    }
 
-    @Override
-    public void onGeneric(Object packet) {
-//        有个对应的mod
-    }
-
-    @Override
-    public void onDisconnect() {
-
-    }
-
-    public void finishLogin() {
-        this.proxyPlayer.sendPlainMessage("SUCCESS LOGIN");
-        finishAuth();
-    }
-
-    private void finishAuth() {
-        this.proxyPlayer.clearTitle();
-        this.player.disconnect();
+        if (message.contains("login"))
+            this.player.disconnect();
     }
 }

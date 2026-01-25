@@ -24,14 +24,14 @@ public class LimboAuth {
     public void load() {
         VirtualWorld authWorld = this.factory.createVirtualWorld(
                 Dimension.THE_END,
-                1, 1, 1,
-                (float) 2, (float) 2
+                0, 0, 0,
+                (float) 0, (float) 0
         );
 
         this.authServer = this.factory
                 .createLimbo(authWorld)
-                .setName("LimboAuth")
-                .setWorldTime(543)
+                .setName("HyperzoneLogin")
+                .setWorldTime(1000L)
                 .setGameMode(GameMode.ADVENTURE);
 
     }
@@ -44,10 +44,12 @@ public class LimboAuth {
             return;
         }
 
-        this.authPlayer(event.getPlayer());
+//        必须callBack
+        event.addOnJoinCallback(() -> this.authPlayer(event.getPlayer()));
     }
 
     public void authPlayer(Player player) {
+//        this.factory.passLoginLimbo(player);
         this.authServer.spawnPlayer(player, new LimboAuthSessionHandler(player));
     }
 }
