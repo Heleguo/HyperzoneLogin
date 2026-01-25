@@ -53,7 +53,7 @@ class HyperzoneLoginMain @Inject constructor(
         proxy.commandManager.register("hzl", HyperZoneLoginCommand())
         proxy.eventManager.register(this, EventListener())
         proxy.eventManager.register(this, limboServerManager)
-//        limboServerManager.load()
+        limboServerManager.load()
 
     }
 

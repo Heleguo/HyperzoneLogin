@@ -7,7 +7,6 @@
   "compatibilityLevel": "JAVA_21",
   "server": [
     "MixinVelocity",
-    "MixinAuthSessionHandler",
     "MixinInitialLoginSessionHandler",
     "MixinLoginInboundConnection"
   ]

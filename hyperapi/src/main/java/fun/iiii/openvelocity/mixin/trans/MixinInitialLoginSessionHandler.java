@@ -7,6 +7,7 @@ import com.velocitypowered.api.proxy.crypto.IdentifiedKey;
 import com.velocitypowered.api.util.GameProfile;
 import com.velocitypowered.proxy.VelocityServer;
 import com.velocitypowered.proxy.connection.MinecraftConnection;
+import com.velocitypowered.proxy.connection.client.AuthSessionHandler;
 import com.velocitypowered.proxy.connection.client.InitialLoginSessionHandler;
 import com.velocitypowered.proxy.connection.client.LoginInboundConnection;
 import com.velocitypowered.proxy.crypto.IdentifiedKeyImpl;
@@ -18,6 +19,7 @@ import com.velocitypowered.proxy.protocol.packet.ServerLoginPacket;
 import fun.iiii.openvelocity.api.event.connection.OnlineAuthEvent;
 import fun.iiii.openvelocity.api.event.connection.OpenPreLoginEvent;
 import fun.iiii.openvelocity.mixin.IMixinLoginInboundConnection;
+import fun.iiii.openvelocity.mixin.util.AuthSessionHandlerFactory;
 import net.kyori.adventure.text.Component;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -175,7 +177,7 @@ public class MixinInitialLoginSessionHandler {
                 return;
             }
 
-            IMixinLoginInboundConnection myInbound=(IMixinLoginInboundConnection)inbound;
+            IMixinLoginInboundConnection myInbound = (IMixinLoginInboundConnection) inbound;
             myInbound.fireLogin(() -> {
                 if (mcConnection.isClosed()) {
                     // The player was disconnected
@@ -192,7 +194,7 @@ public class MixinInitialLoginSessionHandler {
                             EncryptionRequestPacket request = generateEncryptionRequest();
                             this.verify = Arrays.copyOf(request.getVerifyToken(), 4);
                             mcConnection.write(request);
-                            cState=2;
+                            cState = 2;
 //                            this.currentState = InitialLoginSessionHandler.LoginState.ENCRYPTION_REQUEST_SENT;
                         } else {
                             doLogin(false, openPreLoginEvent.getServerId(), null);
@@ -216,7 +218,7 @@ public class MixinInitialLoginSessionHandler {
 
     private void doLogin(boolean online, String serverId, byte[] decryptedSharedSecret) {
         String playerIp = ((InetSocketAddress) mcConnection.getRemoteAddress()).getHostString();
-        OnlineAuthEvent onlineAuthEvent = new OnlineAuthEvent(login.getUsername(), serverId, playerIp, online);
+        OnlineAuthEvent onlineAuthEvent = new OnlineAuthEvent(login, serverId, playerIp, online);
         server.getEventManager().fire(onlineAuthEvent).thenRunAsync(
                 () -> {
                     if (mcConnection.isClosed()) {
@@ -260,7 +262,7 @@ public class MixinInitialLoginSessionHandler {
                             }
                         }
                         // All went well, initialize the session.
-                        mcConnection.setActiveSessionHandler(StateRegistry.LOGIN, MixinAuthSessionHandler.newHandler(server, inbound, profile, online));
+                        mcConnection.setActiveSessionHandler(StateRegistry.LOGIN, createHandler(server, inbound, profile, online));
                     } else {
                         // Something else went wrong
                         logger.error(
@@ -269,5 +271,9 @@ public class MixinInitialLoginSessionHandler {
                         inbound.disconnect(onlineAuthEvent.getDisconnectComponent());
                     }
                 }, mcConnection.eventLoop());
+    }
+
+    private static AuthSessionHandler createHandler(VelocityServer server, LoginInboundConnection inbound, GameProfile profile, boolean onlineMode) {
+        return AuthSessionHandlerFactory.create(server, inbound, profile, onlineMode);
     }
 }

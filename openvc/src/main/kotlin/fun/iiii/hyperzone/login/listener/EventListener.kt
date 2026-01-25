@@ -4,6 +4,7 @@ import com.velocitypowered.api.event.Subscribe
 import `fun`.iiii.hyperzone.login.HyperzoneLoginMain
 import `fun`.iiii.hyperzone.login.type.OfflineUUIDType
 import `fun`.iiii.hyperzone.login.util.ExtraUuidUtils
+import `fun`.iiii.openvelocity.api.event.connection.OnlineAuthEvent
 import `fun`.iiii.openvelocity.api.event.connection.OpenPreLoginEvent
 
 class EventListener {
@@ -24,5 +25,12 @@ class EventListener {
         } else {
             event.isOnline = true
         }
+    }
+
+    @Subscribe
+    fun onPreLogin(event: OnlineAuthEvent) {
+//        测试
+        HyperzoneLoginMain.getInstance().logger.info("已跳过登入")
+        event.isSuccess = true
     }
 } 
