@@ -3,7 +3,7 @@ plugins {
     kotlin("jvm") version "2.3.0" // max version of mckotlin-velocity
     java
 //    shadow
-    alias(libs.plugins.shadow)
+//    alias(libs.plugins.shadow)
 }
 
 group = "fun.iiii.hyperzone.login"
@@ -28,7 +28,6 @@ repositories {
 }
 
 dependencies {
-    implementation(project(":hyperapi"))
 // limboAuth
     implementation("at.favre.lib:bcrypt:0.9.0")
     implementation("dev.samstevens.totp:totp:1.7.1")
@@ -64,20 +63,20 @@ dependencies {
 }
 
 tasks {
-    shadowJar {
-        archiveBaseName.set("HyperZoneLogin")
-        archiveClassifier.set("")
-        dependencies {
-//            不加会导致mixin之后认不到
-            exclude(dependency("org.jetbrains.kotlin:kotlin-stdlib"))
-            exclude(dependency("org.jetbrains.kotlin:kotlin-reflect"))
-
-            exclude(dependency("org.jetbrains:annotations"))
-//            extra-kotlin
-            include(dependency("org.spongepowered:configurate-extra-kotlin"))
-        }
-    }
-    build {
-        dependsOn(shadowJar)
-    }
+//    shadowJar {
+//        archiveBaseName.set("HyperZoneLogin-open")
+//        archiveClassifier.set("")
+//        dependencies {
+////            不加会导致mixin之后认不到
+//            include(dependency("org.jetbrains.kotlin:kotlin-stdlib"))
+//            include(dependency("org.jetbrains.kotlin:kotlin-reflect"))
+//
+//            exclude(dependency("org.jetbrains:annotations"))
+////            extra-kotlin
+//            include(dependency("org.spongepowered:configurate-extra-kotlin"))
+//        }
+//    }
+//    build {
+//        dependsOn(shadowJar)
+//    }
 }

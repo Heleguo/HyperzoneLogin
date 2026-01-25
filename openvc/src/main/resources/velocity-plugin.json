@@ -3,6 +3,6 @@
   "name":"HyperZoneLogin",
   "version":"0.0.1",
   "authors":["ksqeib"],
-  "dependencies":[{"id":"mckotlin-velocity","optional":true}],
+  "dependencies":[{"id":"mckotlin-velocity","optional":false}],
   "main":"fun.iiii.hyperzone.login.HyperzoneLoginMain"
 }

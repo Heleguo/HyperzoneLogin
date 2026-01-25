@@ -22,3 +22,5 @@
 ## 开发时间
 啊。。遥遥无期呢，作者在考研
  
+## 服务器启动参数
+`java -Dignite.mods=./plugins -Dignite.jar=./velocity-3.4.0-SNAPSHOT-563.jar -Dignite.libraries=./libraries -jar ignite-launcher-1.1.1-SNAPSHOT-all.jar`

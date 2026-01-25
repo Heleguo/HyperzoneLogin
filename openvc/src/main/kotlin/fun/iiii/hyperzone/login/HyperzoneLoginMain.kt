@@ -9,6 +9,7 @@ import com.velocitypowered.api.proxy.ProxyServer
 import `fun`.iiii.hyperzone.LoginServerManager
 import `fun`.iiii.hyperzone.login.command.HyperZoneLoginCommand
 import `fun`.iiii.hyperzone.login.config.HyperZoneLoginConfig
+import `fun`.iiii.hyperzone.login.limbo.LimboAuth
 import `fun`.iiii.hyperzone.login.listener.EventListener
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger
 import org.spongepowered.configurate.ConfigurationOptions
@@ -26,6 +27,7 @@ class HyperzoneLoginMain @Inject constructor(
     private val injector: Injector
 ) {
     lateinit var loginServerManager: LoginServerManager
+    lateinit var limboServerManager: LimboAuth
 
     companion object {
         private lateinit var instance: HyperzoneLoginMain
@@ -46,9 +48,12 @@ class HyperzoneLoginMain @Inject constructor(
     fun onEnable(event: ProxyInitializeEvent) {
         loadConfig()
         loginServerManager = LoginServerManager()
+        limboServerManager = LimboAuth(server)
 
         proxy.commandManager.register("hzl", HyperZoneLoginCommand())
         proxy.eventManager.register(this, EventListener())
+        proxy.eventManager.register(this, limboServerManager)
+//        limboServerManager.load()
 
     }
 
