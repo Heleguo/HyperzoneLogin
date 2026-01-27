@@ -1,7 +1,10 @@
 package icu.h2l.login.manager
 
+import com.velocitypowered.api.event.Subscribe
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
+import icu.h2l.login.api.EntryRegisterEvent
+import icu.h2l.login.database.DatabaseConfig
 import icu.h2l.login.database.tables.EntryTable
 import icu.h2l.login.database.tables.ProfileTable
 import org.jetbrains.exposed.sql.Database
@@ -127,6 +130,18 @@ class DatabaseManager(
     }
     
     /**
+     * 创建基础表（不包括 Entry 表）
+     * Entry 表由事件系统自动创建
+     */
+    fun createBaseTables() {
+        transaction(database) {
+            // 创建档案表
+            SchemaUtils.create(profileTable)
+            logger.info("已创建表: ${profileTable.tableName}")
+        }
+    }
+    
+    /**
      * 删除所有表（谨慎使用）
      */
     fun dropTables() {
@@ -155,68 +170,24 @@ class DatabaseManager(
             statement()
         }
     }
-}
-
-/**
- * 数据库配置
- */
-data class DatabaseConfig(
-    val jdbcUrl: String,
-    val username: String,
-    val password: String,
-    val driverClassName: String = "com.mysql.cj.jdbc.Driver",
-    val tablePrefix: String = "",
-    val maximumPoolSize: Int = 10,
-    val minimumIdle: Int = 2,
-    val connectionTimeout: Long = 30000,
-    val idleTimeout: Long = 600000,
-    val maxLifetime: Long = 1800000
-) {
-    companion object {
-        /**
-         * 创建 MySQL 配置
-         */
-        fun mysql(
-            host: String,
-            port: Int = 3306,
-            database: String,
-            username: String,
-            password: String,
-            tablePrefix: String = ""
-        ) = DatabaseConfig(
-            jdbcUrl = "jdbc:mysql://$host:$port/$database?useSSL=false&serverTimezone=UTC&characterEncoding=utf8",
-            username = username,
-            password = password,
-            driverClassName = "com.mysql.cj.jdbc.Driver",
-            tablePrefix = tablePrefix
-        )
+    
+    /**
+     * 处理 Entry 注册事件
+     * 当 EntryConfigManager 加载配置时自动注册对应的数据库表
+     */
+    @Subscribe
+    fun onEntryRegister(event: EntryRegisterEvent) {
+        logger.info("接收到 Entry 注册事件: ${event.configName} (ID: ${event.entryConfig.id})")
         
-        /**
-         * 创建 H2 配置（用于测试）
-         */
-        fun h2(
-            path: String = "./data/hyperzone_login",
-            tablePrefix: String = ""
-        ) = DatabaseConfig(
-            jdbcUrl = "jdbc:h2:file:$path;MODE=MySQL",
-            username = "sa",
-            password = "",
-            driverClassName = "org.h2.Driver",
-            tablePrefix = tablePrefix
-        )
+        // 注册 Entry 表
+        val entryTable = registerEntry(event.entryConfig.id)
         
-        /**
-         * 创建 SQLite 配置（推荐用于单机部署）
-         */
-        fun sqlite(
-            path: String = "./data/hyperzone_login.db",
-            tablePrefix: String = ""
-        ) = DatabaseConfig(
-            jdbcUrl = "jdbc:sqlite:$path",
-            username = "",
-            password = "",
-            driverClassName = "org.sqlite.JDBC",
-            tablePrefix = tablePrefix
-        )
+        // 如果数据库已连接，立即创建表
+        if (::database.isInitialized) {
+            transaction(database) {
+                SchemaUtils.create(entryTable)
+            }
+            logger.info("已为 Entry ${event.entryConfig.id} 创建数据库表")
+        }
     }
 }

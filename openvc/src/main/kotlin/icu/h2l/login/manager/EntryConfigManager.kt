@@ -1,6 +1,8 @@
 package icu.h2l.login.manager
 
-import icu.h2l.login.config.EntryConfig
+import com.velocitypowered.api.proxy.ProxyServer
+import icu.h2l.login.api.EntryRegisterEvent
+import icu.h2l.login.config.entry.EntryConfig
 import icu.h2l.login.util.debug
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger
 import org.spongepowered.configurate.ConfigurationOptions
@@ -18,7 +20,8 @@ import kotlin.io.path.name
  */
 class EntryConfigManager(
     private val dataDirectory: Path,
-    private val logger: ComponentLogger
+    private val logger: ComponentLogger,
+    private val proxyServer: ProxyServer
 ) {
     private val entryConfigs = mutableMapOf<String, EntryConfig>()
 
@@ -113,6 +116,9 @@ class EntryConfigManager(
                 val configName = path.fileName.toString().removeSuffix(CONFIG_EXTENSION)
                 entryConfigs[configName] = config
                 debug { "成功加载配置: $configName (ID: ${config.id}, Name: ${config.name})" }
+                
+                // 发布 Entry 注册事件
+                proxyServer.eventManager.fireAndForget(EntryRegisterEvent(configName, config))
             } else {
                 logger.error("无法解析配置文件: ${path.fileName}")
             }
