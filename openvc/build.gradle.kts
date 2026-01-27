@@ -9,6 +9,16 @@ dependencies {
     implementation("at.favre.lib:bcrypt:0.9.0")
     implementation("dev.samstevens.totp:totp:1.7.1")
     implementation("de.mkammerer:argon2-jvm-nolibs:2.11")
+// Exposed ORM
+    implementation("org.jetbrains.exposed:exposed-core:0.58.0")
+    implementation("org.jetbrains.exposed:exposed-dao:0.58.0")
+    implementation("org.jetbrains.exposed:exposed-jdbc:0.58.0")
+    implementation("org.jetbrains.exposed:exposed-java-time:0.58.0")
+// Database drivers
+    implementation("com.h2database:h2:2.2.224")
+    implementation("org.xerial:sqlite-jdbc:3.47.1.0")
+    implementation("mysql:mysql-connector-java:8.0.33")
+    implementation("com.zaxxer:HikariCP:5.0.1")
 //    VC
     compileOnly("com.velocitypowered:velocity-api:3.4.0-SNAPSHOT")
     compileOnly("com.velocitypowered:velocity-proxy:3.4.0-SNAPSHOT") // From Elytrium Repo.
