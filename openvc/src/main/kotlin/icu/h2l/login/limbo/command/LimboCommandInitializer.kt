@@ -14,7 +14,6 @@ object LimboCommandInitializer {
     fun registerDefaultCommands() {
         LimboCommandManager.registerCommands(
             HelpCommand(),
-            LoginCommand(),
             ExitCommand(),
             InfoCommand()
         )
