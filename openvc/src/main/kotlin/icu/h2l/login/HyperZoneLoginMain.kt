@@ -81,6 +81,9 @@ class HyperZoneLoginMain @Inject constructor(
         limboServerManager = LimboAuth(server)
         limboServerManager.load()
 
+        // 初始化 Limbo 命令系统
+        initializeLimboCommands()
+
         proxy.commandManager.register("hzl", HyperZoneLoginCommand())
         proxy.eventManager.register(this, EventListener())
         proxy.eventManager.register(this, limboServerManager)
@@ -262,6 +265,18 @@ class HyperZoneLoginMain @Inject constructor(
         logger.info("正在创建基础数据表...")
         databaseManager.createBaseTables()
         logger.info("基础数据表创建完成")
+    }
+    
+    /**
+     * 初始化 Limbo 命令系统
+     */
+    private fun initializeLimboCommands() {
+        logger.info("正在初始化 Limbo 命令系统...")
+        
+        // 注册所有内置命令
+        icu.h2l.login.limbo.command.LimboCommandInitializer.registerDefaultCommands()
+
+        logger.info("Limbo 命令系统初始化完成，已注册 ${icu.h2l.login.limbo.command.LimboCommandManager.getAllCommands().size} 个命令")
     }
 }
 
