@@ -6,6 +6,7 @@ import com.velocitypowered.api.event.Subscribe
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent
 import com.velocitypowered.api.plugin.annotation.DataDirectory
 import com.velocitypowered.api.proxy.ProxyServer
+import icu.h2l.login.auth.online.AuthManager
 import icu.h2l.login.command.HyperZoneLoginCommand
 import icu.h2l.login.config.DatabaseSourceConfig
 import icu.h2l.login.config.OfflineMatchConfig
@@ -34,7 +35,7 @@ class HyperZoneLoginMain @Inject constructor(
     lateinit var limboServerManager: LimboAuth
     lateinit var entryConfigManager: EntryConfigManager
     lateinit var databaseManager: icu.h2l.login.manager.DatabaseManager
-    lateinit var authManager: icu.h2l.login.manager.AuthManager
+    lateinit var authManager: AuthManager
 
     companion object {
         private lateinit var instance: HyperZoneLoginMain
@@ -75,7 +76,7 @@ class HyperZoneLoginMain @Inject constructor(
         createBaseTables()
         
         // 初始化AuthManager
-        authManager = icu.h2l.login.manager.AuthManager(entryConfigManager, databaseManager)
+        authManager = AuthManager(entryConfigManager, databaseManager)
 
         loginServerManager = LoginServerManager()
         limboServerManager = LimboAuth(server)

@@ -1,10 +1,5 @@
-package icu.h2l.login.auth
+package icu.h2l.login.auth.online.req
 
-import com.velocitypowered.api.util.GameProfile
-import java.net.URI
-import java.net.http.HttpClient
-import java.net.http.HttpRequest
-import java.net.http.HttpResponse
 import java.time.Duration
 
 /**

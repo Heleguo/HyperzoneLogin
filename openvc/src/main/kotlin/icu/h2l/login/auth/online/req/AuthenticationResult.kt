@@ -1,7 +1,6 @@
-package icu.h2l.login.auth
+package icu.h2l.login.auth.online.req
 
 import com.velocitypowered.api.util.GameProfile
-import java.util.UUID
 
 /**
  * 验证结果的封装类

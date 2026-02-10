@@ -1,9 +1,16 @@
-package icu.h2l.login.manager
+package icu.h2l.login.auth.online
 
 import com.velocitypowered.api.util.GameProfile
 import com.velocitypowered.proxy.VelocityServer
-import icu.h2l.login.auth.*
+import icu.h2l.login.auth.online.req.AuthServerConfig
+import icu.h2l.login.auth.online.req.AuthenticationRequest
+import icu.h2l.login.auth.online.req.AuthenticationResult
+import icu.h2l.login.auth.online.req.ConcurrentAuthenticationManager
+import icu.h2l.login.auth.online.req.MojangStyleAuthRequest
 import icu.h2l.login.config.entry.EntryConfig
+import icu.h2l.login.limbo.handler.LimboAuthSessionHandler
+import icu.h2l.login.manager.DatabaseManager
+import icu.h2l.login.manager.EntryConfigManager
 import icu.h2l.login.util.debug
 import icu.h2l.login.util.info
 import kotlinx.coroutines.*
@@ -14,6 +21,7 @@ import java.net.http.HttpClient
 import java.time.Duration
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.collections.iterator
 
 /**
  * 验证管理器
@@ -55,7 +63,7 @@ class AuthManager(
      * Key: 玩家用户名
      * Value: LimboAuthSessionHandler实例
      */
-    private val limboHandlers = ConcurrentHashMap<String, icu.h2l.login.limbo.handler.LimboAuthSessionHandler>()
+    private val limboHandlers = ConcurrentHashMap<String, LimboAuthSessionHandler>()
 
     /**
      * 协程作用域
@@ -109,7 +117,7 @@ class AuthManager(
      * @param username 玩家用户名
      * @param handler LimboAuthSessionHandler实例
      */
-    fun registerLimboHandler(username: String, handler: icu.h2l.login.limbo.handler.LimboAuthSessionHandler) {
+    fun registerLimboHandler(username: String, handler: LimboAuthSessionHandler) {
         limboHandlers[username] = handler
         debug { "为玩家 $username 注册 LimboAuthSessionHandler" }
     }
@@ -120,7 +128,7 @@ class AuthManager(
      * @param username 玩家用户名
      * @return LimboAuthSessionHandler实例，如果未注册则返回null
      */
-    fun getLimboHandler(username: String): icu.h2l.login.limbo.handler.LimboAuthSessionHandler? {
+    fun getLimboHandler(username: String): LimboAuthSessionHandler? {
         return limboHandlers[username]
     }
 

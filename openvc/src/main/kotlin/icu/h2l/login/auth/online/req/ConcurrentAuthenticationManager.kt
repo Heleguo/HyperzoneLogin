@@ -1,4 +1,4 @@
-package icu.h2l.login.auth
+package icu.h2l.login.auth.online.req
 
 import icu.h2l.login.util.debug
 import icu.h2l.login.util.info
