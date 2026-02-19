@@ -25,8 +25,6 @@ public final class OpenPreLoginEvent {
 
     private boolean online = true;
 
-    private GameProfile gameProfile;
-
     @SuppressWarnings("checkstyle:MissingJavadocMethod")
     public OpenPreLoginEvent(UUID uuid, String userName, String host) {
         this.uuid = uuid;
@@ -48,14 +46,6 @@ public final class OpenPreLoginEvent {
 
     public void setOnline(boolean online) {
         this.online = online;
-    }
-
-    public GameProfile getGameProfile() {
-        return gameProfile;
-    }
-
-    public void setGameProfile(GameProfile gameProfile) {
-        this.gameProfile = gameProfile;
     }
 
     public String getUserName() {
