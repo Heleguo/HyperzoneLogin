@@ -1,9 +1,9 @@
-package icu.h2l.login.manager
+package icu.h2l.login.auth.online.manager
 
 import com.velocitypowered.api.proxy.ProxyServer
-import icu.h2l.login.`in`.events.EntryRegisterEvent
-import icu.h2l.login.config.entry.EntryConfig
-import icu.h2l.login.util.debug
+import `fun`.iiii.h2l.api.log.debug
+import icu.h2l.login.auth.online.config.entry.EntryConfig
+import icu.h2l.login.auth.online.events.EntryRegisterEvent
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger
 import org.spongepowered.configurate.ConfigurationOptions
 import org.spongepowered.configurate.hocon.HoconConfigurationLoader
@@ -116,7 +116,7 @@ class EntryConfigManager(
                 val configName = path.fileName.toString().removeSuffix(CONFIG_EXTENSION)
                 entryConfigs[configName] = config
                 debug { "成功加载配置: $configName (ID: ${config.id}, Name: ${config.name})" }
-                
+
                 // 发布 Entry 注册事件
                 proxyServer.eventManager.fireAndForget(EntryRegisterEvent(configName, config))
             } else {
@@ -165,7 +165,7 @@ class EntryConfigManager(
 
         debug { "创建示例配置文件: ${examplePath.fileName}" }
     }
-    
+
     /**
      * 创建默认配置文件（Mojang 和 Offline）
      */
@@ -193,7 +193,7 @@ class EntryConfigManager(
 
         debug { "创建默认配置文件: mojang.conf, offline.conf" }
     }
-    
+
     /**
      * 创建简化的配置文件（只包含指定字段）
      */
@@ -211,7 +211,7 @@ class EntryConfigManager(
         }
         loader.save(node)
     }
-    
+
     /**
      * 创建配置文件的通用方法（包含所有默认值）
      */

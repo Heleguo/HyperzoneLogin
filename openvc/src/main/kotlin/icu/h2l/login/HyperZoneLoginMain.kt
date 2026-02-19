@@ -6,14 +6,15 @@ import com.velocitypowered.api.event.Subscribe
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent
 import com.velocitypowered.api.plugin.annotation.DataDirectory
 import com.velocitypowered.api.proxy.ProxyServer
-import icu.h2l.login.auth.online.AuthManager
+import icu.h2l.login.auth.online.YggdrasilAuthModule
 import icu.h2l.login.command.HyperZoneLoginCommand
 import icu.h2l.login.config.DatabaseSourceConfig
 import icu.h2l.login.config.OfflineMatchConfig
 import icu.h2l.login.config.RemapConfig
 import icu.h2l.login.database.DatabaseConfig
 import icu.h2l.login.limbo.LimboAuth
-import icu.h2l.login.manager.EntryConfigManager
+import icu.h2l.login.util.registerApiLogger
+import icu.h2l.login.auth.online.manager.EntryConfigManager
 import icu.h2l.login.listener.EventListener
 import icu.h2l.login.manager.LoginServerManager
 import java.nio.file.Files
@@ -35,7 +36,7 @@ class HyperZoneLoginMain @Inject constructor(
     lateinit var limboServerManager: LimboAuth
     lateinit var entryConfigManager: EntryConfigManager
     lateinit var databaseManager: icu.h2l.login.manager.DatabaseManager
-    lateinit var authManager: AuthManager
+    lateinit var yggdrasilAuthModule: YggdrasilAuthModule
 
     companion object {
         private lateinit var instance: HyperZoneLoginMain
@@ -63,6 +64,7 @@ class HyperZoneLoginMain @Inject constructor(
     @Subscribe
     fun onEnable(event: ProxyInitializeEvent) {
         loadConfig()
+        registerApiLogger()
         loadDatabaseConfig()
         loadRemapConfig()
         connectDatabase()
@@ -76,7 +78,7 @@ class HyperZoneLoginMain @Inject constructor(
         createBaseTables()
         
         // 初始化AuthManager
-        authManager = AuthManager(entryConfigManager, databaseManager)
+        yggdrasilAuthModule = YggdrasilAuthModule(entryConfigManager, databaseManager)
 
         loginServerManager = LoginServerManager()
         limboServerManager = LimboAuth(server)

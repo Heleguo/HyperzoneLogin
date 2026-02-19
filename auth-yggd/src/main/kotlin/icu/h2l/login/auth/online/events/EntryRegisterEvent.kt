@@ -1,6 +1,6 @@
-package icu.h2l.login.`in`.events
+package icu.h2l.login.auth.online.events
 
-import icu.h2l.login.config.entry.EntryConfig
+import icu.h2l.login.auth.online.config.entry.EntryConfig
 
 /**
  * Entry 注册事件
@@ -11,7 +11,7 @@ data class EntryRegisterEvent(
      * Entry 配置名称
      */
     val configName: String,
-    
+
     /**
      * Entry 配置对象
      */

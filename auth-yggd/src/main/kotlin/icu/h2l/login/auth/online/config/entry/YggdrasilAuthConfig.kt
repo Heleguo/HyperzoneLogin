@@ -1,4 +1,4 @@
-package icu.h2l.login.config.entry
+package icu.h2l.login.auth.online.config.entry
 
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Comment

@@ -1,7 +1,7 @@
 package icu.h2l.login.auth.online.req
 
-import icu.h2l.login.util.debug
-import icu.h2l.login.util.info
+import `fun`.iiii.h2l.api.log.debug
+import `fun`.iiii.h2l.api.log.info
 import kotlinx.coroutines.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock

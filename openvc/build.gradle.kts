@@ -4,6 +4,9 @@ plugins {
 }
 
 dependencies {
+//    下属模块
+    implementation(project(":auth-yggd"))
+
     implementation(project(":api"))
     implementation(project(":vcinjector"))
 // limboAuth
@@ -78,6 +81,8 @@ tasks {
             include(dependency("de.mkammerer:argon2-jvm-nolibs"))
 //           api
             include(dependency(":api"))
+//            模块
+            include(dependency(":auth-yggd"))
         }
     }
     build {

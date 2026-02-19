@@ -2,6 +2,9 @@ package icu.h2l.login.auth.online
 
 import com.velocitypowered.api.util.GameProfile
 import com.velocitypowered.proxy.VelocityServer
+import `fun`.iiii.h2l.api.log.debug
+import `fun`.iiii.h2l.api.log.info
+import icu.h2l.login.auth.online.manager.EntryConfigManager
 import icu.h2l.login.auth.online.req.AuthServerConfig
 import icu.h2l.login.auth.online.req.AuthenticationRequest
 import icu.h2l.login.auth.online.req.AuthenticationResult
@@ -11,8 +14,6 @@ import icu.h2l.login.config.entry.EntryConfig
 import icu.h2l.login.limbo.handler.LimboAuthSessionHandler
 import icu.h2l.login.manager.DatabaseManager
 import icu.h2l.login.manager.EntryConfigManager
-import icu.h2l.login.util.debug
-import icu.h2l.login.util.info
 import kotlinx.coroutines.*
 import net.kyori.adventure.text.Component
 import org.jetbrains.exposed.sql.or
@@ -22,12 +23,14 @@ import java.time.Duration
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.collections.iterator
+import kotlin.compareTo
+import kotlin.or
 
 /**
  * 验证管理器
  * 负责管理玩家的一层登入状态和Yggdrasil验证逻辑
  */
-class AuthManager(
+class YggdrasilAuthModule(
     private val entryConfigManager: EntryConfigManager,
     private val databaseManager: DatabaseManager
 ) {
@@ -255,7 +258,7 @@ class AuthManager(
                     // 查询是否有匹配的记录（通过用户名或UUID）
                     val hasRecord =
                         entryTable.selectAll().where { (entryTable.name eq username) or (entryTable.uuid eq uuid) }
-                            .count() > 0
+                            .count() compareTo 0
 
                     if (hasRecord) {
                         foundEntries.add(entryConfig.id)

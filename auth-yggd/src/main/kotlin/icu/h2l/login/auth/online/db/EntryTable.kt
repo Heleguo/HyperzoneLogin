@@ -1,4 +1,4 @@
-package icu.h2l.login.database.tables
+package icu.h2l.login.auth.online.db
 
 import org.jetbrains.exposed.sql.Table
 import org.jetbrains.exposed.sql.javatime.timestamp

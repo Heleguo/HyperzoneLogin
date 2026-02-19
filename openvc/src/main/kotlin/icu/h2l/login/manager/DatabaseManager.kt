@@ -3,10 +3,10 @@ package icu.h2l.login.manager
 import com.velocitypowered.api.event.Subscribe
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
-import icu.h2l.login.`in`.events.EntryRegisterEvent
+import `fun`.iiii.h2l.api.db.table.ProfileTable
+import icu.h2l.login.auth.online.db.EntryTable
+import icu.h2l.login.auth.online.events.EntryRegisterEvent
 import icu.h2l.login.database.DatabaseConfig
-import icu.h2l.login.database.tables.EntryTable
-import icu.h2l.login.database.tables.ProfileTable
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.transactions.transaction

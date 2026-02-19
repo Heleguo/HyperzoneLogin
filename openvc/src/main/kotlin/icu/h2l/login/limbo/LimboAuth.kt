@@ -42,7 +42,7 @@ class LimboAuth(server: ProxyServer) {
     fun onLoginLimboRegister(event: LoginLimboRegisterEvent) {
         // 在线额外特判
         if (event.player.isOnlineMode) {
-            val authManager = HyperZoneLoginMain.getInstance().authManager
+            val authManager = HyperZoneLoginMain.getInstance().yggdrasilAuthModule
             val handler = authManager.getLimboHandler(event.player.username)
 
             // 如果handler已经完成over验证，直接跳过登入流程
@@ -57,7 +57,7 @@ class LimboAuth(server: ProxyServer) {
 
     fun authPlayer(player: Player) {
         // this.factory.passLoginLimbo(player)
-        val authManager = HyperZoneLoginMain.getInstance().authManager
+        val authManager = HyperZoneLoginMain.getInstance().yggdrasilAuthModule
         val handler = authManager.getLimboHandler(player.username)
 
         if (handler != null) {
