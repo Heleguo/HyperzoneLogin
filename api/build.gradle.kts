@@ -12,6 +12,8 @@ repositories {
 dependencies {
 //    VC
     compileOnly("com.velocitypowered:velocity-api:3.4.0-SNAPSHOT")
+//    limbo
+    compileOnly("net.elytrium.limboapi:api:1.1.26")
 // Exposed ORM
     implementation("org.jetbrains.exposed:exposed-core:0.58.0")
 

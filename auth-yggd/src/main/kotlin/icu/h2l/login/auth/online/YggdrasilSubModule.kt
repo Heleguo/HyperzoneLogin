@@ -38,6 +38,9 @@ class YggdrasilSubModule : HyperSubModule {
             databaseManager = databaseManager,
             entryTableManager = entryTableManager
         )
+        val yggdrasilEventListener = YggdrasilEventListener(yggdrasilAuthModule)
+
+        proxy.eventManager.register(owner, yggdrasilEventListener)
 
         this.entryConfigManager = entryConfigManager
         this.entryTableManager = entryTableManager

@@ -1,7 +1,9 @@
 package icu.h2l.login.limbo.handler
 
 import com.velocitypowered.api.proxy.Player
+import icu.h2l.api.event.limbo.LimboSpawnEvent
 import icu.h2l.api.limbo.handler.LimboAuthSessionOverVerify
+import icu.h2l.login.HyperZoneLoginMain
 import net.elytrium.limboapi.api.Limbo
 import net.elytrium.limboapi.api.LimboSessionHandler
 import net.elytrium.limboapi.api.player.LimboPlayer
@@ -28,8 +30,10 @@ class LimboAuthSessionHandler(private val proxyPlayer: Player) : LimboSessionHan
     private val messageQueue = ConcurrentLinkedQueue<Component>()
 
     override fun onSpawn(server: Limbo, player: LimboPlayer) {
-//        这里添加对应的LimboSpawn事件 不要传递Limbo，只传递LimboPlayer和proxyPlayer以及自身LimboAuthSessionHandler
         this.player = player
+        HyperZoneLoginMain.getInstance().proxy.eventManager.fire(
+            LimboSpawnEvent(this.player, proxyPlayer, this)
+        )
         this.player.disableFalling()
 
         // 标记玩家已spawn
