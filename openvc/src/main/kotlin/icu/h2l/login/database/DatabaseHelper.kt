@@ -1,5 +1,6 @@
 package icu.h2l.login.database
 
+import icu.h2l.login.auth.online.db.EntryDatabaseHelper
 import icu.h2l.login.manager.DatabaseManager
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.selectAll
@@ -15,6 +16,7 @@ class DatabaseHelper(
 ) {
     
     private val profileTable = manager.getProfileTable()
+    private val entryHelper = EntryDatabaseHelper(manager, logger)
     
     /**
      * 根据 name 或 uuid 查找档案（OR 查询）
@@ -82,11 +84,7 @@ class DatabaseHelper(
      * @return 档案ID（pid），如果不存在返回 null
      */
     fun findEntryByNameAndUuid(entryId: String, name: String, uuid: UUID): UUID? {
-        val entryTable = manager.getEntryTable(entryId) ?: return null
-        
-        return manager.executeTransaction {
-            entryTable.selectAll().where { (entryTable.name eq name) and (entryTable.uuid eq uuid) }.map { it[entryTable.pid] }.firstOrNull()
-        }
+        return entryHelper.findEntryByNameAndUuid(entryId, name, uuid)
     }
     
     /**
@@ -99,21 +97,7 @@ class DatabaseHelper(
      * @return 是否创建成功
      */
     fun createEntry(entryId: String, name: String, uuid: UUID, pid: UUID): Boolean {
-        val entryTable = manager.getEntryTable(entryId) ?: return false
-        
-        return try {
-            manager.executeTransaction {
-                entryTable.insert {
-                    it[entryTable.name] = name
-                    it[entryTable.uuid] = uuid
-                    it[entryTable.pid] = pid
-                }
-            }
-            true
-        } catch (e: Exception) {
-            logger.warning("创建入口记录失败: ${e.message}")
-            false
-        }
+        return entryHelper.createEntry(entryId, name, uuid, pid)
     }
     
     /**
@@ -125,18 +109,7 @@ class DatabaseHelper(
      * @return 是否更新成功
      */
     fun updateEntryName(entryId: String, oldUuid: UUID, newName: String): Boolean {
-        val entryTable = manager.getEntryTable(entryId) ?: return false
-        
-        return try {
-            manager.executeTransaction {
-                entryTable.update({ entryTable.uuid eq oldUuid }) {
-                    it[name] = newName
-                }
-            } > 0
-        } catch (e: Exception) {
-            logger.warning("更新入口名称失败: ${e.message}")
-            false
-        }
+        return entryHelper.updateEntryName(entryId, oldUuid, newName)
     }
     
     /**
@@ -148,11 +121,7 @@ class DatabaseHelper(
      * @return true 如果匹配，false 如果不匹配
      */
     fun verifyEntry(entryId: String, name: String, uuid: UUID): Boolean {
-        val entryTable = manager.getEntryTable(entryId) ?: return false
-        
-        return manager.executeTransaction {
-            entryTable.selectAll().where { (entryTable.name eq name) and (entryTable.uuid eq uuid) }.count() > 0
-        }
+        return entryHelper.verifyEntry(entryId, name, uuid)
     }
     
     /**

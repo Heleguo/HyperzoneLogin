@@ -256,7 +256,7 @@ class YggdrasilAuthModule(
                     // 查询是否有匹配的记录（通过用户名或UUID）
                     val hasRecord =
                         entryTable.selectAll().where { (entryTable.name eq username) or (entryTable.uuid eq uuid) }
-                            .count() compareTo 0
+                            .count() > 0
 
                     if (hasRecord) {
                         foundEntries.add(entryConfig.id)

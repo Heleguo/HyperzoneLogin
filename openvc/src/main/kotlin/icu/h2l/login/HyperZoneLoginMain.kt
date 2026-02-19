@@ -69,9 +69,9 @@ class HyperZoneLoginMain @Inject constructor(
         loadRemapConfig()
         connectDatabase()
         
-        // 必须先注册 DatabaseManager 事件监听器，然后再加载 Entry 配置
-        // 这样 EntryConfigManager 发布的 EntryRegisterEvent 才能被 DatabaseManager 接收
-        proxy.eventManager.register(this, databaseManager)
+        // 必须先注册 EntryTableManager 事件监听器，然后再加载 Entry 配置
+        // 这样 EntryConfigManager 发布的 EntryRegisterEvent 才能被 EntryTableManager 接收
+        proxy.eventManager.register(this, databaseManager.getEntryTableManager())
         loadEntryConfigs()
         
         // Entry 加载完成后，创建基础表（Profile 表等）

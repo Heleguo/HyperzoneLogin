@@ -1,11 +1,16 @@
 package icu.h2l.login.manager
 
-import com.velocitypowered.api.event.Subscribe
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
+import `fun`.iiii.h2l.api.db.HyperZoneTransactionApi
+import `fun`.iiii.h2l.api.db.HyperZoneTransactionExecutor
 import `fun`.iiii.h2l.api.db.table.ProfileTable
+import `fun`.iiii.h2l.api.event.db.EntryTableSchemaAction
+import `fun`.iiii.h2l.api.event.db.EntryTableSchemaEvent
+import `fun`.iiii.h2l.api.event.db.EntryTableSchemaEventApi
+import icu.h2l.login.auth.online.DatabaseManager as YggdrasilDatabaseManager
 import icu.h2l.login.auth.online.db.EntryTable
-import icu.h2l.login.auth.online.events.EntryRegisterEvent
+import icu.h2l.login.auth.online.db.EntryTableManager
 import icu.h2l.login.database.DatabaseConfig
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
@@ -19,7 +24,7 @@ import java.util.logging.Logger
 class DatabaseManager(
     private val logger: Logger,
     private val config: DatabaseConfig
-) {
+) : YggdrasilDatabaseManager {
     private lateinit var database: Database
     private lateinit var dataSource: HikariDataSource
     
@@ -27,11 +32,11 @@ class DatabaseManager(
      * 档案表实例
      */
     private val profileTable = ProfileTable(config.tablePrefix)
-    
+
     /**
-     * 存储所有已注册的入口表
+     * Entry 表管理器（由 auth-yggd 模块提供）
      */
-    private val entryTables = mutableMapOf<String, EntryTable>()
+    private val entryTableManager = EntryTableManager(logger, config.tablePrefix, profileTable)
     
     /**
      * 连接数据库
@@ -63,6 +68,14 @@ class DatabaseManager(
         
         dataSource = HikariDataSource(hikariConfig)
         database = Database.connect(dataSource)
+
+        HyperZoneTransactionApi.registerExecutor(object : HyperZoneTransactionExecutor {
+            override fun <T> execute(statement: () -> T): T {
+                return transaction(database) {
+                    statement()
+                }
+            }
+        })
         
         logger.info("数据库连接成功！")
     }
@@ -85,12 +98,7 @@ class DatabaseManager(
      * @return 创建的入口表实例
      */
     fun registerEntry(entryId: String): EntryTable {
-        val normalizedId = entryId.lowercase()
-        
-        return entryTables.getOrPut(normalizedId) {
-            logger.info("注册入口表: $normalizedId")
-            EntryTable(normalizedId, config.tablePrefix, profileTable)
-        }
+        return entryTableManager.registerEntry(entryId)
     }
     
     /**
@@ -99,9 +107,9 @@ class DatabaseManager(
      * @param entryId 入口ID
      * @return 入口表实例，如果未注册则返回 null
      */
-    fun getEntryTable(entryId: String): EntryTable? {
-        return entryTables[entryId.lowercase()]
-    }
+    override fun getEntryTable(entryId: String): EntryTable? = entryTableManager.getEntryTable(entryId)
+
+    fun getEntryTableManager(): EntryTableManager = entryTableManager
     
     /**
      * 获取档案表实例
@@ -112,21 +120,18 @@ class DatabaseManager(
      * 创建所有表
      */
     fun createTables() {
-        transaction(database) {
+        executeTransaction {
             logger.info("正在创建数据库表...")
             
             // 创建档案表
             SchemaUtils.create(profileTable)
             logger.info("已创建表: ${profileTable.tableName}")
-            
-            // 创建所有入口表
-            entryTables.values.forEach { entryTable ->
-                SchemaUtils.create(entryTable)
-                logger.info("已创建表: ${entryTable.tableName}")
-            }
-            
-            logger.info("数据库表创建完成！")
         }
+
+        // 通知模块创建所有入口表
+        EntryTableSchemaEventApi.fire(EntryTableSchemaEvent(EntryTableSchemaAction.CREATE_ALL))
+
+        logger.info("数据库表创建完成！")
     }
     
     /**
@@ -145,49 +150,26 @@ class DatabaseManager(
      * 删除所有表（谨慎使用）
      */
     fun dropTables() {
-        transaction(database) {
-            logger.warning("正在删除数据库表...")
-            
-            // 删除所有入口表
-            entryTables.values.forEach { entryTable ->
-                SchemaUtils.drop(entryTable)
-                logger.warning("已删除表: ${entryTable.tableName}")
-            }
-            
+        logger.warning("正在删除数据库表...")
+
+        // 通知模块删除所有入口表
+        EntryTableSchemaEventApi.fire(EntryTableSchemaEvent(EntryTableSchemaAction.DROP_ALL))
+
+        executeTransaction {
             // 删除档案表
             SchemaUtils.drop(profileTable)
             logger.warning("已删除表: ${profileTable.tableName}")
-            
-            logger.warning("数据库表已全部删除！")
         }
+
+        logger.warning("数据库表已全部删除！")
     }
     
     /**
      * 执行数据库事务
      */
-    fun <T> executeTransaction(statement: () -> T): T {
+    override fun <T> executeTransaction(statement: () -> T): T {
         return transaction(database) {
             statement()
-        }
-    }
-    
-    /**
-     * 处理 Entry 注册事件
-     * 当 EntryConfigManager 加载配置时自动注册对应的数据库表
-     */
-    @Subscribe
-    fun onEntryRegister(event: EntryRegisterEvent) {
-        logger.info("接收到 Entry 注册事件: ${event.configName} (ID: ${event.entryConfig.id})")
-        
-        // 注册 Entry 表
-        val entryTable = registerEntry(event.entryConfig.id)
-        
-        // 如果数据库已连接，立即创建表
-        if (::database.isInitialized) {
-            transaction(database) {
-                SchemaUtils.create(entryTable)
-            }
-            logger.info("已为 Entry ${event.entryConfig.id} 创建数据库表")
         }
     }
 }
