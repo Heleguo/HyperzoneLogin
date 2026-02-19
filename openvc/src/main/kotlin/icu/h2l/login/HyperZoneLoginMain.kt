@@ -6,7 +6,7 @@ import com.velocitypowered.api.event.Subscribe
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent
 import com.velocitypowered.api.plugin.annotation.DataDirectory
 import com.velocitypowered.api.proxy.ProxyServer
-import icu.h2l.login.auth.online.YggdrasilAuthModule
+import `fun`.iiii.h2l.api.module.HyperSubModule
 import icu.h2l.login.command.HyperZoneLoginCommand
 import icu.h2l.login.config.DatabaseSourceConfig
 import icu.h2l.login.config.OfflineMatchConfig
@@ -14,7 +14,6 @@ import icu.h2l.login.config.RemapConfig
 import icu.h2l.login.database.DatabaseConfig
 import icu.h2l.login.limbo.LimboAuth
 import icu.h2l.login.util.registerApiLogger
-import icu.h2l.login.auth.online.manager.EntryConfigManager
 import icu.h2l.login.listener.EventListener
 import icu.h2l.login.manager.LoginServerManager
 import java.nio.file.Files
@@ -34,9 +33,7 @@ class HyperZoneLoginMain @Inject constructor(
 ) {
     lateinit var loginServerManager: LoginServerManager
     lateinit var limboServerManager: LimboAuth
-    lateinit var entryConfigManager: EntryConfigManager
     lateinit var databaseManager: icu.h2l.login.manager.DatabaseManager
-    lateinit var yggdrasilAuthModule: YggdrasilAuthModule
 
     companion object {
         private lateinit var instance: HyperZoneLoginMain
@@ -68,17 +65,11 @@ class HyperZoneLoginMain @Inject constructor(
         loadDatabaseConfig()
         loadRemapConfig()
         connectDatabase()
-        
-        // 必须先注册 EntryTableManager 事件监听器，然后再加载 Entry 配置
-        // 这样 EntryConfigManager 发布的 EntryRegisterEvent 才能被 EntryTableManager 接收
-        proxy.eventManager.register(this, databaseManager.getEntryTableManager())
-        loadEntryConfigs()
+
+        registerModule("icu.h2l.login.auth.online.YggdrasilSubModule")
         
         // Entry 加载完成后，创建基础表（Profile 表等）
         createBaseTables()
-        
-        // 初始化AuthManager
-        yggdrasilAuthModule = YggdrasilAuthModule(entryConfigManager, databaseManager)
 
         loginServerManager = LoginServerManager()
         limboServerManager = LimboAuth(server)
@@ -92,6 +83,25 @@ class HyperZoneLoginMain @Inject constructor(
 
     val proxy: ProxyServer
         get() = server
+
+    fun getDataDirectoryPath(): Path = dataDirectory
+
+    fun registerModule(moduleClassName: String) {
+        try {
+            val clazz = Class.forName(moduleClassName)
+            val moduleInstance = clazz.getDeclaredConstructor().newInstance()
+
+            if (moduleInstance !is HyperSubModule) {
+                logger.error("模块 $moduleClassName 未实现 HyperSubModule，跳过加载")
+                return
+            }
+
+            moduleInstance.register(this)
+            logger.info("模块加载成功: $moduleClassName")
+        } catch (e: Exception) {
+            logger.error("加载模块 $moduleClassName 失败: ${e.message}", e)
+        }
+    }
 
     private fun loadConfig() {
         val path = dataDirectory.resolve("offlinematch.conf")
@@ -124,11 +134,6 @@ class HyperZoneLoginMain @Inject constructor(
         }
     }
 
-    private fun loadEntryConfigs() {
-        entryConfigManager = EntryConfigManager(dataDirectory, logger, proxy)
-        entryConfigManager.loadAllConfigs()
-    }
-    
     private fun loadDatabaseConfig() {
         val path = dataDirectory.resolve("database.conf")
         val firstCreation = Files.notExists(path)

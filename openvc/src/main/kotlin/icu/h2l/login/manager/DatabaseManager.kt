@@ -8,9 +8,6 @@ import `fun`.iiii.h2l.api.db.table.ProfileTable
 import `fun`.iiii.h2l.api.event.db.EntryTableSchemaAction
 import `fun`.iiii.h2l.api.event.db.EntryTableSchemaEvent
 import `fun`.iiii.h2l.api.event.db.EntryTableSchemaEventApi
-import icu.h2l.login.auth.online.DatabaseManager as YggdrasilDatabaseManager
-import icu.h2l.login.auth.online.db.EntryTable
-import icu.h2l.login.auth.online.db.EntryTableManager
 import icu.h2l.login.database.DatabaseConfig
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
@@ -24,7 +21,7 @@ import java.util.logging.Logger
 class DatabaseManager(
     private val logger: Logger,
     private val config: DatabaseConfig
-) : YggdrasilDatabaseManager {
+) {
     private lateinit var database: Database
     private lateinit var dataSource: HikariDataSource
     
@@ -33,11 +30,6 @@ class DatabaseManager(
      */
     private val profileTable = ProfileTable(config.tablePrefix)
 
-    /**
-     * Entry 表管理器（由 auth-yggd 模块提供）
-     */
-    private val entryTableManager = EntryTableManager(logger, config.tablePrefix, profileTable)
-    
     /**
      * 连接数据库
      */
@@ -90,26 +82,7 @@ class DatabaseManager(
             logger.info("数据库连接已断开！")
         }
     }
-    
-    /**
-     * 注册入口表
-     * 
-     * @param entryId 入口ID，如 "mojang"、"offline"
-     * @return 创建的入口表实例
-     */
-    fun registerEntry(entryId: String): EntryTable {
-        return entryTableManager.registerEntry(entryId)
-    }
-    
-    /**
-     * 获取已注册的入口表
-     * 
-     * @param entryId 入口ID
-     * @return 入口表实例，如果未注册则返回 null
-     */
-    override fun getEntryTable(entryId: String): EntryTable? = entryTableManager.getEntryTable(entryId)
 
-    fun getEntryTableManager(): EntryTableManager = entryTableManager
     
     /**
      * 获取档案表实例
@@ -163,11 +136,11 @@ class DatabaseManager(
 
         logger.warning("数据库表已全部删除！")
     }
-    
+
     /**
      * 执行数据库事务
      */
-    override fun <T> executeTransaction(statement: () -> T): T {
+    fun <T> executeTransaction(statement: () -> T): T {
         return transaction(database) {
             statement()
         }

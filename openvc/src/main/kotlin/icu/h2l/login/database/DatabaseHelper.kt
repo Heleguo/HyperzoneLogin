@@ -1,6 +1,5 @@
 package icu.h2l.login.database
 
-import icu.h2l.login.auth.online.db.EntryDatabaseHelper
 import icu.h2l.login.manager.DatabaseManager
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.selectAll
@@ -16,7 +15,6 @@ class DatabaseHelper(
 ) {
     
     private val profileTable = manager.getProfileTable()
-    private val entryHelper = EntryDatabaseHelper(manager, logger)
     
     /**
      * 根据 name 或 uuid 查找档案（OR 查询）
@@ -74,56 +72,7 @@ class DatabaseHelper(
             false
         }
     }
-    
-    /**
-     * 在入口表中查找记录
-     * 
-     * @param entryId 入口ID
-     * @param name 玩家名
-     * @param uuid 玩家UUID
-     * @return 档案ID（pid），如果不存在返回 null
-     */
-    fun findEntryByNameAndUuid(entryId: String, name: String, uuid: UUID): UUID? {
-        return entryHelper.findEntryByNameAndUuid(entryId, name, uuid)
-    }
-    
-    /**
-     * 创建入口记录
-     * 
-     * @param entryId 入口ID
-     * @param name 玩家名
-     * @param uuid 玩家UUID
-     * @param pid 档案ID
-     * @return 是否创建成功
-     */
-    fun createEntry(entryId: String, name: String, uuid: UUID, pid: UUID): Boolean {
-        return entryHelper.createEntry(entryId, name, uuid, pid)
-    }
-    
-    /**
-     * 更新入口表中的name
-     * 
-     * @param entryId 入口ID
-     * @param oldUuid 原UUID
-     * @param newName 新名称
-     * @return 是否更新成功
-     */
-    fun updateEntryName(entryId: String, oldUuid: UUID, newName: String): Boolean {
-        return entryHelper.updateEntryName(entryId, oldUuid, newName)
-    }
-    
-    /**
-     * 检查入口表中的记录是否与给定的 name 和 uuid 匹配
-     * 
-     * @param entryId 入口ID
-     * @param name 玩家名
-     * @param uuid 玩家UUID
-     * @return true 如果匹配，false 如果不匹配
-     */
-    fun verifyEntry(entryId: String, name: String, uuid: UUID): Boolean {
-        return entryHelper.verifyEntry(entryId, name, uuid)
-    }
-    
+
     /**
      * 获取档案信息
      * 

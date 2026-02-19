@@ -32,17 +32,7 @@ class EventListener {
     @Subscribe
     fun onPreLogin(event: OnlineAuthEvent) {
         val username = event.userName
-        val serverId = event.serverId
-        val playerIp = event.playerIp
-        val uuid = event.userUUID
-
         // 先给临时 Profile，让玩家继续登录流程
         event.gameProfile = RemapUtils.genProfile(username, HyperZoneLoginMain.getRemapConfig().prefix)
-
-        // 启动异步验证，AuthManager会自己处理并存储结果
-        if (event.isOnline)//yggd验证才会触发
-            HyperZoneLoginMain.getInstance().yggdrasilAuthModule.startYggdrasilAuth(username, uuid, serverId, playerIp)
-//        我们需要 userName serverId playerIp来传递给下层用于验证
-
     }
 } 
