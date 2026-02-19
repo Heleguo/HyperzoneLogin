@@ -1,7 +1,7 @@
 package icu.h2l.login.auth.online.db
 
 import com.velocitypowered.api.event.Subscribe
-import `fun`.iiii.h2l.api.db.HyperZoneTransactionApi
+import `fun`.iiii.h2l.api.db.HyperZoneDatabaseManager
 import `fun`.iiii.h2l.api.db.table.ProfileTable
 import `fun`.iiii.h2l.api.event.db.TableSchemaAction
 import `fun`.iiii.h2l.api.event.db.TableSchemaEvent
@@ -16,6 +16,7 @@ import java.util.logging.Logger
  */
 class EntryTableManager(
     private val logger: Logger,
+    private val databaseManager: HyperZoneDatabaseManager,
     private val tablePrefix: String,
     private val profileTable: ProfileTable
 ) {
@@ -38,7 +39,7 @@ class EntryTableManager(
     }
 
     private fun createAllEntryTables() {
-        HyperZoneTransactionApi.execute {
+        databaseManager.executeTransaction {
             entryTables.values.forEach { entryTable ->
                 SchemaUtils.create(entryTable)
                 logger.info("已创建表: ${entryTable.tableName}")
@@ -47,7 +48,7 @@ class EntryTableManager(
     }
 
     private fun dropAllEntryTables() {
-        HyperZoneTransactionApi.execute {
+        databaseManager.executeTransaction {
             entryTables.values.forEach { entryTable ->
                 SchemaUtils.drop(entryTable)
                 logger.warning("已删除表: ${entryTable.tableName}")
@@ -68,7 +69,7 @@ class EntryTableManager(
 
         val entryTable = registerEntry(event.entryConfig.id)
 
-        HyperZoneTransactionApi.execute {
+        databaseManager.executeTransaction {
             SchemaUtils.create(entryTable)
         }
         logger.info("已为 Entry ${event.entryConfig.id} 创建数据库表")

@@ -3,8 +3,6 @@ package icu.h2l.login.manager
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import `fun`.iiii.h2l.api.db.HyperZoneDatabaseManager
-import `fun`.iiii.h2l.api.db.HyperZoneTransactionApi
-import `fun`.iiii.h2l.api.db.HyperZoneTransactionExecutor
 import `fun`.iiii.h2l.api.db.table.ProfileTable
 import `fun`.iiii.h2l.api.event.db.TableSchemaAction
 import `fun`.iiii.h2l.api.event.db.TableSchemaEvent
@@ -64,14 +62,6 @@ class DatabaseManager(
         
         dataSource = HikariDataSource(hikariConfig)
         database = Database.connect(dataSource)
-
-        HyperZoneTransactionApi.registerExecutor(object : HyperZoneTransactionExecutor {
-            override fun <T> execute(statement: () -> T): T {
-                return transaction(database) {
-                    statement()
-                }
-            }
-        })
         
         logger.info("数据库连接成功！")
     }

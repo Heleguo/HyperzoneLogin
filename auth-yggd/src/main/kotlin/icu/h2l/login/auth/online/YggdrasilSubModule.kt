@@ -23,6 +23,7 @@ class YggdrasilSubModule : HyperSubModule {
         val entryConfigManager = EntryConfigManager(dataDirectory, proxy)
         val entryTableManager = EntryTableManager(
             logger = Logger.getLogger("HyperZoneLogin-AuthYggd"),
+            databaseManager = databaseManager,
             tablePrefix = databaseManager.tablePrefix,
             profileTable = ProfileTable(databaseManager.tablePrefix)
         )
