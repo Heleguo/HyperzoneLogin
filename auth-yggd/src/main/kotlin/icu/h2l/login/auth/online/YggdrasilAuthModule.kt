@@ -42,20 +42,6 @@ class YggdrasilAuthModule(
     private val gson = VelocityServer.GENERAL_GSON
 
     /**
-     * 玩家一层登入状态
-     * Key: 玩家用户名
-     * Value: 是否已通过一层验证
-     */
-    private val firstLevelAuthStatus = ConcurrentHashMap<String, Boolean>()
-
-    /**
-     * 玩家验证成功的Entry ID
-     * Key: 玩家用户名
-     * Value: Entry ID
-     */
-    private val playerEntryMapping = ConcurrentHashMap<String, String>()
-
-    /**
      * 存储验证结果
      * Key: 玩家用户名
      * Value: 验证结果
@@ -68,6 +54,15 @@ class YggdrasilAuthModule(
      * Value: LimboAuthSessionHandler实例
      */
     private val limboHandlers = ConcurrentHashMap<String, icu.h2l.api.limbo.handler.LimboAuthSessionOverVerify>()
+
+    /**
+     * 存储正在进行中的验证任务
+     * Key: 玩家用户名
+     * Value: 验证任务
+     */
+    private val inFlightAuthJobs = ConcurrentHashMap<String, Job>()
+
+    private val authLaunchLock = Any()
 
     /**
      * 协程作用域
@@ -88,19 +83,36 @@ class YggdrasilAuthModule(
         serverId: String,
         playerIp: String? = null
     ) {
-        coroutineScope.launch {
-            val result = performYggdrasilAuth(username, uuid, serverId, playerIp)
-            authResults[username] = result
-
-            if (result is YggdrasilAuthResult.Success) {
-                info { "玩家 $username 通过 Yggdrasil 验证，Entry: ${result.entryId}" }
-
-                // 验证成功，调用LimboHandler的overVerify方法
-                limboHandlers[username]?.overVerify()
-            } else {
-                limboHandlers[username]?.sendMessage(Component.text("玩家 $username Yggdrasil 验证失败"))
-                info { "玩家 $username Yggdrasil 验证失败" }
+        debug { "[YggdrasilFlow] 请求启动验证: user=$username" }
+        synchronized(authLaunchLock) {
+            if (authResults.containsKey(username)) {
+                debug { "玩家 $username 已有验证结果，跳过重复验证请求" }
+                return
             }
+
+            val runningJob = inFlightAuthJobs[username]
+            if (runningJob?.isActive == true) {
+                debug { "玩家 $username 验证任务进行中，跳过重复验证请求" }
+                return
+            }
+
+            val job = coroutineScope.launch {
+                try {
+                    debug { "[YggdrasilFlow] 验证任务开始执行: user=$username" }
+                    val result = performYggdrasilAuth(username, uuid, serverId, playerIp)
+                    authResults[username] = result
+                    debug { "[YggdrasilFlow] 验证任务完成并缓存结果: user=$username, result=${result.javaClass.simpleName}" }
+                    limboHandlers[username]?.let { handler ->
+                        dispatchAuthResultToHandler(username, handler, result)
+                    } ?: run {
+                        debug { "[YggdrasilFlow] 尚未注册 Limbo handler，等待后续 LimboSpawnEvent: user=$username" }
+                    }
+                } finally {
+                    inFlightAuthJobs.remove(username)
+                }
+            }
+
+            inFlightAuthJobs[username] = job
         }
     }
 
@@ -124,6 +136,13 @@ class YggdrasilAuthModule(
     fun registerLimboHandler(username: String, handler: LimboAuthSessionOverVerify) {
         limboHandlers[username] = handler
         debug { "为玩家 $username 注册 LimboAuthSessionHandler" }
+
+        authResults[username]?.let { result ->
+            debug { "[YggdrasilFlow] 命中已完成结果，立即回调: user=$username" }
+            dispatchAuthResultToHandler(username, handler, result)
+        } ?: run {
+            debug { "[YggdrasilFlow] 验证结果尚未完成，等待异步回调: user=$username" }
+        }
     }
 
     /**
@@ -136,51 +155,33 @@ class YggdrasilAuthModule(
         return limboHandlers[username]
     }
 
-    /**
-     * 设置玩家的一层登入状态
-     * 
-     * @param username 玩家用户名
-     * @param status 验证状态
-     * @param entryId 验证成功的Entry ID（可选）
-     */
-    fun setFirstLevelAuthStatus(username: String, status: Boolean, entryId: String? = null) {
-        firstLevelAuthStatus[username] = status
-        if (status && entryId != null) {
-            playerEntryMapping[username] = entryId
-            info { "玩家 $username 通过一层验证，Entry: $entryId" }
+
+    private fun dispatchAuthResultToHandler(
+        username: String,
+        handler: LimboAuthSessionOverVerify,
+        result: YggdrasilAuthResult
+    ) {
+        try {
+            if (result is YggdrasilAuthResult.Success) {
+                info { "玩家 $username 通过 Yggdrasil 验证，Entry: ${result.entryId}" }
+                if (!handler.isOverVerified()) {
+                    handler.overVerify()
+                }
+                return
+            }
+
+            handler.sendMessage(Component.text("玩家 $username Yggdrasil 验证失败"))
+            info { "玩家 $username Yggdrasil 验证失败" }
+        } finally {
+            clearTransientStateAfterDispatch(username)
         }
     }
 
-    /**
-     * 获取玩家的一层登入状态
-     * 
-     * @param username 玩家用户名
-     * @return 是否已通过一层验证
-     */
-    fun getFirstLevelAuthStatus(username: String): Boolean {
-        return firstLevelAuthStatus.getOrDefault(username, false)
-    }
-
-    /**
-     * 清除玩家的验证状态
-     * 
-     * @param username 玩家用户名
-     */
-    fun clearAuthStatus(username: String) {
-        firstLevelAuthStatus.remove(username)
-        playerEntryMapping.remove(username)
+    private fun clearTransientStateAfterDispatch(username: String) {
         authResults.remove(username)
         limboHandlers.remove(username)
-    }
-
-    /**
-     * 获取玩家验证成功的Entry ID
-     * 
-     * @param username 玩家用户名
-     * @return Entry ID，如果未验证则返回null
-     */
-    fun getPlayerEntry(username: String): String? {
-        return playerEntryMapping[username]
+        inFlightAuthJobs.remove(username)?.cancel()
+        debug { "[YggdrasilFlow] 回调完成后已清理临时状态: user=$username" }
     }
 
     /**（内部方法，由startYggdrasilAuth调用）
@@ -360,8 +361,6 @@ class YggdrasilAuthModule(
                     // 尝试从URL中提取
                     requests.firstOrNull()?.first ?: "unknown"
                 }
-
-                setFirstLevelAuthStatus(username, true, entryId)
 
                 YggdrasilAuthResult.Success(
                     profile = result.profile,
