@@ -16,9 +16,8 @@ import com.velocitypowered.proxy.protocol.netty.MinecraftDecoder;
 import com.velocitypowered.proxy.protocol.packet.EncryptionRequestPacket;
 import com.velocitypowered.proxy.protocol.packet.EncryptionResponsePacket;
 import com.velocitypowered.proxy.protocol.packet.ServerLoginPacket;
-import fun.iiii.h2l.api.event.connection.OnlineAuthEvent;
-import fun.iiii.h2l.api.event.connection.OpenPreLoginEvent;
 import fun.iiii.openvelocity.mixin.IMixinLoginInboundConnection;
+import fun.iiii.openvelocity.mixin.util.ApiEventReflector;
 import fun.iiii.openvelocity.mixin.util.AuthSessionHandlerFactory;
 import net.kyori.adventure.text.Component;
 import org.apache.logging.log4j.LogManager;
@@ -185,12 +184,18 @@ public class MixinInitialLoginSessionHandler {
                 }
 
                 mcConnection.eventLoop().execute(() -> {
+                    if (!ApiEventReflector.tryInit()) {
+                        logger.error("Unable to initialize ApiEventReflector: plugin classloaders are not ready");
+                        inbound.disconnect(Component.text("内部错误[ApiEventReflector未就绪]"));
+                        return;
+                    }
+
                     UUID holderUuid = login.getHolderUuid();
                     String userName = login.getUsername();
                     String host = inbound.getRawVirtualHost().isPresent() ? inbound.getRawVirtualHost().get() : "";
-                    OpenPreLoginEvent openPreLoginEvent = new OpenPreLoginEvent(holderUuid, userName, host);
+                    Object openPreLoginEvent = ApiEventReflector.createOpenPreLoginEvent(holderUuid, userName, host);
                     server.getEventManager().fire(openPreLoginEvent).thenRun(() -> {
-                        if (openPreLoginEvent.isOnline()) {
+                        if (ApiEventReflector.isOpenPreLoginOnline(openPreLoginEvent)) {
                             EncryptionRequestPacket request = generateEncryptionRequest();
                             this.verify = Arrays.copyOf(request.getVerifyToken(), 4);
                             mcConnection.write(request);
@@ -217,8 +222,20 @@ public class MixinInitialLoginSessionHandler {
     }
 
     private void doLogin(boolean online, String serverId, byte[] decryptedSharedSecret) {
+        if (!ApiEventReflector.tryInit()) {
+            logger.error("Unable to initialize ApiEventReflector: plugin classloaders are not ready");
+            inbound.disconnect(Component.text("内部错误[ApiEventReflector未就绪]"));
+            return;
+        }
+
         String playerIp = ((InetSocketAddress) mcConnection.getRemoteAddress()).getHostString();
-        OnlineAuthEvent onlineAuthEvent = new OnlineAuthEvent(login.getUsername(), login.getHolderUuid(), serverId, playerIp, online);
+        Object onlineAuthEvent = ApiEventReflector.createOnlineAuthEvent(
+            login.getUsername(),
+            login.getHolderUuid(),
+            serverId,
+            playerIp,
+            online
+        );
         server.getEventManager().fire(onlineAuthEvent).thenRunAsync(
                 () -> {
                     if (mcConnection.isClosed()) {
@@ -243,7 +260,7 @@ public class MixinInitialLoginSessionHandler {
                         return;
                     }
 
-                    final GameProfile profile = onlineAuthEvent.getGameProfile();
+                    final GameProfile profile = ApiEventReflector.getOnlineAuthGameProfile(onlineAuthEvent);
 
                     AuthSessionHandler authSessionHandler = createHandler(server, inbound, profile, online);
 
