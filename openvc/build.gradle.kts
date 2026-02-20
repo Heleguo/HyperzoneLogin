@@ -6,7 +6,7 @@ plugins {
 dependencies {
     implementation(project(":auth-yggd"))
     implementation(project(":api"))
-    implementation(project(":vcinjector"))
+//    implementation(project(":vcinjector"))
 
 // Exposed ORM
     implementation("org.jetbrains.exposed:exposed-core:0.58.0")

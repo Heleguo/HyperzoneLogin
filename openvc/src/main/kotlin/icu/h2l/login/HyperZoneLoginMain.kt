@@ -16,6 +16,7 @@ import icu.h2l.login.config.OfflineMatchConfig
 import icu.h2l.login.config.RemapConfig
 import icu.h2l.login.database.DatabaseConfig
 import icu.h2l.login.database.DatabaseHelper
+import icu.h2l.login.inject.network.VelocityNetworkModule
 import icu.h2l.login.limbo.LimboAuth
 import icu.h2l.login.util.registerApiLogger
 import icu.h2l.login.listener.EventListener
@@ -75,6 +76,7 @@ class HyperZoneLoginMain @Inject constructor(
         // 创建基础表（Profile 表等）
         createBaseTables()
 
+        registerModule(VelocityNetworkModule())
         registerModule(YggdrasilSubModule())
 
 
