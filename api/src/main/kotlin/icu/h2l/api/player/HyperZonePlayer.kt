@@ -1,5 +1,6 @@
 package icu.h2l.api.player
 
+import icu.h2l.api.db.Profile
 import net.kyori.adventure.text.Component
 
 /**
@@ -15,6 +16,20 @@ interface HyperZonePlayer {
      * 主要依据：数据库中是否已存在该玩家 Profile。
      */
     fun canRegister(): Boolean
+
+    /**
+     * 注册玩家并写入 Profile 表。
+     *
+     * @return 写入数据库后的 Profile 对象
+     */
+    fun register(): Profile
+
+    /**
+     * 获取当前玩家对应的 Profile。
+     *
+     * @return Profile，不存在时返回 null
+     */
+    fun getProfile(): Profile?
 
     /**
      * 当前玩家是否已完成验证。

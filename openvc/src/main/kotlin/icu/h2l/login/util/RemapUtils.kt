@@ -13,7 +13,7 @@ object RemapUtils {
         )
     }
 
-    private fun genUUID(username: String, prefix: String): UUID {
+    fun genUUID(username: String, prefix: String): UUID {
         return UUID.nameUUIDFromBytes(("$prefix:$username").toByteArray(StandardCharsets.UTF_8))
     }
 }
