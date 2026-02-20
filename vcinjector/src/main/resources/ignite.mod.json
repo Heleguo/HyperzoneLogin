@@ -1,7 +1,0 @@
-{
-  "id": "openvc",
-  "version": "1.0.0",
-  "mixins": [
-    "mixins.openvc.core.json"
-  ]
-}
