@@ -4,8 +4,8 @@ import com.velocitypowered.api.event.Subscribe
 import com.velocitypowered.api.plugin.PluginContainer
 import com.velocitypowered.api.proxy.Player
 import com.velocitypowered.api.proxy.ProxyServer
-import icu.h2l.login.HyperZoneLoginMain
 import icu.h2l.login.limbo.handler.LimboAuthSessionHandler
+import icu.h2l.login.manager.HyperZonePlayerManager
 import net.elytrium.limboapi.api.Limbo
 import net.elytrium.limboapi.api.LimboFactory
 import net.elytrium.limboapi.api.chunk.Dimension
@@ -47,7 +47,9 @@ class LimboAuth(server: ProxyServer) {
 
     fun authPlayer(player: Player) {
         // this.factory.passLoginLimbo(player) 这是跳过方法
-        val newHandler = LimboAuthSessionHandler(player)
+        val hyperZonePlayer = HyperZonePlayerManager.getOrCreate(player)
+
+        val newHandler = LimboAuthSessionHandler(player, hyperZonePlayer)
         authServer.spawnPlayer(player, newHandler)
     }
 }

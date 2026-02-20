@@ -15,6 +15,7 @@ import icu.h2l.login.config.DatabaseSourceConfig
 import icu.h2l.login.config.OfflineMatchConfig
 import icu.h2l.login.config.RemapConfig
 import icu.h2l.login.database.DatabaseConfig
+import icu.h2l.login.database.DatabaseHelper
 import icu.h2l.login.limbo.LimboAuth
 import icu.h2l.login.util.registerApiLogger
 import icu.h2l.login.listener.EventListener
@@ -37,6 +38,7 @@ class HyperZoneLoginMain @Inject constructor(
     lateinit var loginServerManager: LoginServerManager
     lateinit var limboServerManager: LimboAuth
     lateinit var databaseManager: icu.h2l.login.manager.DatabaseManager
+    lateinit var databaseHelper: DatabaseHelper
 
 
     companion object {
@@ -257,6 +259,7 @@ class HyperZoneLoginMain @Inject constructor(
         )
         
         databaseManager.connect()
+        databaseHelper = DatabaseHelper(databaseManager, java.util.logging.Logger.getLogger("HyperZoneLogin"))
         
         logger.info("数据库连接完成")
     }
