@@ -28,6 +28,6 @@ class YggdrasilEventListener(
 
         val username = event.proxyPlayer.username
         debug { "[YggdrasilFlow] LimboSpawnEvent 收到，注册回调: user=$username" }
-        yggdrasilAuthModule.registerLimboHandler(username, event.sessionOverVerify)
+        yggdrasilAuthModule.registerLimboHandler(username, event.hyperZonePlayer)
     }
 }

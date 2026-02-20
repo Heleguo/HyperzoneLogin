@@ -2,16 +2,18 @@ package icu.h2l.login.limbo.handler
 
 import com.velocitypowered.api.proxy.Player
 import icu.h2l.api.event.limbo.LimboSpawnEvent
-import icu.h2l.api.limbo.handler.LimboAuthSessionOverVerify
+import icu.h2l.api.player.HyperZonePlayer
 import icu.h2l.login.HyperZoneLoginMain
 import net.elytrium.limboapi.api.Limbo
 import net.elytrium.limboapi.api.LimboSessionHandler
 import net.elytrium.limboapi.api.player.LimboPlayer
 import net.kyori.adventure.text.Component
+import org.jetbrains.exposed.sql.or
+import org.jetbrains.exposed.sql.selectAll
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
 
-class LimboAuthSessionHandler(private val proxyPlayer: Player) : LimboSessionHandler, LimboAuthSessionOverVerify {
+class LimboAuthSessionHandler(private val proxyPlayer: Player) : LimboSessionHandler, HyperZonePlayer {
     private lateinit var player: LimboPlayer
 
     /**
@@ -44,6 +46,24 @@ class LimboAuthSessionHandler(private val proxyPlayer: Player) : LimboSessionHan
     }
 
     /**
+     * 判断是否可以注册。
+     *
+     * 规则：数据库中不存在该玩家 Profile（按 name 或 uuid）时可注册。
+     */
+    override fun canRegister(): Boolean {
+        val databaseManager = HyperZoneLoginMain.getInstance().databaseManager
+        val profileTable = databaseManager.getProfileTable()
+
+        val foundProfile = databaseManager.executeTransaction {
+            profileTable.selectAll().where {
+                (profileTable.name eq proxyPlayer.username) or (profileTable.uuid eq proxyPlayer.uniqueId)
+            }.limit(1).any()
+        }
+
+        return !foundProfile
+    }
+
+    /**
      * 完成验证，结束Limbo状态
      * 此方法由AuthManager在Yggdrasil验证成功时调用
      */
@@ -59,7 +79,7 @@ class LimboAuthSessionHandler(private val proxyPlayer: Player) : LimboSessionHan
     /**
      * 检查是否已经完成over验证
      */
-    override fun isOverVerified(): Boolean {
+    override fun isVerified(): Boolean {
         return isOverVerified.get()
     }
 

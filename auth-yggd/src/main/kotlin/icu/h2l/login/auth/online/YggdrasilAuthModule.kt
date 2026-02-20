@@ -3,9 +3,9 @@ package icu.h2l.login.auth.online
 import com.velocitypowered.api.util.GameProfile
 import com.velocitypowered.proxy.VelocityServer
 import icu.h2l.api.db.HyperZoneDatabaseManager
-import icu.h2l.api.limbo.handler.LimboAuthSessionOverVerify
 import icu.h2l.api.log.debug
 import icu.h2l.api.log.info
+import icu.h2l.api.player.HyperZonePlayer
 import icu.h2l.login.auth.online.config.entry.EntryConfig
 import icu.h2l.login.auth.online.db.EntryTableManager
 import icu.h2l.login.auth.online.manager.EntryConfigManager
@@ -53,7 +53,7 @@ class YggdrasilAuthModule(
      * Key: 玩家用户名
      * Value: LimboAuthSessionHandler实例
      */
-    private val limboHandlers = ConcurrentHashMap<String, icu.h2l.api.limbo.handler.LimboAuthSessionOverVerify>()
+    private val limboHandlers = ConcurrentHashMap<String, HyperZonePlayer>()
 
     /**
      * 存储正在进行中的验证任务
@@ -133,7 +133,7 @@ class YggdrasilAuthModule(
      * @param username 玩家用户名
      * @param handler LimboAuthSessionHandler实例
      */
-    fun registerLimboHandler(username: String, handler: LimboAuthSessionOverVerify) {
+    fun registerLimboHandler(username: String, handler: HyperZonePlayer) {
         limboHandlers[username] = handler
         debug { "为玩家 $username 注册 LimboAuthSessionHandler" }
 
@@ -151,20 +151,20 @@ class YggdrasilAuthModule(
      * @param username 玩家用户名
      * @return LimboAuthSessionHandler实例，如果未注册则返回null
      */
-    fun getLimboHandler(username: String): LimboAuthSessionOverVerify? {
+    fun getLimboHandler(username: String): HyperZonePlayer? {
         return limboHandlers[username]
     }
 
 
     private fun dispatchAuthResultToHandler(
         username: String,
-        handler: LimboAuthSessionOverVerify,
+        handler: HyperZonePlayer,
         result: YggdrasilAuthResult
     ) {
         try {
             if (result is YggdrasilAuthResult.Success) {
                 info { "玩家 $username 通过 Yggdrasil 验证，Entry: ${result.entryId}" }
-                if (!handler.isOverVerified()) {
+                if (!handler.isVerified()) {
                     handler.overVerify()
                 }
                 return
