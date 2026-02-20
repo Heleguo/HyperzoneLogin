@@ -2,7 +2,7 @@ plugins {
     alias(libs.plugins.kotlin)
 }
 
-group = "fun.iiii.hyperzone.login"
+group = "icu.h2l.login"
 version = "1.0.0-SNAPSHOT"
 
 repositories {
