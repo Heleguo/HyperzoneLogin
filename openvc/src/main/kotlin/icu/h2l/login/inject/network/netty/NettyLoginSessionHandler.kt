@@ -194,12 +194,14 @@ class NettyLoginSessionHandler(
     private fun doLogin(online: Boolean, serverId: String?, decryptedSharedSecret: ByteArray?) {
 
 
-        val playerIp = (mcConnection.remoteAddress as InetSocketAddress).hostString
+        val remoteAddress = mcConnection.remoteAddress as InetSocketAddress
+        val playerIp = remoteAddress.hostString
         val onlineAuthEvent = OnlineAuthEvent(
             login.getUsername(),
             login.holderUuid!!,
             serverId!!,
             playerIp,
+            remoteAddress,
             online
         )
 
@@ -296,4 +298,5 @@ class NettyLoginSessionHandler(
     ): AuthSessionHandler {
         return NettyReflectionHelper.createAuthSessionHandler(server, inbound, profile, onlineMode, serverIdHash)
     }
+
 }

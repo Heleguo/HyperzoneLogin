@@ -20,6 +20,7 @@ import kotlinx.coroutines.*
 import net.kyori.adventure.text.Component
 import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
+import com.velocitypowered.api.proxy.Player
 import java.net.http.HttpClient
 import java.time.Duration
 import java.util.*
@@ -35,7 +36,7 @@ import kotlin.or
  */
 class YggdrasilAuthModule(
     private val entryConfigManager: EntryConfigManager,
-    private val databaseManager: icu.h2l.api.db.HyperZoneDatabaseManager,
+    private val databaseManager: HyperZoneDatabaseManager,
     private val entryTableManager: EntryTableManager,
     private val playerAccessor: HyperZonePlayerAccessor
 ) {
@@ -47,19 +48,19 @@ class YggdrasilAuthModule(
 
     /**
      * 存储验证结果
-     * Key: 玩家用户名
+        * Key: 玩家连接
      * Value: 验证结果
      */
-    private val authResults = ConcurrentHashMap<String, YggdrasilAuthResult>()
+        private val authResults = ConcurrentHashMap<Player, YggdrasilAuthResult>()
 
     /**
      * 存储LimboAuthSessionHandler实例
-     * Key: 玩家用户名
+        * Key: 玩家连接
      * Value: LimboAuthSessionHandler实例
      */
-    private val limboHandlers = ConcurrentHashMap<String, HyperZonePlayer>()
+        private val limboHandlers = ConcurrentHashMap<Player, HyperZonePlayer>()
 
-    private val pendingSecondBatch = ConcurrentHashMap<String, PendingSecondBatchData>()
+    private val pendingSecondBatch = ConcurrentHashMap<Player, PendingSecondBatchData>()
 
     private val entryDatabaseHelper = EntryDatabaseHelper(
         databaseManager = databaseManager,
@@ -69,10 +70,10 @@ class YggdrasilAuthModule(
 
     /**
      * 存储正在进行中的验证任务
-     * Key: 玩家用户名
+        * Key: 玩家连接
      * Value: 验证任务
      */
-    private val inFlightAuthJobs = ConcurrentHashMap<String, Job>()
+        private val inFlightAuthJobs = ConcurrentHashMap<Player, Job>()
 
     private val authLaunchLock = Any()
 
@@ -84,12 +85,14 @@ class YggdrasilAuthModule(
     /**
      * 启动异步Yggdrasil验证（不阻塞）
      * 
+     * @param player 玩家连接
      * @param username 玩家用户名
      * @param uuid 玩家UUID
      * @param serverId 服务器ID
      * @param playerIp 玩家IP
      */
     fun startYggdrasilAuth(
+        player: Player,
         username: String,
         uuid: UUID,
         serverId: String,
@@ -97,12 +100,12 @@ class YggdrasilAuthModule(
     ) {
         debug { "[YggdrasilFlow] 请求启动验证: user=$username" }
         synchronized(authLaunchLock) {
-            if (authResults.containsKey(username)) {
+            if (authResults.containsKey(player)) {
                 debug { "玩家 $username 已有验证结果，跳过重复验证请求" }
                 return
             }
 
-            val runningJob = inFlightAuthJobs[username]
+            val runningJob = inFlightAuthJobs[player]
             if (runningJob?.isActive == true) {
                 debug { "玩家 $username 验证任务进行中，跳过重复验证请求" }
                 return
@@ -111,78 +114,80 @@ class YggdrasilAuthModule(
             val job = coroutineScope.launch {
                 try {
                     debug { "[YggdrasilFlow] 验证任务开始执行: user=$username" }
-                    val result = performYggdrasilAuth(username, uuid, serverId, playerIp)
+                    val result = performYggdrasilAuth(player, username, uuid, serverId, playerIp)
                     if (result is YggdrasilAuthResult.PendingSecondBatch) {
                         debug { "[YggdrasilFlow] 等待 LimboSpawn 触发第二批次验证: user=$username" }
                         return@launch
                     }
 
-                    authResults[username] = result
+                    authResults[player] = result
                     debug { "[YggdrasilFlow] 验证任务完成并缓存结果: user=$username, result=${result.javaClass.simpleName}" }
-                    limboHandlers[username]?.let { handler ->
-                        dispatchAuthResultToHandler(username, handler, result)
+                    limboHandlers[player]?.let { handler ->
+                        dispatchAuthResultToHandler(player, username, handler, result)
                     } ?: run {
                         debug { "[YggdrasilFlow] 尚未注册 Limbo handler，等待后续 LimboSpawnEvent: user=$username" }
                     }
                 } finally {
-                    inFlightAuthJobs.remove(username)
+                    inFlightAuthJobs.remove(player)
                 }
             }
 
-            inFlightAuthJobs[username] = job
+            inFlightAuthJobs[player] = job
         }
     }
 
     /**
      * 获取玩家的验证结果
      * 
-     * @param username 玩家用户名
+     * @param player 玩家连接
      * @return 验证结果，如果还未验证完成则返回null
      */
-    fun getAuthResult(username: String): YggdrasilAuthResult? {
-        return authResults[username]
+    fun getAuthResult(player: Player): YggdrasilAuthResult? {
+        return authResults[player]
     }
 
     /**
      * 注册玩家的LimboAuthSessionHandler实例
      * 应该在玩家开始验证时就调用此方法
      * 
-     * @param username 玩家用户名
+     * @param player 玩家连接
      * @param handler LimboAuthSessionHandler实例
      */
-    fun registerLimboHandler(username: String, handler: HyperZonePlayer) {
-        limboHandlers[username] = handler
-        debug { "为玩家 $username 注册 LimboAuthSessionHandler" }
+    fun registerLimboHandler(player: Player, handler: HyperZonePlayer) {
+        limboHandlers[player] = handler
+        debug { "为玩家 ${player.username} 注册 LimboAuthSessionHandler" }
 
-        pendingSecondBatch.remove(username)?.let { pending ->
+        pendingSecondBatch.remove(player)?.let { pending ->
             coroutineScope.launch {
                 val result = runSecondBatchAuth(pending, handler)
-                authResults[username] = result
-                dispatchAuthResultToHandler(username, handler, result)
+                authResults[player] = result
+                dispatchAuthResultToHandler(player, pending.username, handler, result)
             }
             return
         }
 
-        authResults[username]?.let { result ->
-            debug { "[YggdrasilFlow] 命中已完成结果，立即回调: user=$username" }
-            dispatchAuthResultToHandler(username, handler, result)
+        authResults[player]?.let { result ->
+            debug { "[YggdrasilFlow] 命中已完成结果，立即回调: user=${player.username}" }
+            val displayName = (result as? YggdrasilAuthResult.Success)?.profile?.name ?: "unknown"
+            dispatchAuthResultToHandler(player, displayName, handler, result)
         } ?: run {
-            debug { "[YggdrasilFlow] 验证结果尚未完成，等待异步回调: user=$username" }
+            debug { "[YggdrasilFlow] 验证结果尚未完成，等待异步回调: user=${player.username}" }
         }
     }
 
     /**
      * 获取玩家的LimboAuthSessionHandler实例
      * 
-     * @param username 玩家用户名
+     * @param player 玩家连接
      * @return LimboAuthSessionHandler实例，如果未注册则返回null
      */
-    fun getLimboHandler(username: String): HyperZonePlayer? {
-        return limboHandlers[username]
+    fun getLimboHandler(player: Player): HyperZonePlayer? {
+        return limboHandlers[player]
     }
 
 
     private fun dispatchAuthResultToHandler(
+        player: Player,
         username: String,
         handler: HyperZonePlayer,
         result: YggdrasilAuthResult
@@ -208,25 +213,25 @@ class YggdrasilAuthModule(
             info { "玩家 $username Yggdrasil 验证失败" }
             debug { "玩家 $username Yggdrasil 验证失败原因: $failureReason" }
         } finally {
-            clearTransientStateAfterDispatch(username)
+            clearTransientStateAfterDispatch(player)
         }
     }
 
-    private fun clearTransientStateAfterDispatch(username: String) {
-        clearTransientState(username)
-        debug { "[YggdrasilFlow] 回调完成后已清理临时状态: user=$username" }
+    private fun clearTransientStateAfterDispatch(player: Player) {
+        clearTransientState(player)
+        debug { "[YggdrasilFlow] 回调完成后已清理临时状态: user=${player.username}" }
     }
 
-    private fun clearTransientState(username: String) {
-        authResults.remove(username)
-        limboHandlers.remove(username)
-        pendingSecondBatch.remove(username)
-        inFlightAuthJobs.remove(username)?.cancel()
+    private fun clearTransientState(player: Player) {
+        authResults.remove(player)
+        limboHandlers.remove(player)
+        pendingSecondBatch.remove(player)
+        inFlightAuthJobs.remove(player)?.cancel()
     }
 
-    fun clearPlayerCacheOnDisconnect(username: String) {
-        clearTransientState(username)
-        debug { "[YggdrasilFlow] 玩家断连，已清理缓存状态: user=$username" }
+    fun clearPlayerCacheOnDisconnect(player: Player) {
+        clearTransientState(player)
+        debug { "[YggdrasilFlow] 玩家断连，已清理缓存状态: user=${player.username}" }
     }
 
     /**（内部方法，由startYggdrasilAuth调用）
@@ -244,6 +249,7 @@ class YggdrasilAuthModule(
      * @return 验证结果
      */
     private fun performYggdrasilAuth(
+        player: Player,
         username: String,
         uuid: UUID,
         serverId: String,
@@ -272,7 +278,7 @@ class YggdrasilAuthModule(
                     }
                     return@runBlocking firstBatchResult
                 } else {
-                    notifyFirstBatchFailure(username, firstBatchResult)
+                    notifyFirstBatchFailure(player, username, firstBatchResult)
                 }
             }
         }
@@ -280,7 +286,7 @@ class YggdrasilAuthModule(
         debug { "第一批次验证未通过，开始第二批次（所有Yggdrasil服务器）" }
 
         // 第二批次：向所有Yggdrasil服务器发起请求
-        pendingSecondBatch[username] = PendingSecondBatchData(username, uuid, serverId, playerIp)
+        pendingSecondBatch[player] = PendingSecondBatchData(username, uuid, serverId, playerIp)
         YggdrasilAuthResult.PendingSecondBatch
     }
 
@@ -310,8 +316,8 @@ class YggdrasilAuthModule(
         return YggdrasilAuthResult.Failed("第一批次验证失败：玩家 Profile 与 Entry Profile 不一致")
     }
 
-    private fun notifyFirstBatchFailure(username: String, result: YggdrasilAuthResult) {
-        val handler = limboHandlers[username] ?: return
+    private fun notifyFirstBatchFailure(player: Player, username: String, result: YggdrasilAuthResult) {
+        val handler = limboHandlers[player] ?: return
 
         val message = when (result) {
             is YggdrasilAuthResult.Failed -> {
