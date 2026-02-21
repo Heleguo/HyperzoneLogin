@@ -4,6 +4,7 @@ import com.velocitypowered.api.util.GameProfile
 import com.velocitypowered.proxy.VelocityServer
 import com.velocitypowered.proxy.connection.client.AuthSessionHandler
 import com.velocitypowered.proxy.connection.client.LoginInboundConnection
+import com.velocitypowered.proxy.connection.client.NettyAuthSessionHandler
 
 
 private fun interface AuthSessionHandlerConstructor {
@@ -70,8 +71,15 @@ object NettyReflectionHelper {
         onlineMode: Boolean,
         serverIdHash: String,
     ): AuthSessionHandler {
-        //  AuthSessionHandler(VelocityServer server, LoginInboundConnection inbound, GameProfile profile, boolean onlineMode, String serverIdHash) {
-        //
-        return `AuthSessionHandler$init`.create(server, inbound, profile, onlineMode, serverIdHash)
+            return runCatching {
+                NettyAuthSessionHandler(
+                    requireNotNull(server) { "server" },
+                    requireNotNull(inbound) { "inbound" },
+                    requireNotNull(profile) { "profile" },
+                    onlineMode,
+                )
+            }.getOrElse {
+                `AuthSessionHandler$init`.create(server, inbound, profile, onlineMode, serverIdHash)
+            }
     }
 }
