@@ -10,8 +10,8 @@ import icu.h2l.login.auth.offline.command.OfflineAuthCommandRegistrar
 import icu.h2l.login.auth.offline.db.OfflineAuthRepository
 import icu.h2l.login.auth.offline.db.OfflineAuthTableManager
 import icu.h2l.login.auth.offline.service.OfflineAuthService
+import icu.h2l.api.log.info
 import java.nio.file.Path
-import java.util.logging.Logger
 
 class OfflineSubModule : HyperSubModule {
     lateinit var offlineAuthTableManager: OfflineAuthTableManager
@@ -31,15 +31,13 @@ class OfflineSubModule : HyperSubModule {
 
         val profileTable = ProfileTable(databaseManager.tablePrefix)
         offlineAuthTableManager = OfflineAuthTableManager(
-            logger = Logger.getLogger("HyperZoneLogin-AuthOffline"),
             databaseManager = databaseManager,
             tablePrefix = databaseManager.tablePrefix,
             profileTable = profileTable
         )
         offlineAuthRepository = OfflineAuthRepository(
             databaseManager = databaseManager,
-            table = offlineAuthTableManager.offlineAuthTable,
-            logger = Logger.getLogger("HyperZoneLogin-AuthOffline")
+            table = offlineAuthTableManager.offlineAuthTable
         )
         offlineAuthService = OfflineAuthService(
             repository = offlineAuthRepository,
@@ -53,7 +51,6 @@ class OfflineSubModule : HyperSubModule {
             authService = offlineAuthService
         )
         proxy.eventManager.register(owner, OfflineLimboEventListener())
-        Logger.getLogger("HyperZoneLogin-AuthOffline")
-            .info("OfflineSubModule 已加载，离线聊天命令与提示监听器已注册")
+        info { "OfflineSubModule 已加载，离线聊天命令与提示监听器已注册" }
     }
 }

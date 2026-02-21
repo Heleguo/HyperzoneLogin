@@ -1,18 +1,17 @@
 package icu.h2l.login.auth.offline.db
 
 import icu.h2l.api.db.HyperZoneDatabaseManager
+import icu.h2l.api.log.warn
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.update
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import java.util.UUID
-import java.util.logging.Logger
 
 class OfflineAuthRepository(
     private val databaseManager: HyperZoneDatabaseManager,
-    private val table: OfflineAuthTable,
-    private val logger: Logger
+    private val table: OfflineAuthTable
 ) {
     fun create(name: String, passwordHash: String, hashFormat: String, profileId: UUID): Boolean {
         return try {
@@ -26,7 +25,7 @@ class OfflineAuthRepository(
             }
             true
         } catch (e: Exception) {
-            logger.warning("创建离线认证记录失败: ${e.message}")
+            warn { "创建离线认证记录失败: ${e.message}" }
             false
         }
     }
@@ -74,7 +73,7 @@ class OfflineAuthRepository(
                 }
             } > 0
         } catch (e: Exception) {
-            logger.warning("更新离线认证密码失败: ${e.message}")
+            warn { "更新离线认证密码失败: ${e.message}" }
             false
         }
     }
@@ -85,7 +84,7 @@ class OfflineAuthRepository(
                 table.deleteWhere { table.profileId eq profileId }
             } > 0
         } catch (e: Exception) {
-            logger.warning("删除离线认证记录失败: ${e.message}")
+            warn { "删除离线认证记录失败: ${e.message}" }
             false
         }
     }

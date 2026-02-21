@@ -1,20 +1,19 @@
 package icu.h2l.login.database
 
 import icu.h2l.api.db.Profile
+import icu.h2l.api.log.warn
 import icu.h2l.login.manager.DatabaseManager
 import org.jetbrains.exposed.sql.*
 import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
-import java.util.logging.Logger
 
 /**
  * 数据库操作示例和帮助类
  */
 class DatabaseHelper(
-    private val manager: DatabaseManager,
-    private val logger: Logger
+    private val manager: DatabaseManager
 ) {
 
     private val profileTable = manager.getProfileTable()
@@ -113,7 +112,7 @@ class DatabaseHelper(
             cacheProfile(Profile(id = id, name = name, uuid = uuid))
             true
         } catch (e: Exception) {
-            logger.warning("创建档案失败: ${e.message}")
+            warn { "创建档案失败: ${e.message}" }
             false
         }
     }
@@ -146,7 +145,7 @@ class DatabaseHelper(
 
             true
         } catch (e: Exception) {
-            logger.warning("更新档案名称失败: ${e.message}")
+            warn { "更新档案名称失败: ${e.message}" }
             false
         }
     }

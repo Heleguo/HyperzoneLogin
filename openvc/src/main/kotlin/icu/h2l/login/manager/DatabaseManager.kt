@@ -7,18 +7,18 @@ import icu.h2l.api.db.HyperZoneDatabaseManager
 import icu.h2l.api.db.table.ProfileTable
 import icu.h2l.api.event.db.TableSchemaAction
 import icu.h2l.api.event.db.TableSchemaEvent
+import icu.h2l.api.log.info
+import icu.h2l.api.log.warn
 import icu.h2l.login.database.DatabaseConfig
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.transactions.transaction
-import java.util.logging.Logger
 
 /**
  * 数据库管理类
  * 负责数据库连接和表的创建
  */
 class DatabaseManager(
-    private val logger: Logger,
     private val config: DatabaseConfig,
     private val proxy: ProxyServer
 ) : HyperZoneDatabaseManager {
@@ -37,7 +37,7 @@ class DatabaseManager(
      * 连接数据库
      */
     fun connect() {
-        logger.info("正在连接数据库...")
+        info { "正在连接数据库..." }
         
         val hikariConfig = HikariConfig().apply {
             jdbcUrl = config.jdbcUrl
@@ -64,7 +64,7 @@ class DatabaseManager(
         dataSource = HikariDataSource(hikariConfig)
         database = Database.connect(dataSource)
         
-        logger.info("数据库连接成功！")
+        info { "数据库连接成功！" }
     }
     
     /**
@@ -72,9 +72,9 @@ class DatabaseManager(
      */
     fun disconnect() {
         if (::dataSource.isInitialized && !dataSource.isClosed) {
-            logger.info("正在断开数据库连接...")
+            info { "正在断开数据库连接..." }
             dataSource.close()
-            logger.info("数据库连接已断开！")
+            info { "数据库连接已断开！" }
         }
     }
 
@@ -92,7 +92,6 @@ class DatabaseManager(
         transaction(database) {
             // 创建档案表
             SchemaUtils.create(profileTable)
-            logger.info("已创建表: ${profileTable.tableName}")
         }
     }
     
@@ -100,7 +99,7 @@ class DatabaseManager(
      * 删除所有表（谨慎使用）
      */
     fun dropTables() {
-        logger.warning("正在删除数据库表...")
+        warn { "正在删除数据库表..." }
 
         // 通知模块删除所有入口表
         proxy.eventManager.fire(TableSchemaEvent(TableSchemaAction.DROP_ALL)).join()
@@ -108,10 +107,10 @@ class DatabaseManager(
         executeTransaction {
             // 删除档案表
             SchemaUtils.drop(profileTable)
-            logger.warning("已删除表: ${profileTable.tableName}")
+            warn { "已删除表: ${profileTable.tableName}" }
         }
 
-        logger.warning("数据库表已全部删除！")
+        warn { "数据库表已全部删除！" }
     }
 
     /**

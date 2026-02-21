@@ -6,15 +6,15 @@ import icu.h2l.api.db.table.ProfileTable
 import icu.h2l.api.event.db.TableSchemaAction
 import icu.h2l.api.event.db.TableSchemaEvent
 import icu.h2l.login.auth.online.events.EntryRegisterEvent
+import icu.h2l.api.log.info
+import icu.h2l.api.log.warn
 import org.jetbrains.exposed.sql.SchemaUtils
-import java.util.logging.Logger
 
 /**
  * Entry 表管理器
  * 负责 Entry 表的注册、查询、创建、删除与事件处理
  */
 class EntryTableManager(
-    private val logger: Logger,
     private val databaseManager: HyperZoneDatabaseManager,
     private val tablePrefix: String,
     private val profileTable: ProfileTable
@@ -24,7 +24,7 @@ class EntryTableManager(
     fun registerEntry(entryId: String): EntryTable {
         val normalizedId = entryId.lowercase()
         return entryTables.getOrPut(normalizedId) {
-            logger.info("注册入口表: $normalizedId")
+            info { "注册入口表: $normalizedId" }
             EntryTable(normalizedId, tablePrefix, profileTable)
         }
     }
@@ -37,7 +37,6 @@ class EntryTableManager(
         databaseManager.executeTransaction {
             entryTables.values.forEach { entryTable ->
                 SchemaUtils.create(entryTable)
-                logger.info("已创建表: ${entryTable.tableName}")
             }
         }
     }
@@ -46,7 +45,7 @@ class EntryTableManager(
         databaseManager.executeTransaction {
             entryTables.values.forEach { entryTable ->
                 SchemaUtils.drop(entryTable)
-                logger.warning("已删除表: ${entryTable.tableName}")
+                warn { "已删除表: ${entryTable.tableName}" }
             }
         }
     }
@@ -61,13 +60,12 @@ class EntryTableManager(
 
     @Subscribe
     fun onEntryRegister(event: EntryRegisterEvent) {
-        logger.info("接收到 Entry 注册事件: ${event.configName} (ID: ${event.entryConfig.id})")
+        info { "接收到 Entry 注册事件: ${event.configName} (ID: ${event.entryConfig.id})" }
 
         val entryTable = registerEntry(event.entryConfig.id)
 
         databaseManager.executeTransaction {
             SchemaUtils.create(entryTable)
         }
-        logger.info("已为 Entry ${event.entryConfig.id} 创建数据库表")
     }
 }

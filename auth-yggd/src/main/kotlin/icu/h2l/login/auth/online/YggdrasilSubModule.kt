@@ -7,7 +7,6 @@ import icu.h2l.api.module.HyperSubModule
 import icu.h2l.api.player.HyperZonePlayerAccessorProvider
 import icu.h2l.login.auth.online.db.EntryTableManager
 import icu.h2l.login.auth.online.manager.EntryConfigManager
-import java.util.logging.Logger
 import java.nio.file.Path
 
 class YggdrasilSubModule : HyperSubModule {
@@ -26,7 +25,6 @@ class YggdrasilSubModule : HyperSubModule {
 
         val entryConfigManager = EntryConfigManager(dataDirectory, proxy)
         val entryTableManager = EntryTableManager(
-            logger = Logger.getLogger("HyperZoneLogin-AuthYggd"),
             databaseManager = databaseManager,
             tablePrefix = databaseManager.tablePrefix,
             profileTable = ProfileTable(databaseManager.tablePrefix)

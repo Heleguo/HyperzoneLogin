@@ -25,7 +25,6 @@ import java.net.http.HttpClient
 import java.time.Duration
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
-import java.util.logging.Logger
 import kotlin.collections.iterator
 import kotlin.compareTo
 import kotlin.or
@@ -64,8 +63,7 @@ class YggdrasilAuthModule(
 
     private val entryDatabaseHelper = EntryDatabaseHelper(
         databaseManager = databaseManager,
-        entryTableManager = entryTableManager,
-        logger = Logger.getLogger("HyperZoneLogin-AuthYggd")
+        entryTableManager = entryTableManager
     )
 
     /**
@@ -207,7 +205,6 @@ class YggdrasilAuthModule(
                 is YggdrasilAuthResult.Timeout -> "Timeout"
                 is YggdrasilAuthResult.NoServersConfigured -> "No servers configured"
                 is YggdrasilAuthResult.PendingSecondBatch -> "Pending second batch"
-                else -> "Unknown"
             }
             handler.sendMessage(Component.text("玩家 $username Yggdrasil 验证失败"))
             info { "玩家 $username Yggdrasil 验证失败" }
@@ -272,7 +269,7 @@ class YggdrasilAuthModule(
                 )
 
                 if (firstBatchResult.isSuccess) {
-                    val firstBatchValidation = validateFirstBatchProfile(username, uuid, firstBatchResult)
+                    val firstBatchValidation = validateFirstBatchProfile(player, username, uuid, firstBatchResult)
                     if (firstBatchValidation != null) {
                         return@runBlocking firstBatchValidation
                     }
@@ -291,14 +288,15 @@ class YggdrasilAuthModule(
     }
 
     private fun validateFirstBatchProfile(
+        player: Player,
         username: String,
         uuid: UUID,
         result: YggdrasilAuthResult
     ): YggdrasilAuthResult? {
         val success = result as? YggdrasilAuthResult.Success ?: return null
 
-        val hyperZonePlayer = playerAccessor.getByNameOrUuid(username, uuid)
-            ?: return YggdrasilAuthResult.Failed("第一批次验证失败：未获取到玩家实例")
+        val hyperZonePlayer = playerAccessor.getByPlayer(player)
+            ?: playerAccessor.getOrCreate(player)
 
         val playerProfile = hyperZonePlayer.getProfile()
             ?: return YggdrasilAuthResult.Failed("第一批次验证失败：未获取到玩家 Profile")

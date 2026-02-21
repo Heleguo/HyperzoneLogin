@@ -116,6 +116,8 @@ class HyperZoneLoginMain @Inject constructor(
         proxy.eventManager.register(this, HyperZonePlayerManager)
         proxy.eventManager.register(this, limboServerManager)
 
+        logInternalTestWarning()
+
     }
 
     val proxy: ProxyServer
@@ -128,6 +130,12 @@ class HyperZoneLoginMain @Inject constructor(
         } catch (e: Exception) {
             logger.error("加载模块 ${module.javaClass.name} 失败: ${e.message}", e)
         }
+    }
+
+    private fun logInternalTestWarning() {
+        logger.warn("========================================")
+        logger.warn("=== ⚠ 内测版本，可能有 bug，请勿分发 ===")
+        logger.warn("========================================")
     }
 
     private fun loadConfig() {
@@ -284,13 +292,12 @@ class HyperZoneLoginMain @Inject constructor(
         }
         
         databaseManager = icu.h2l.login.manager.DatabaseManager(
-            logger = java.util.logging.Logger.getLogger("HyperZoneLogin"),
             config = dbConfig,
             proxy = proxy
         )
         
         databaseManager.connect()
-        databaseHelper = DatabaseHelper(databaseManager, java.util.logging.Logger.getLogger("HyperZoneLogin"))
+        databaseHelper = DatabaseHelper(databaseManager)
         
         logger.info("数据库连接完成")
     }

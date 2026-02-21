@@ -1,20 +1,19 @@
 package icu.h2l.login.auth.online.db
 
 import icu.h2l.api.db.HyperZoneDatabaseManager
+import icu.h2l.api.log.warn
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.update
 import java.util.UUID
-import java.util.logging.Logger
 
 /**
  * Entry 表数据操作帮助类
  */
 class EntryDatabaseHelper(
     private val databaseManager: HyperZoneDatabaseManager,
-    private val entryTableManager: EntryTableManager,
-    private val logger: Logger
+    private val entryTableManager: EntryTableManager
 ) {
     fun findEntryByNameAndUuid(entryId: String, name: String, uuid: UUID): UUID? {
         val entryTable = entryTableManager.getEntryTable(entryId) ?: return null
@@ -39,7 +38,7 @@ class EntryDatabaseHelper(
             }
             true
         } catch (e: Exception) {
-            logger.warning("创建入口记录失败: ${e.message}")
+            warn { "创建入口记录失败: ${e.message}" }
             false
         }
     }
@@ -54,7 +53,7 @@ class EntryDatabaseHelper(
                 }
             } > 0
         } catch (e: Exception) {
-            logger.warning("更新入口名称失败: ${e.message}")
+            warn { "更新入口名称失败: ${e.message}" }
             false
         }
     }
