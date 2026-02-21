@@ -12,6 +12,11 @@ import java.util.UUID
  */
 interface HyperZonePlayer {
     /**
+     * 当前玩家的用户名（登录流程内的统一名称）。
+     */
+    val username: String
+
+    /**
      * 判断是否允许执行注册流程。
      *
      * 主要依据：数据库中是否已存在该玩家 Profile。

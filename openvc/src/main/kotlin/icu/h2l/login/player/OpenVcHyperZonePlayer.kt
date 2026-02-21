@@ -7,7 +7,7 @@ import icu.h2l.login.HyperZoneLoginMain
 import icu.h2l.login.util.RemapUtils
 import net.elytrium.limboapi.api.player.LimboPlayer
 import net.kyori.adventure.text.Component
-import java.util.UUID
+import java.util.*
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -16,9 +16,12 @@ class OpenVcHyperZonePlayer(
     private var userName: String,
     private var uuid: UUID,
 ) : HyperZonePlayer {
+    override val username: String
+        get() = userName
+
     @Volatile
     var profileId: UUID? = null
-    var proxyPlayer: Player?=null
+    var proxyPlayer: Player? = null
 
     private val isVerifiedState = AtomicBoolean(false)
     private val hasSpawned = AtomicBoolean(false)
@@ -33,12 +36,15 @@ class OpenVcHyperZonePlayer(
         profileId = databaseHelper
             .getProfileByNameOrUuid(userName, uuid)
             ?.id
+        profileId?.let { _ ->
+            val profile = getProfile()
+            userName = profile!!.name
+            uuid = profile.uuid
+        }
     }
 
-    fun update(player: Player){
-        proxyPlayer=player
-        userName=player.username
-        uuid=player.uniqueId
+    fun update(player: Player) {
+        proxyPlayer = player
     }
 
     fun onSpawn(player: LimboPlayer) {
