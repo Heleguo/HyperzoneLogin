@@ -150,7 +150,6 @@ object NettyReflectionHelper {
         inbound: LoginInboundConnection?,
         profile: GameProfile?,
         onlineMode: Boolean,
-        connectedPlayer: ConnectedPlayer,
         serverIdHash: String,
     ): AuthSessionHandler {
         return runCatching {
@@ -162,27 +161,5 @@ object NettyReflectionHelper {
             )
             throw reflectionException
         }
-    }
-
-    fun createConnectedPlayer(
-        server: VelocityServer,
-        profile: GameProfile,
-        mcConnection: MinecraftConnection,
-        virtualHost: InetSocketAddress?,
-        rawVirtualHost: String?,
-        onlineMode: Boolean,
-        handshakeIntent: HandshakeIntent,
-        identifiedKey: IdentifiedKey?,
-    ): ConnectedPlayer {
-        return `ConnectedPlayer$init`.create(
-            server,
-            profile,
-            mcConnection,
-            virtualHost,
-            rawVirtualHost,
-            onlineMode,
-            handshakeIntent,
-            identifiedKey,
-        )
     }
 }

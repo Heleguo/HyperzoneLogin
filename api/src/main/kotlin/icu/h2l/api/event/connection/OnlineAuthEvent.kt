@@ -25,5 +25,4 @@ class OnlineAuthEvent(
     val isOnline: Boolean
 ) {
     var gameProfile: GameProfile? = null
-    var player: Player? = null
 }
