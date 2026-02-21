@@ -1,28 +1,23 @@
 package icu.h2l.login.inject.network.netty
 
 import com.google.common.primitives.Longs
-import com.velocitypowered.api.event.connection.DisconnectEvent
-import com.velocitypowered.api.event.connection.LoginEvent
-import com.velocitypowered.api.event.connection.PostLoginEvent
 import com.velocitypowered.api.event.connection.PreLoginEvent
-import com.velocitypowered.api.event.permission.PermissionsSetupEvent
-import com.velocitypowered.api.event.player.CookieReceiveEvent
-import com.velocitypowered.api.event.player.GameProfileRequestEvent
-import com.velocitypowered.api.event.player.PlayerChooseInitialServerEvent
 import com.velocitypowered.api.network.ProtocolVersion
 import com.velocitypowered.api.proxy.crypto.IdentifiedKey
 import com.velocitypowered.api.util.GameProfile
-import com.velocitypowered.api.util.UuidUtils
 import com.velocitypowered.proxy.VelocityServer
-import com.velocitypowered.proxy.config.PlayerInfoForwarding
 import com.velocitypowered.proxy.connection.MinecraftConnection
 import com.velocitypowered.proxy.connection.VelocityConstants
-import com.velocitypowered.proxy.connection.client.*
+import com.velocitypowered.proxy.connection.client.AuthSessionHandler
+import com.velocitypowered.proxy.connection.client.InitialLoginSessionHandler
+import com.velocitypowered.proxy.connection.client.LoginInboundConnection
 import com.velocitypowered.proxy.crypto.EncryptionUtils
 import com.velocitypowered.proxy.crypto.IdentifiedKeyImpl
 import com.velocitypowered.proxy.protocol.StateRegistry
 import com.velocitypowered.proxy.protocol.netty.MinecraftDecoder
-import com.velocitypowered.proxy.protocol.packet.*
+import com.velocitypowered.proxy.protocol.packet.EncryptionRequestPacket
+import com.velocitypowered.proxy.protocol.packet.EncryptionResponsePacket
+import com.velocitypowered.proxy.protocol.packet.ServerLoginPacket
 import com.velocitypowered.proxy.util.VelocityProperties
 import icu.h2l.api.event.connection.OnlineAuthEvent
 import icu.h2l.api.event.connection.OpenPreLoginEvent
@@ -33,7 +28,6 @@ import io.netty.channel.Channel
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelInboundHandlerAdapter
 import net.kyori.adventure.text.Component
-import net.kyori.adventure.text.format.NamedTextColor
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull
@@ -42,10 +36,7 @@ import java.security.GeneralSecurityException
 import java.security.KeyPair
 import java.security.MessageDigest
 import java.util.*
-import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ThreadLocalRandom
-import java.util.function.Consumer
-import java.util.function.Function
 
 class NettyLoginSessionHandler(
     private val injector: VelocityNetworkInjectorImpl,
@@ -178,7 +169,7 @@ class NettyLoginSessionHandler(
                     val userName: String = login.getUsername()
                     val host = if (inbound.rawVirtualHost.isPresent) inbound.rawVirtualHost.get() else ""
 
-                    val openPreLoginEvent = OpenPreLoginEvent(holderUuid!!, userName, host)
+                    val openPreLoginEvent = OpenPreLoginEvent(holderUuid!!, userName, host,mcConnection.channel)
                     injector.proxy.eventManager.fire(openPreLoginEvent).thenRun {
                         onlineMode = openPreLoginEvent.isOnline
                         if (openPreLoginEvent.isOnline) {
@@ -213,7 +204,7 @@ class NettyLoginSessionHandler(
             login.holderUuid!!,
             serverId!!,
             playerIp,
-            remoteAddress,
+            mcConnection.channel,
             online
         )
         val preProfile = GameProfile(login.holderUuid, login.username, Collections.emptyList())

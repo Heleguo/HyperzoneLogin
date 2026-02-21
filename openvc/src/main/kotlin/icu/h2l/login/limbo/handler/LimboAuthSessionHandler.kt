@@ -2,6 +2,7 @@ package icu.h2l.login.limbo.handler
 
 import com.velocitypowered.api.proxy.Player
 import icu.h2l.api.event.limbo.LimboSpawnEvent
+import icu.h2l.api.player.HyperZonePlayer
 import icu.h2l.login.HyperZoneLoginMain
 import icu.h2l.login.player.OpenVcHyperZonePlayer
 import net.elytrium.limboapi.api.Limbo
@@ -10,11 +11,11 @@ import net.elytrium.limboapi.api.player.LimboPlayer
 
 class LimboAuthSessionHandler(
     private val proxyPlayer: Player,
-    private val hyperZonePlayer: OpenVcHyperZonePlayer
+    private val hyperZonePlayer: HyperZonePlayer
 ) : LimboSessionHandler {
 
     override fun onSpawn(server: Limbo, player: LimboPlayer) {
-        hyperZonePlayer.onSpawn(player)
+        (hyperZonePlayer as OpenVcHyperZonePlayer).onSpawn(player)
         HyperZoneLoginMain.getInstance().proxy.eventManager.fire(
             LimboSpawnEvent(player, proxyPlayer, hyperZonePlayer)
         )

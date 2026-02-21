@@ -12,10 +12,13 @@ import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
 
 class OpenVcHyperZonePlayer(
-    private val proxyPlayer: Player
+//    最开始客户端传入的，不可信
+    private var userName: String,
+    private var uuid: UUID,
 ) : HyperZonePlayer {
     @Volatile
     var profileId: UUID? = null
+    var proxyPlayer: Player?=null
 
     private val isVerifiedState = AtomicBoolean(false)
     private val hasSpawned = AtomicBoolean(false)
@@ -28,17 +31,24 @@ class OpenVcHyperZonePlayer(
 
     init {
         profileId = databaseHelper
-            .getProfileByNameOrUuid(proxyPlayer.username, proxyPlayer.uniqueId)
+            .getProfileByNameOrUuid(userName, uuid)
             ?.id
+    }
+
+    fun update(player: Player){
+        proxyPlayer=player
+        userName=player.username
+        uuid=player.uniqueId
     }
 
     fun onSpawn(player: LimboPlayer) {
         limboPlayer = player
+        update(player.proxyPlayer)
         hasSpawned.set(true)
 
         while (messageQueue.isNotEmpty()) {
             val message = messageQueue.poll() ?: continue
-            proxyPlayer.sendMessage(message)
+            proxyPlayer?.sendMessage(message)
         }
     }
 
@@ -47,7 +57,7 @@ class OpenVcHyperZonePlayer(
     }
 
     override fun register(userName: String?, uuid: UUID?): Profile {
-        val resolvedName = userName ?: proxyPlayer.username
+        val resolvedName = userName ?: this.userName
         val remapPrefix = HyperZoneLoginMain.getRemapConfig().prefix
         val resolvedUuid = uuid ?: RemapUtils.genUUID(resolvedName, remapPrefix)
 
@@ -64,7 +74,7 @@ class OpenVcHyperZonePlayer(
 
         val created = databaseHelper.createProfile(profile.id, profile.name, profile.uuid)
         if (!created) {
-            throw IllegalStateException("玩家 ${proxyPlayer.username} 注册失败，数据库写入失败")
+            throw IllegalStateException("玩家 ${userName} 注册失败，数据库写入失败")
         }
 
         profileId = profile.id
@@ -97,7 +107,7 @@ class OpenVcHyperZonePlayer(
 
     override fun sendMessage(message: Component) {
         if (hasSpawned.get()) {
-            proxyPlayer.sendMessage(message)
+            proxyPlayer?.sendMessage(message)
             return
         }
 

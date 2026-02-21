@@ -27,8 +27,6 @@ import java.time.Duration
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.collections.iterator
-import kotlin.compareTo
-import kotlin.or
 
 /**
  * 验证管理器
@@ -279,7 +277,6 @@ class YggdrasilAuthModule(
         val success = result as? YggdrasilAuthResult.Success ?: return null
 
         val hyperZonePlayer = playerAccessor.getByPlayer(player)
-            ?: playerAccessor.getOrCreate(player)
 
         val playerProfile = hyperZonePlayer.getProfile()
             ?: return YggdrasilAuthResult.Failed("第一批次验证失败：未获取到玩家 Profile")
@@ -317,7 +314,6 @@ class YggdrasilAuthModule(
         context: SecondBatchContext
     ): YggdrasilAuthResult {
         val handler = playerAccessor.getByPlayer(player)
-            ?: playerAccessor.getOrCreate(player)
 
         if (!handler.canRegister()) {
             debug { "玩家 ${context.username} 不可注册，终止第二批次验证" }

@@ -2,6 +2,7 @@ package icu.h2l.api.event.connection
 
 import com.velocitypowered.api.event.annotation.AwaitingEvent
 import com.velocitypowered.api.event.connection.DisconnectEvent
+import io.netty.channel.Channel
 import java.util.UUID
 
 /**
@@ -16,7 +17,8 @@ import java.util.UUID
 class OpenPreLoginEvent(
     val uuid: UUID,
     val userName: String,
-    val host: String
+    val host: String,
+    val channel: Channel
 ) {
     var isOnline: Boolean = true
 }

@@ -4,6 +4,7 @@ import com.velocitypowered.api.event.annotation.AwaitingEvent
 import com.velocitypowered.api.event.connection.DisconnectEvent
 import com.velocitypowered.api.proxy.Player
 import com.velocitypowered.api.util.GameProfile
+import io.netty.channel.Channel
 import java.net.SocketAddress
 import java.util.UUID
 
@@ -21,7 +22,7 @@ class OnlineAuthEvent(
     val userUUID: UUID,
     val serverId: String,
     val playerIp: String,
-    val remoteAddress: SocketAddress,
+    val channel: Channel,
     val isOnline: Boolean
 ) {
     var gameProfile: GameProfile? = null

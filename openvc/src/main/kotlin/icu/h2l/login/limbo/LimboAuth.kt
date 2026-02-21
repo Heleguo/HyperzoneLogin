@@ -50,7 +50,7 @@ class LimboAuth(server: ProxyServer) : HyperZoneLimbo {
 
     fun authPlayer(player: Player) {
         // this.factory.passLoginLimbo(player) 这是跳过方法
-        val hyperZonePlayer = HyperZonePlayerManager.getOrCreate(player)
+        val hyperZonePlayer = HyperZonePlayerManager.getByPlayer(player)
 
         val newHandler = LimboAuthSessionHandler(player, hyperZonePlayer)
         authServer.spawnPlayer(player, newHandler)

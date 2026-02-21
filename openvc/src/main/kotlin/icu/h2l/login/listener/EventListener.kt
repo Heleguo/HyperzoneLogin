@@ -29,12 +29,13 @@ class EventListener {
         } else {
             event.isOnline = true
         }
+        HyperZonePlayerManager.create(event.channel,event.userName,event.uuid)
         info { "传入 UUID 信息玩家: $name UUID:$uuid 类型: $offlineUUIDType 在线:${event.isOnline}" }
     }
 
     @Subscribe
     fun onPreLogin(event: HyperZoneGameProfileRequestEvent) {
-        val hyperZonePlayer = HyperZonePlayerManager.getOrCreate(event.player)
+        val hyperZonePlayer = HyperZonePlayerManager.getByPlayer(event.player)
         val originalProfile = event.originalProfile
 
         val resolvedProfile = hyperZonePlayer.getProfile()

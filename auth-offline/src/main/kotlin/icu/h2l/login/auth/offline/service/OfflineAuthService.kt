@@ -14,7 +14,7 @@ class OfflineAuthService(
     data class Result(val success: Boolean, val message: String)
 
     fun register(player: Player, password: String): Result {
-        val hyperZonePlayer = playerAccessor.getOrCreate(player)
+        val hyperZonePlayer = playerAccessor.getByPlayer(player)
         if (!hyperZonePlayer.canRegister()) {
             return Result(false, "§c其他渠道已注册，如有需要，请进行绑定")
         }
@@ -39,7 +39,7 @@ class OfflineAuthService(
     }
 
     fun bind(player: Player, password: String): Result {
-        val hyperZonePlayer = playerAccessor.getOrCreate(player)
+        val hyperZonePlayer = playerAccessor.getByPlayer(player)
         if (!hyperZonePlayer.canBind()) {
             return Result(false, "§c尚未完成验证，无法绑定")
         }
@@ -68,7 +68,7 @@ class OfflineAuthService(
             return Result(false, "§c密码错误")
         }
 
-        val hyperZonePlayer = playerAccessor.getOrCreate(player)
+        val hyperZonePlayer = playerAccessor.getByPlayer(player)
         hyperZonePlayer.overVerify()
         return Result(true, "§a登录成功，已通过验证")
     }

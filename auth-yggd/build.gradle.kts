@@ -14,6 +14,7 @@ dependencies {
 //    VC
     compileOnly("com.velocitypowered:velocity-api:3.4.0-SNAPSHOT")
     compileOnly("com.velocitypowered:velocity-proxy:3.4.0-SNAPSHOT") // From Elytrium Repo.
+    compileOnly("io.netty:netty-all:4.2.5.Final")
 // Exposed ORM
     compileOnly("org.jetbrains.exposed:exposed-core:0.58.0")
 //    config
