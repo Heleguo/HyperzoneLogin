@@ -27,5 +27,7 @@ class VelocityNetworkModule : HyperSubModule {
             owner,
             NetworkInjectListener(injector),
         )
+
+        injector.injectToBackend()
     }
 }

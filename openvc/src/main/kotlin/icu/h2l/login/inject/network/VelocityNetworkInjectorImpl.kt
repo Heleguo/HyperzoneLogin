@@ -7,6 +7,8 @@ import com.velocitypowered.proxy.network.ConnectionManager
 import com.velocitypowered.proxy.network.Endpoint
 import icu.h2l.login.inject.network.netty.NettyLoginSessionHandler
 import icu.h2l.login.inject.network.netty.SeverChannelAcceptAdapter
+import icu.h2l.login.inject.network.netty.ToBackendPacketReplacer
+import icu.h2l.login.inject.network.netty.ViaChannelInitializer
 import io.netty.channel.Channel
 import java.net.InetSocketAddress
 
@@ -57,5 +59,19 @@ class VelocityNetworkInjectorImpl(
                 )
             }
         })
+    }
+
+
+    fun injectToBackend() {
+        cm.backendChannelInitializer.let { initializer ->
+            val old = initializer.get()
+
+            initializer.set(object : ViaChannelInitializer(old) {
+                override fun injectChannel(channel: Channel) {
+                    channel.pipeline().addLast("sl_r_rpl", ToBackendPacketReplacer())
+//                    println("SVA: ${channel.pipeline().names()}")
+                }
+            })
+        }
     }
 }
