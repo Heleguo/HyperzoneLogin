@@ -2,6 +2,7 @@ package icu.h2l.api.event.connection
 
 import com.velocitypowered.api.event.annotation.AwaitingEvent
 import com.velocitypowered.api.event.connection.DisconnectEvent
+import com.velocitypowered.api.proxy.Player
 import com.velocitypowered.api.util.GameProfile
 import java.net.SocketAddress
 import java.util.UUID
@@ -24,4 +25,5 @@ class OnlineAuthEvent(
     val isOnline: Boolean
 ) {
     var gameProfile: GameProfile? = null
+    var player: Player? = null
 }

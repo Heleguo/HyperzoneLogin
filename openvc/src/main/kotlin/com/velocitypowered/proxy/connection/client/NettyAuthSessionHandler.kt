@@ -19,6 +19,7 @@ class NettyAuthSessionHandler(
     inbound: LoginInboundConnection,
     profile: GameProfile,
     onlineMode: Boolean,
+    private val preCreatedPlayer: ConnectedPlayer,
 ) : AuthSessionHandler(server, inbound, profile, onlineMode) {
 
     companion object {
@@ -32,6 +33,9 @@ class NettyAuthSessionHandler(
         val profile: Field = field("profile")
         val connectedPlayer: Field = field("connectedPlayer")
         val onlineMode: Field = field("onlineMode")
+        val connectedPlayerProfile: Field = ConnectedPlayer::class.java.getDeclaredField("profile").also {
+            it.isAccessible = true
+        }
         val startLoginCompletion: Method = AuthSessionHandler::class.java.getDeclaredMethod(
             "startLoginCompletion",
             ConnectedPlayer::class.java,
@@ -70,16 +74,10 @@ class NettyAuthSessionHandler(
                 return@thenComposeAsync CompletableFuture.completedFuture<Void?>(null)
             }
 
-            val player = ConnectedPlayer(
-                server,
-                profileEvent.gameProfile,
-                mcConnection,
-                inbound.virtualHost.orElse(null),
-                inbound.rawVirtualHost.orElse(null),
-                onlineMode,
-                inbound.handshakeIntent,
-                inbound.identifiedKey,
-            )
+            val player = preCreatedPlayer
+            val eventProfile = profileEvent.gameProfile
+            Ref.connectedPlayerProfile.set(player, eventProfile)
+            setField(Ref.profile, eventProfile)
             setField(Ref.connectedPlayer, player)
 
             if (!server.canRegisterConnection(player)) {

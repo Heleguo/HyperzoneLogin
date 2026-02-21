@@ -1,11 +1,15 @@
 package icu.h2l.login.inject.network
 
+import com.velocitypowered.api.network.HandshakeIntent
+import com.velocitypowered.api.proxy.crypto.IdentifiedKey
 import com.velocitypowered.api.util.GameProfile
 import com.velocitypowered.proxy.VelocityServer
+import com.velocitypowered.proxy.connection.MinecraftConnection
 import com.velocitypowered.proxy.connection.client.AuthSessionHandler
+import com.velocitypowered.proxy.connection.client.ConnectedPlayer
 import com.velocitypowered.proxy.connection.client.LoginInboundConnection
 import com.velocitypowered.proxy.connection.client.NettyAuthSessionHandler
-
+import java.net.InetSocketAddress
 
 private fun interface AuthSessionHandlerConstructor {
     fun create(
@@ -15,6 +19,19 @@ private fun interface AuthSessionHandlerConstructor {
         onlineMode: Boolean,
         serverIdHash: String,
     ): AuthSessionHandler
+}
+
+private fun interface ConnectedPlayerConstructor {
+    fun create(
+        server: VelocityServer,
+        profile: GameProfile,
+        mcConnection: MinecraftConnection,
+        virtualHost: InetSocketAddress?,
+        rawVirtualHost: String?,
+        onlineMode: Boolean,
+        handshakeIntent: HandshakeIntent,
+        identifiedKey: IdentifiedKey?,
+    ): ConnectedPlayer
 }
 
 @Suppress("ObjectPrivatePropertyName")
@@ -45,7 +62,7 @@ object NettyReflectionHelper {
                                             serverIdHash: String ->
                 ctor.newInstance(server, inbound, profile, onlineMode)
             }
-        }.recoverCatching { err ->
+        }.recoverCatching {
             val ctor = AuthSessionHandler::class.java.getDeclaredConstructor(
                 VelocityServer::class.java,
                 LoginInboundConnection::class.java,
@@ -64,22 +81,79 @@ object NettyReflectionHelper {
         }.getOrThrow()
     }
 
+    private val `ConnectedPlayer$init`: ConnectedPlayerConstructor by lazy {
+        val ctor = ConnectedPlayer::class.java.getDeclaredConstructor(
+            VelocityServer::class.java,
+            GameProfile::class.java,
+            MinecraftConnection::class.java,
+            InetSocketAddress::class.java,
+            String::class.java,
+            Boolean::class.javaPrimitiveType,
+            HandshakeIntent::class.java,
+            IdentifiedKey::class.java,
+        ).also { it.isAccessible = true }
+
+        ConnectedPlayerConstructor { server,
+                                     profile,
+                                     mcConnection,
+                                     virtualHost,
+                                     rawVirtualHost,
+                                     onlineMode,
+                                     handshakeIntent,
+                                     identifiedKey ->
+            ctor.newInstance(
+                server,
+                profile,
+                mcConnection,
+                virtualHost,
+                rawVirtualHost,
+                onlineMode,
+                handshakeIntent,
+                identifiedKey,
+            )
+        }
+    }
+
     fun createAuthSessionHandler(
         server: VelocityServer?,
         inbound: LoginInboundConnection?,
         profile: GameProfile?,
         onlineMode: Boolean,
+        connectedPlayer: ConnectedPlayer,
         serverIdHash: String,
     ): AuthSessionHandler {
-            return runCatching {
-                NettyAuthSessionHandler(
-                    requireNotNull(server) { "server" },
-                    requireNotNull(inbound) { "inbound" },
-                    requireNotNull(profile) { "profile" },
-                    onlineMode,
-                )
-            }.getOrElse {
-                `AuthSessionHandler$init`.create(server, inbound, profile, onlineMode, serverIdHash)
-            }
+        return runCatching {
+            NettyAuthSessionHandler(
+                requireNotNull(server) { "server" },
+                requireNotNull(inbound) { "inbound" },
+                requireNotNull(profile) { "profile" },
+                onlineMode,
+                connectedPlayer,
+            )
+        }.getOrElse {
+            `AuthSessionHandler$init`.create(server, inbound, profile, onlineMode, serverIdHash)
+        }
+    }
+
+    fun createConnectedPlayer(
+        server: VelocityServer,
+        profile: GameProfile,
+        mcConnection: MinecraftConnection,
+        virtualHost: InetSocketAddress?,
+        rawVirtualHost: String?,
+        onlineMode: Boolean,
+        handshakeIntent: HandshakeIntent,
+        identifiedKey: IdentifiedKey?,
+    ): ConnectedPlayer {
+        return `ConnectedPlayer$init`.create(
+            server,
+            profile,
+            mcConnection,
+            virtualHost,
+            rawVirtualHost,
+            onlineMode,
+            handshakeIntent,
+            identifiedKey,
+        )
     }
 }

@@ -9,6 +9,7 @@ import com.velocitypowered.proxy.VelocityServer
 import com.velocitypowered.proxy.connection.MinecraftConnection
 import com.velocitypowered.proxy.connection.VelocityConstants
 import com.velocitypowered.proxy.connection.client.AuthSessionHandler
+import com.velocitypowered.proxy.connection.client.ConnectedPlayer
 import com.velocitypowered.proxy.connection.client.InitialLoginSessionHandler
 import com.velocitypowered.proxy.connection.client.LoginInboundConnection
 import com.velocitypowered.proxy.crypto.EncryptionUtils
@@ -31,6 +32,7 @@ import net.kyori.adventure.text.Component
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull
+import java.util.Collections
 import java.net.InetSocketAddress
 import java.security.GeneralSecurityException
 import java.security.KeyPair
@@ -204,6 +206,19 @@ class NettyLoginSessionHandler(
             remoteAddress,
             online
         )
+        val preProfile = GameProfile(login.holderUuid, login.username, Collections.emptyList())
+        val connectedPlayer = NettyReflectionHelper.createConnectedPlayer(
+            injector.proxy,
+            preProfile,
+            mcConnection,
+            inbound.virtualHost.orElse(null),
+            inbound.rawVirtualHost.orElse(null),
+            online,
+            inbound.handshakeIntent,
+            inbound.identifiedKey,
+        )
+        onlineAuthEvent.gameProfile = preProfile
+        onlineAuthEvent.player = connectedPlayer
 
         injector.proxy.eventManager.fire(onlineAuthEvent).thenRunAsync(
             {
@@ -229,16 +244,17 @@ class NettyLoginSessionHandler(
                 }
 
                 val profile = onlineAuthEvent.gameProfile
+                    ?: connectedPlayer.gameProfile
+
+                if (onlineAuthEvent.player !== connectedPlayer) {
+                    logger.warn("OnlineAuthEvent.player 被替换，忽略替换并继续使用预创建 ConnectedPlayer")
+                }
 
                 val authSessionHandler =
                     createHandler(
-                        injector.proxy, inbound, profile, online,
+                        injector.proxy, inbound, profile, online, connectedPlayer,
                         UUID.randomUUID().toString() // For LoginEvent, not important
                     )
-
-                if (authSessionHandler == null) {
-                    inbound.disconnect(Component.text("内部错误[AuthSessionHandler对象创建失败]"))
-                }
 
                 mcConnection.setActiveSessionHandler(StateRegistry.LOGIN, authSessionHandler)
 
@@ -283,8 +299,8 @@ class NettyLoginSessionHandler(
             val serverId = EncryptionUtils.generateServerId(decryptedSharedSecret, serverKeyPair.public)
 
             doLogin(true, serverId, decryptedSharedSecret)
-        } catch (e: GeneralSecurityException) {
-            logger.error("Unable to enable encryption", e)
+        } catch (e: Throwable) {
+            logger.error("认证出错", e)
             mcConnection.close(true)
         }
     }
@@ -294,9 +310,17 @@ class NettyLoginSessionHandler(
         inbound: LoginInboundConnection?,
         profile: GameProfile?,
         onlineMode: Boolean,
+        connectedPlayer: ConnectedPlayer,
         serverIdHash: String,
     ): AuthSessionHandler {
-        return NettyReflectionHelper.createAuthSessionHandler(server, inbound, profile, onlineMode, serverIdHash)
+        return NettyReflectionHelper.createAuthSessionHandler(
+            server,
+            inbound,
+            profile,
+            onlineMode,
+            connectedPlayer,
+            serverIdHash,
+        )
     }
 
 }
