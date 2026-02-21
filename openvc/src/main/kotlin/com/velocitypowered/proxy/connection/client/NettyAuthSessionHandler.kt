@@ -4,6 +4,7 @@ import com.velocitypowered.api.event.permission.PermissionsSetupEvent
 import com.velocitypowered.api.event.player.GameProfileRequestEvent
 import com.velocitypowered.api.permission.PermissionFunction
 import com.velocitypowered.api.util.GameProfile
+import icu.h2l.api.event.connection.HyperZoneGameProfileRequestEvent
 import com.velocitypowered.proxy.VelocityServer
 import com.velocitypowered.proxy.connection.MinecraftConnection
 import net.kyori.adventure.text.Component
@@ -75,41 +76,56 @@ class NettyAuthSessionHandler(
             }
 
             val player = preCreatedPlayer
-            val eventProfile = profileEvent.gameProfile
-            Ref.connectedPlayerProfile.set(player, eventProfile)
-            setField(Ref.profile, eventProfile)
-            setField(Ref.connectedPlayer, player)
-
-            if (!server.canRegisterConnection(player)) {
-                player.disconnect0(
-                    Component.translatable("velocity.error.already-connected-proxy", NamedTextColor.RED),
-                    true,
-                )
-                return@thenComposeAsync CompletableFuture.completedFuture<Void?>(null)
+            val apiProfileEvent = HyperZoneGameProfileRequestEvent(
+                player = player,
+                originalProfile = profileEvent.originalProfile,
+                isOnline = onlineMode,
+            )
+            if (profileEvent.gameProfile != profileEvent.originalProfile) {
+                apiProfileEvent.gameProfile = profileEvent.gameProfile
             }
 
-            if (server.configuration.isLogPlayerConnections) {
-                logger.info("{} has connected", player)
-            }
+            server.eventManager.fire(apiProfileEvent).thenComposeAsync({
+                if (mcConnection.isClosed) {
+                    return@thenComposeAsync CompletableFuture.completedFuture<Void?>(null)
+                }
 
-            server.eventManager
-                .fire(PermissionsSetupEvent(player, ConnectedPlayer.DEFAULT_PERMISSIONS))
-                .thenAcceptAsync({ event ->
-                    if (!mcConnection.isClosed) {
-                        val function: PermissionFunction? = event.createFunction(player)
-                        if (function == null) {
-                            logger.error(
-                                "A plugin permission provider {} provided an invalid permission function for player {}. " +
-                                    "This is a bug in the plugin, not in Velocity. Falling back to the default permission function.",
-                                event.provider.javaClass.name,
-                                player.username,
-                            )
-                        } else {
-                            player.setPermissionFunction(function)
+                val eventProfile = apiProfileEvent.getResultProfile()
+                Ref.connectedPlayerProfile.set(player, eventProfile)
+                setField(Ref.profile, eventProfile)
+                setField(Ref.connectedPlayer, player)
+
+                if (!server.canRegisterConnection(player)) {
+                    player.disconnect0(
+                        Component.translatable("velocity.error.already-connected-proxy", NamedTextColor.RED),
+                        true,
+                    )
+                    return@thenComposeAsync CompletableFuture.completedFuture<Void?>(null)
+                }
+
+                if (server.configuration.isLogPlayerConnections) {
+                    logger.info("{} has connected", player)
+                }
+
+                server.eventManager
+                    .fire(PermissionsSetupEvent(player, ConnectedPlayer.DEFAULT_PERMISSIONS))
+                    .thenAcceptAsync({ event ->
+                        if (!mcConnection.isClosed) {
+                            val function: PermissionFunction? = event.createFunction(player)
+                            if (function == null) {
+                                logger.error(
+                                    "A plugin permission provider {} provided an invalid permission function for player {}. " +
+                                        "This is a bug in the plugin, not in Velocity. Falling back to the default permission function.",
+                                    event.provider.javaClass.name,
+                                    player.username,
+                                )
+                            } else {
+                                player.setPermissionFunction(function)
+                            }
+                            Ref.startLoginCompletion.invoke(this, player)
                         }
-                        Ref.startLoginCompletion.invoke(this, player)
-                    }
-                }, mcConnection.eventLoop())
+                    }, mcConnection.eventLoop())
+            }, mcConnection.eventLoop())
         }, mcConnection.eventLoop()).exceptionally { ex ->
             logger.error("Exception during connection of {}", finalProfile, ex)
             null

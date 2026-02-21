@@ -1,13 +1,16 @@
 package icu.h2l.login.listener
 
 import com.velocitypowered.api.event.Subscribe
-import icu.h2l.api.event.connection.OnlineAuthEvent
+import com.velocitypowered.api.util.GameProfile
+import icu.h2l.api.event.connection.HyperZoneGameProfileRequestEvent
 import icu.h2l.api.event.connection.OpenPreLoginEvent
 import icu.h2l.login.HyperZoneLoginMain
+import icu.h2l.login.manager.HyperZonePlayerManager
 import icu.h2l.login.type.OfflineUUIDType
 import icu.h2l.login.util.ExtraUuidUtils
-import icu.h2l.login.util.RemapUtils
 import icu.h2l.login.util.info
+import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.format.NamedTextColor
 
 class EventListener {
     @Subscribe
@@ -30,9 +33,25 @@ class EventListener {
     }
 
     @Subscribe
-    fun onPreLogin(event: OnlineAuthEvent) {
-        val username = event.userName
-        // 先给临时 Profile，让玩家继续登录流程
-        event.gameProfile = RemapUtils.genProfile(username, HyperZoneLoginMain.getRemapConfig().prefix)
+    fun onPreLogin(event: HyperZoneGameProfileRequestEvent) {
+        val hyperZonePlayer = HyperZonePlayerManager.getOrCreate(event.player)
+        val originalProfile = event.originalProfile
+
+        val resolvedProfile = hyperZonePlayer.getProfile()
+        if (resolvedProfile == null) {
+            HyperZoneLoginMain.getInstance().logger.error(
+                "玩家 ${event.player.username} 在 GameProfileRequest 阶段未找到 Profile，已拒绝连接"
+            )
+            event.player.disconnect(
+                Component.text("登录失败：未找到你的档案信息，请联系管理员。", NamedTextColor.RED)
+            )
+            return
+        }
+
+        event.gameProfile = GameProfile(
+            resolvedProfile.uuid,
+            resolvedProfile.name,
+            originalProfile.properties,
+        )
     }
-} 
+}
