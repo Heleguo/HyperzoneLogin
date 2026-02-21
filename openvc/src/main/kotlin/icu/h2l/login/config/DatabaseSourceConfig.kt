@@ -8,7 +8,7 @@ class DatabaseSourceConfig {
 
     @Comment(
         """数据库类型
-        支持的值: SQLITE, MYSQL, H2"""
+        支持的值: SQLITE, MYSQL, MARIADB, H2"""
     )
     var type: String = "SQLITE"
 
@@ -17,6 +17,9 @@ class DatabaseSourceConfig {
 
     @Comment("MySQL 数据库配置")
     var mysql: MySQLConfig = MySQLConfig()
+
+    @Comment("MariaDB 数据库配置")
+    var mariadb: MariaDBConfig = MariaDBConfig()
 
     @Comment("H2 数据库配置（用于测试）")
     var h2: H2Config = H2Config()
@@ -52,6 +55,33 @@ class DatabaseSourceConfig {
 
         @Comment("额外的连接参数")
         var parameters: String = "useSSL=false&serverTimezone=UTC&characterEncoding=utf8"
+
+        @Comment("JDBC 驱动类")
+        var driverClassName: String = "com.mysql.cj.jdbc.Driver"
+    }
+
+    @ConfigSerializable
+    class MariaDBConfig {
+        @Comment("MariaDB 服务器地址")
+        var host: String = "localhost"
+
+        @Comment("MariaDB 服务器端口")
+        var port: Int = 3306
+
+        @Comment("数据库名称")
+        var database: String = "hyperzone_login"
+
+        @Comment("用户名")
+        var username: String = "root"
+
+        @Comment("密码")
+        var password: String = "password"
+
+        @Comment("额外的连接参数")
+        var parameters: String = "useSSL=false&characterEncoding=utf8"
+
+        @Comment("JDBC 驱动类")
+        var driverClassName: String = "org.mariadb.jdbc.Driver"
     }
 
     @ConfigSerializable

@@ -13,6 +13,7 @@ import icu.h2l.login.database.DatabaseConfig
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.transactions.transaction
+import java.lang.Thread.currentThread
 
 /**
  * 数据库管理类
@@ -38,6 +39,13 @@ class DatabaseManager(
      */
     fun connect() {
         info { "正在连接数据库..." }
+
+        val pluginClassLoader = this::class.java.classLoader
+        try {
+            Class.forName(config.driverClassName, true, pluginClassLoader)
+        } catch (ex: ClassNotFoundException) {
+            throw RuntimeException("无法加载数据库驱动: ${config.driverClassName}", ex)
+        }
         
         val hikariConfig = HikariConfig().apply {
             jdbcUrl = config.jdbcUrl
@@ -60,8 +68,15 @@ class DatabaseManager(
             addDataSourceProperty("prepStmtCacheSize", "250")
             addDataSourceProperty("prepStmtCacheSqlLimit", "2048")
         }
-        
-        dataSource = HikariDataSource(hikariConfig)
+
+        val thread = currentThread()
+        val previousContextClassLoader = thread.contextClassLoader
+        thread.contextClassLoader = pluginClassLoader
+        try {
+            dataSource = HikariDataSource(hikariConfig)
+        } finally {
+            thread.contextClassLoader = previousContextClassLoader
+        }
         database = Database.connect(dataSource)
         
         info { "数据库连接成功！" }

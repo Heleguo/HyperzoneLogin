@@ -18,7 +18,8 @@ dependencies {
 // Database drivers
     implementation("com.h2database:h2:2.1.214")
     implementation("org.xerial:sqlite-jdbc:3.47.1.0")
-    implementation("mysql:mysql-connector-java:8.0.33")
+    implementation("com.mysql:mysql-connector-j:8.4.0")
+    implementation("org.mariadb.jdbc:mariadb-java-client:3.4.1")
     implementation("com.zaxxer:HikariCP:5.0.1")
 //    VC
     compileOnly("com.velocitypowered:velocity-api:3.4.0-SNAPSHOT")
@@ -70,7 +71,8 @@ tasks {
 //            Database drivers
             include(dependency("com.h2database:h2"))
             include(dependency("org.xerial:sqlite-jdbc"))
-            include(dependency("mysql:mysql-connector-java"))
+            include(dependency("com.mysql:mysql-connector-j"))
+            include(dependency("org.mariadb.jdbc:mariadb-java-client"))
             include(dependency("com.zaxxer:HikariCP"))
 //           api
             include(dependency(":api"))

@@ -9,7 +9,7 @@ import org.jetbrains.exposed.sql.Table
  *
  * @param prefix 表名前缀，默认为空字符串
  */
-class ProfileTable(prefix: String = "") : Table("${prefix}hyperzone_login_profile") {
+class ProfileTable(prefix: String = "") : Table("${prefix}profile") {
     /**
      * 档案ID（主键）
      * 用作和入口关联的映射

@@ -260,6 +260,24 @@ class HyperZoneLoginMain @Inject constructor(
                     password = databaseSourceConfig.mysql.password,
                     tablePrefix = databaseSourceConfig.tablePrefix,
                     parameters = databaseSourceConfig.mysql.parameters,
+                    driverClassName = databaseSourceConfig.mysql.driverClassName,
+                    maximumPoolSize = databaseSourceConfig.pool.maximumPoolSize,
+                    minimumIdle = databaseSourceConfig.pool.minimumIdle,
+                    connectionTimeout = databaseSourceConfig.pool.connectionTimeout,
+                    idleTimeout = databaseSourceConfig.pool.idleTimeout,
+                    maxLifetime = databaseSourceConfig.pool.maxLifetime
+                )
+            }
+            "MARIADB" -> {
+                DatabaseConfig.mariadb(
+                    host = databaseSourceConfig.mariadb.host,
+                    port = databaseSourceConfig.mariadb.port,
+                    database = databaseSourceConfig.mariadb.database,
+                    username = databaseSourceConfig.mariadb.username,
+                    password = databaseSourceConfig.mariadb.password,
+                    tablePrefix = databaseSourceConfig.tablePrefix,
+                    parameters = databaseSourceConfig.mariadb.parameters,
+                    driverClassName = databaseSourceConfig.mariadb.driverClassName,
                     maximumPoolSize = databaseSourceConfig.pool.maximumPoolSize,
                     minimumIdle = databaseSourceConfig.pool.minimumIdle,
                     connectionTimeout = databaseSourceConfig.pool.connectionTimeout,

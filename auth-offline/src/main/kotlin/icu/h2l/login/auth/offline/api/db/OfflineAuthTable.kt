@@ -12,7 +12,7 @@ data class OfflineAuthEntry(
     val profileId: UUID
 )
 
-class OfflineAuthTable(prefix: String, profileTable: ProfileTable) : Table("${prefix}hyperzone_login_offline_auth") {
+class OfflineAuthTable(prefix: String, profileTable: ProfileTable) : Table("${prefix}offline_auth") {
     val id = integer("id").autoIncrement()
     val name = varchar("name", 32).uniqueIndex()
     val passwordHash = varchar("password_hash", 255)

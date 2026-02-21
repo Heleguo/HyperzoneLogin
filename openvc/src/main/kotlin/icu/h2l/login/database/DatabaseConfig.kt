@@ -27,6 +27,7 @@ data class DatabaseConfig(
             password: String,
             tablePrefix: String = "",
             parameters: String = "useSSL=false&serverTimezone=UTC&characterEncoding=utf8",
+            driverClassName: String = "com.mysql.cj.jdbc.Driver",
             maximumPoolSize: Int = 10,
             minimumIdle: Int = 2,
             connectionTimeout: Long = 30000,
@@ -36,7 +37,37 @@ data class DatabaseConfig(
             jdbcUrl = "jdbc:mysql://$host:$port/$database?$parameters",
             username = username,
             password = password,
-            driverClassName = "com.mysql.cj.jdbc.Driver",
+            driverClassName = driverClassName,
+            tablePrefix = tablePrefix,
+            maximumPoolSize = maximumPoolSize,
+            minimumIdle = minimumIdle,
+            connectionTimeout = connectionTimeout,
+            idleTimeout = idleTimeout,
+            maxLifetime = maxLifetime
+        )
+
+        /**
+         * 创建 MariaDB 配置
+         */
+        fun mariadb(
+            host: String,
+            port: Int = 3306,
+            database: String,
+            username: String,
+            password: String,
+            tablePrefix: String = "",
+            parameters: String = "useSSL=false&characterEncoding=utf8",
+            driverClassName: String = "org.mariadb.jdbc.Driver",
+            maximumPoolSize: Int = 10,
+            minimumIdle: Int = 2,
+            connectionTimeout: Long = 30000,
+            idleTimeout: Long = 600000,
+            maxLifetime: Long = 1800000
+        ) = DatabaseConfig(
+            jdbcUrl = "jdbc:mariadb://$host:$port/$database?$parameters",
+            username = username,
+            password = password,
+            driverClassName = driverClassName,
             tablePrefix = tablePrefix,
             maximumPoolSize = maximumPoolSize,
             minimumIdle = minimumIdle,

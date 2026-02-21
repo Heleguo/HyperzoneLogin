@@ -11,7 +11,7 @@ import org.jetbrains.exposed.sql.Table
  * @param prefix 表名前缀，默认为空字符串
  * @param profileTable 档案表实例，用于外键关联
  */
-class EntryTable(entryId: String, prefix: String = "", profileTable: ProfileTable) : Table("${prefix}hyperzone_login_entry_$entryId") {
+class EntryTable(entryId: String, prefix: String = "", profileTable: ProfileTable) : Table("${prefix}entry_$entryId") {
     /**
      * 自增ID
      */
