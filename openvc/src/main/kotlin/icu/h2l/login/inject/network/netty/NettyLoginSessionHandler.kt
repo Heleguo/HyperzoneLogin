@@ -264,15 +264,7 @@ class NettyLoginSessionHandler(
                     logger.warn("OnlineAuthEvent.player 被替换，忽略替换并继续使用预创建 ConnectedPlayer")
                 }
 
-                val authSessionHandler =
-                    createHandler(
-                        injector.proxy, inbound, profile, online, connectedPlayer,
-                        UUID.randomUUID().toString() // For LoginEvent, not important
-                    )
-
-                mcConnection.setActiveSessionHandler(StateRegistry.LOGIN, authSessionHandler)
-
-                retire()
+                activatedAuthSession()
             }, mcConnection.eventLoop()
         ).exceptionally { ex: Throwable? ->
             logger.error("Exception in login stage", ex)
@@ -405,8 +397,7 @@ class NettyLoginSessionHandler(
                 }
 
                 server.getEventManager()
-//                    ConnectedPlayer.DEFAULT_PERMISSIONS WIP
-                    .fire(PermissionsSetupEvent(player, null))
+                    .fire(PermissionsSetupEvent(player, NettyReflectionHelper.getDefaultPermissionsProvider()))
                     .thenAcceptAsync(Consumer { event: PermissionsSetupEvent? ->
                         if (!mcConnection.isClosed()) {
                             // wait for permissions to load, then set the players permission function
@@ -419,7 +410,7 @@ class NettyLoginSessionHandler(
                                     event.getProvider().javaClass.getName(), player.getUsername()
                                 )
                             } else {
-//                                player.setPermissionFunction(function)
+                                NettyReflectionHelper.setPermissionFunction(player, function)
                             }
                             startLoginCompletion(player)
                         }
@@ -511,10 +502,10 @@ class NettyLoginSessionHandler(
                 if (inbound.getProtocolVersion().lessThan(ProtocolVersion.MINECRAFT_1_20_2)) {
                     cState = 6
 //                    WIP
-//                    mcConnection.setActiveSessionHandler(
-//                        StateRegistry.PLAY,
-//                        InitialConnectSessionHandler(player, server)
-//                    )
+                    mcConnection.setActiveSessionHandler(
+                        StateRegistry.PLAY,
+                        NettyReflectionHelper.createInitialConnectSessionHandler(player, server)
+                    )
                     server.getEventManager().fire<PostLoginEvent?>(PostLoginEvent(player))
                         .thenCompose<Void?>(Function { ignored: PostLoginEvent? -> connectToInitialServer(player) })
                         .exceptionally(
@@ -526,6 +517,7 @@ class NettyLoginSessionHandler(
                                 )
                                 null
                             })
+                    retire()
                 }
             }
         }, mcConnection.eventLoop()).exceptionally({ ex: Throwable? ->
