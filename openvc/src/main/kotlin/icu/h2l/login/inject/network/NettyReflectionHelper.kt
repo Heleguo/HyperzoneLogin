@@ -8,7 +8,7 @@ import com.velocitypowered.proxy.connection.MinecraftConnection
 import com.velocitypowered.proxy.connection.client.AuthSessionHandler
 import com.velocitypowered.proxy.connection.client.ConnectedPlayer
 import com.velocitypowered.proxy.connection.client.LoginInboundConnection
-import com.velocitypowered.proxy.connection.client.NettyAuthSessionHandler
+import icu.h2l.login.HyperZoneLoginMain
 import java.net.InetSocketAddress
 
 private fun interface AuthSessionHandlerConstructor {
@@ -123,15 +123,13 @@ object NettyReflectionHelper {
         serverIdHash: String,
     ): AuthSessionHandler {
         return runCatching {
-            NettyAuthSessionHandler(
-                requireNotNull(server) { "server" },
-                requireNotNull(inbound) { "inbound" },
-                requireNotNull(profile) { "profile" },
-                onlineMode,
-                connectedPlayer,
-            )
-        }.getOrElse {
             `AuthSessionHandler$init`.create(server, inbound, profile, onlineMode, serverIdHash)
+        }.getOrElse { reflectionException ->
+            HyperZoneLoginMain.getInstance().logger.error(
+                "反射创建 AuthSessionHandler 失败。",
+                reflectionException
+            )
+            throw reflectionException
         }
     }
 
