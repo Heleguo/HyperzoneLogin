@@ -14,6 +14,9 @@ import java.util.concurrent.atomic.AtomicBoolean
 class OpenVcHyperZonePlayer(
     private val proxyPlayer: Player
 ) : HyperZonePlayer {
+    @Volatile
+    var profileId: UUID? = null
+
     private val isVerifiedState = AtomicBoolean(false)
     private val hasSpawned = AtomicBoolean(false)
     private val messageQueue = ConcurrentLinkedQueue<Component>()
@@ -22,6 +25,12 @@ class OpenVcHyperZonePlayer(
     private var limboPlayer: LimboPlayer? = null
 
     private val databaseHelper = HyperZoneLoginMain.getInstance().databaseHelper
+
+    init {
+        profileId = databaseHelper
+            .getProfileByNameOrUuid(proxyPlayer.username, proxyPlayer.uniqueId)
+            ?.id
+    }
 
     fun onSpawn(player: LimboPlayer) {
         limboPlayer = player
@@ -34,8 +43,7 @@ class OpenVcHyperZonePlayer(
     }
 
     override fun canRegister(): Boolean {
-        val profile = databaseHelper.getProfileByNameOrUuid(proxyPlayer.username, proxyPlayer.uniqueId)
-        return profile == null
+        return profileId == null
     }
 
     override fun register(userName: String?, uuid: UUID?): Profile {
@@ -59,11 +67,14 @@ class OpenVcHyperZonePlayer(
             throw IllegalStateException("玩家 ${proxyPlayer.username} 注册失败，数据库写入失败")
         }
 
+        profileId = profile.id
+
         return profile
     }
 
     override fun getProfile(): Profile? {
-        return databaseHelper.getProfileByNameOrUuid(proxyPlayer.username, proxyPlayer.uniqueId)
+        val currentProfileId = profileId ?: return null
+        return databaseHelper.getProfile(currentProfileId)
     }
 
     override fun isVerified(): Boolean {
