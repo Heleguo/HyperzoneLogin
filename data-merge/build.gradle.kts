@@ -12,6 +12,7 @@ repositories {
 dependencies {
     implementation(project(":api"))
     implementation(project(":auth-yggd"))
+    implementation(project(":auth-offline"))
 
     compileOnly("com.velocitypowered:velocity-api:3.4.0-SNAPSHOT")
 

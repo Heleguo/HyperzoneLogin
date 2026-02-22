@@ -114,18 +114,37 @@ class OfflineAuthService(
         return when (entry.hashFormat.lowercase()) {
             HASH_FORMAT_PLAIN -> password == entry.passwordHash
             HASH_FORMAT_SHA256 -> hashPassword(password) == entry.passwordHash
+            HASH_FORMAT_AUTHME -> verifyAuthMe(password, entry.passwordHash)
             else -> hashPassword(password) == entry.passwordHash
         }
     }
 
     private fun hashPassword(password: String): String {
+        return sha256Hex(password)
+    }
+
+    private fun verifyAuthMe(password: String, storedHash: String): Boolean {
+        val parts = storedHash.split("$")
+        if (parts.size != 4) {
+            return false
+        }
+
+        val salt = parts[2]
+        val expected = parts[3]
+        val first = hashPassword(password)
+        val computed = sha256Hex(first + salt)
+        return computed.equals(expected, ignoreCase = true)
+    }
+
+    private fun sha256Hex(input: String): String {
         val digest = MessageDigest.getInstance("SHA-256")
-        val bytes = digest.digest(password.toByteArray(StandardCharsets.UTF_8))
+        val bytes = digest.digest(input.toByteArray(StandardCharsets.UTF_8))
         return bytes.joinToString("") { byte -> "%02x".format(byte) }
     }
 
     companion object {
         private const val HASH_FORMAT_PLAIN = "plain"
         private const val HASH_FORMAT_SHA256 = "sha256"
+        private const val HASH_FORMAT_AUTHME = "authme"
     }
 }

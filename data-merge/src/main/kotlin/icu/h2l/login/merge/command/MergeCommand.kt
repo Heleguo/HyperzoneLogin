@@ -4,7 +4,8 @@ import com.velocitypowered.api.command.SimpleCommand
 import java.util.concurrent.atomic.AtomicBoolean
 
 class MergeCommand(
-    private val runMlMigration: () -> String
+    private val runMlMigration: () -> String,
+    private val runAmMigration: () -> String
 ) : SimpleCommand {
     private val running = AtomicBoolean(false)
 
@@ -14,12 +15,14 @@ class MergeCommand(
 
         if (args.isEmpty()) {
             sender.sendPlainMessage("§e/hzl-merge ml")
+            sender.sendPlainMessage("§e/hzl-merge am")
             return
         }
 
-        if (!args[0].equals("ml", ignoreCase = true)) {
+        val subCommand = args[0].lowercase()
+        if (subCommand != "ml" && subCommand != "am") {
             sender.sendPlainMessage("§c未知子命令: ${args[0]}")
-            sender.sendPlainMessage("§e可用子命令: ml")
+            sender.sendPlainMessage("§e可用子命令: ml, am")
             return
         }
 
@@ -29,10 +32,22 @@ class MergeCommand(
         }
 
         try {
-            sender.sendPlainMessage("§e开始执行 ML 迁移，请稍候...")
-            val summary = runMlMigration()
+            val summary = when (subCommand) {
+                "ml" -> {
+                    sender.sendPlainMessage("§e开始执行 ML 迁移，请稍候...")
+                    runMlMigration()
+                }
+
+                else -> {
+                    sender.sendPlainMessage("§e开始执行 AUTHME 迁移，请稍候...")
+                    runAmMigration()
+                }
+            }
+
             sender.sendPlainMessage("§a迁移完成: $summary")
-            sender.sendPlainMessage("§a详细日志已输出到 merge-ml.log")
+            sender.sendPlainMessage(
+                "§a详细日志已输出到 ${if (subCommand == "ml") "merge-ml.log" else "merge-am.log"}"
+            )
         } catch (ex: Exception) {
             sender.sendPlainMessage("§c迁移失败: ${ex.message}")
         } finally {
