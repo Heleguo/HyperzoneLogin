@@ -5,7 +5,7 @@ import com.velocitypowered.api.util.GameProfile
 import icu.h2l.api.db.Profile
 import icu.h2l.api.player.HyperZonePlayer
 import icu.h2l.login.HyperZoneLoginMain
-import icu.h2l.login.util.RemapUtils
+import icu.h2l.api.util.RemapUtils
 import net.elytrium.limboapi.api.player.LimboPlayer
 import net.kyori.adventure.text.Component
 import java.util.*
@@ -73,7 +73,7 @@ class OpenVcHyperZonePlayer(
         }
 
         val profile = Profile(
-            id = RemapUtils.genUUID(resolvedName, "h2l"),
+            id = RemapUtils.genProfileUUID(resolvedName),
             name = resolvedName,
             uuid = resolvedUuid
         )

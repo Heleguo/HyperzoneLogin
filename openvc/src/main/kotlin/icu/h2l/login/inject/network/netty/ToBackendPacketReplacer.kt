@@ -146,7 +146,6 @@ class ToBackendPacketReplacer : ChannelOutboundHandlerAdapter() {
 
     fun getGameProfile(): GameProfile {
         return hyperPlayer.getGameProfile()
-//        return RemapUtils.randomProfile()
     }
 
     fun getPlayerRemoteAddressAsString(): String {

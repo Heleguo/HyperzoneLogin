@@ -16,10 +16,11 @@ class OfflineAuthRepository(
     private val table: OfflineAuthTable
 ) {
     fun create(name: String, passwordHash: String, hashFormat: String, profileId: UUID): Boolean {
+        val normalizedName = name.lowercase()
         return try {
             databaseManager.executeTransaction {
                 table.insert {
-                    it[this.name] = name
+                    it[this.name] = normalizedName
                     it[this.passwordHash] = passwordHash
                     it[this.hashFormat] = hashFormat
                     it[this.profileId] = profileId
@@ -33,8 +34,9 @@ class OfflineAuthRepository(
     }
 
     fun getByName(name: String): OfflineAuthEntry? {
+        val normalizedName = name.lowercase()
         return databaseManager.executeTransaction {
-            table.selectAll().where { table.name eq name }
+            table.selectAll().where { table.name eq normalizedName }
                 .limit(1)
                 .map { row ->
                     OfflineAuthEntry(

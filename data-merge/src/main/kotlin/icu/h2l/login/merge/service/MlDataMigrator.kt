@@ -5,10 +5,10 @@ import icu.h2l.api.db.table.ProfileTable
 import icu.h2l.login.auth.online.api.db.EntryTable
 import icu.h2l.login.merge.config.MergeMlConfig
 import org.jetbrains.exposed.sql.*
-import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.*
+import icu.h2l.api.util.RemapUtils
 
 class MlDataMigrator(
     private val dataDirectory: Path,
@@ -192,6 +192,6 @@ class MlDataMigrator(
     }
 
     private fun generateProfileId(profileName: String): UUID {
-        return UUID.nameUUIDFromBytes(("h2l:$profileName").toByteArray(StandardCharsets.UTF_8))
+        return RemapUtils.genProfileUUID(profileName)
     }
 }

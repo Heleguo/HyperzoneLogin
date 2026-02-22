@@ -12,6 +12,7 @@ import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.UUID
+import icu.h2l.api.util.RemapUtils
 
 class AmDataMigrator(
     private val dataDirectory: Path,
@@ -69,6 +70,7 @@ class AmDataMigrator(
                     }
 
                     val profileName = resolveProfileName(source)
+                    val offlineAuthName = profileName.lowercase()
                     val generatedProfileId = generateProfileId(username)
                     val profileUuid = generateOfflinePlayerUuid(username)
 
@@ -149,27 +151,27 @@ class AmDataMigrator(
                             .firstOrNull()
 
                         if (existingByProfileId != null) {
-                            val same = existingByProfileId[offlineAuthTable.name] == profileName &&
+                            val same = existingByProfileId[offlineAuthTable.name] == offlineAuthName &&
                                 existingByProfileId[offlineAuthTable.passwordHash] == passwordMeta.passwordHash &&
                                 existingByProfileId[offlineAuthTable.hashFormat].equals(passwordMeta.hashFormat, ignoreCase = true)
 
                             if (same) {
                                 report.targetOfflineAuthMatched++
-                                logger.log("[AUTH][MATCHED] name=$profileName profileId=$resolvedProfileId")
+                                logger.log("[AUTH][MATCHED] name=$offlineAuthName profileId=$resolvedProfileId")
                             } else {
                                 offlineAuthTable.update({ offlineAuthTable.profileId eq resolvedProfileId }) {
-                                    it[name] = profileName
+                                    it[name] = offlineAuthName
                                     it[passwordHash] = passwordMeta.passwordHash
                                     it[hashFormat] = passwordMeta.hashFormat
                                 }
                                 report.targetOfflineAuthUpdated++
-                                logger.log("[AUTH][UPDATED] name=$profileName profileId=$resolvedProfileId")
+                                logger.log("[AUTH][UPDATED] name=$offlineAuthName profileId=$resolvedProfileId")
                             }
                             continue
                         }
 
                         val existingByName = offlineAuthTable.selectAll()
-                            .where { offlineAuthTable.name eq profileName }
+                            .where { offlineAuthTable.name eq offlineAuthName }
                             .limit(1)
                             .firstOrNull()
 
@@ -180,30 +182,30 @@ class AmDataMigrator(
                                     existingByName[offlineAuthTable.hashFormat].equals(passwordMeta.hashFormat, ignoreCase = true)
                                 if (same) {
                                     report.targetOfflineAuthMatched++
-                                    logger.log("[AUTH][MATCHED] name=$profileName profileId=$resolvedProfileId")
+                                    logger.log("[AUTH][MATCHED] name=$offlineAuthName profileId=$resolvedProfileId")
                                 } else {
                                     offlineAuthTable.update({ offlineAuthTable.profileId eq resolvedProfileId }) {
                                         it[passwordHash] = passwordMeta.passwordHash
                                         it[hashFormat] = passwordMeta.hashFormat
                                     }
                                     report.targetOfflineAuthUpdated++
-                                    logger.log("[AUTH][UPDATED] name=$profileName profileId=$resolvedProfileId")
+                                    logger.log("[AUTH][UPDATED] name=$offlineAuthName profileId=$resolvedProfileId")
                                 }
                             } else {
                                 report.targetOfflineAuthConflicts++
-                                logger.log("[AUTH][CONFLICT] name=$profileName existedPid=$existedPid incomingPid=$resolvedProfileId")
+                                logger.log("[AUTH][CONFLICT] name=$offlineAuthName existedPid=$existedPid incomingPid=$resolvedProfileId")
                             }
                             continue
                         }
 
                         offlineAuthTable.insert {
-                            it[name] = profileName
+                            it[name] = offlineAuthName
                             it[passwordHash] = passwordMeta.passwordHash
                             it[hashFormat] = passwordMeta.hashFormat
                             it[profileId] = resolvedProfileId
                         }
                         report.targetOfflineAuthCreated++
-                        logger.log("[AUTH][CREATED] name=$profileName profileId=$resolvedProfileId format=${passwordMeta.hashFormat}")
+                        logger.log("[AUTH][CREATED] name=$offlineAuthName profileId=$resolvedProfileId format=${passwordMeta.hashFormat}")
                     } catch (ex: Exception) {
                         report.targetOfflineAuthFailures++
                         logger.log("[AUTH][FAILED] name=$profileName profileId=$resolvedProfileId reason=${ex.message}")
@@ -258,7 +260,7 @@ class AmDataMigrator(
     }
 
     private fun generateProfileId(username: String): UUID {
-        return UUID.nameUUIDFromBytes(("h2l:$username").toByteArray(StandardCharsets.UTF_8))
+        return RemapUtils.genProfileUUID(username)
     }
 
     companion object {

@@ -11,15 +11,15 @@ import icu.h2l.login.HyperZoneLoginMain
 import icu.h2l.login.manager.HyperZonePlayerManager
 import icu.h2l.login.type.OfflineUUIDType
 import icu.h2l.login.util.ExtraUuidUtils
-import icu.h2l.login.util.RemapUtils
+import icu.h2l.api.util.RemapUtils
 import icu.h2l.login.util.info
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
 
 class EventListener {
     companion object {
-        const val EXPECTED_NAME_PREFIX = "hzl-login-"
-        const val REMAP_PREFIX = "check"
+        const val EXPECTED_NAME_PREFIX = RemapUtils.EXPECTED_NAME_PREFIX
+        const val REMAP_PREFIX = RemapUtils.REMAP_PREFIX
         private const val PLUGIN_CONFLICT_MESSAGE = "登录失败：检测到插件冲突。"
     }
 

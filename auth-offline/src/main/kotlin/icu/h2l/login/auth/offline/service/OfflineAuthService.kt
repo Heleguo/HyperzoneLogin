@@ -16,18 +16,19 @@ class OfflineAuthService(
     fun register(player: Player, password: String): Result {
         val hyperZonePlayer = playerAccessor.getByPlayer(player)
         val username = hyperZonePlayer.userName
+        val normalizedName = username.lowercase()
         if (!hyperZonePlayer.canRegister()) {
             return Result(false, "§c其他渠道已注册，如有需要，请进行绑定")
         }
 
-        if (repository.getByName(username) != null) {
+        if (repository.getByName(normalizedName) != null) {
             return Result(false, "§c你已经注册过，无法重复注册")
         }
 
         val profile = hyperZonePlayer.register()
         val hash = hashPassword(password)
         val created = repository.create(
-            name = username,
+            name = normalizedName,
             passwordHash = hash,
             hashFormat = HASH_FORMAT_SHA256,
             profileId = profile.id
@@ -42,17 +43,18 @@ class OfflineAuthService(
     fun bind(player: Player, password: String): Result {
         val hyperZonePlayer = playerAccessor.getByPlayer(player)
         val username = hyperZonePlayer.userName
+        val normalizedName = username.lowercase()
         if (!hyperZonePlayer.canBind()) {
             return Result(false, "§c尚未完成验证，无法绑定")
         }
 
         val profile = hyperZonePlayer.getProfile() ?: return Result(false, "§c未找到档案，无法绑定")
-        if (repository.getByProfileId(profile.id) != null || repository.getByName(username) != null) {
+        if (repository.getByProfileId(profile.id) != null || repository.getByName(normalizedName) != null) {
             return Result(false, "§c已绑定，无需重复绑定")
         }
 
         val created = repository.create(
-            name = username,
+            name = normalizedName,
             passwordHash = hashPassword(password),
             hashFormat = HASH_FORMAT_SHA256,
             profileId = profile.id
@@ -66,7 +68,7 @@ class OfflineAuthService(
 
     fun login(player: Player, password: String): Result {
         val username = playerAccessor.getByPlayer(player).userName
-        val entry = repository.getByName(username) ?: return Result(false, "§c尚未注册")
+        val entry = repository.getByName(username.lowercase()) ?: return Result(false, "§c尚未注册")
         if (!verifyPassword(password, entry)) {
             return Result(false, "§c密码错误")
         }
@@ -78,7 +80,7 @@ class OfflineAuthService(
 
     fun changePassword(player: Player, oldPassword: String, newPassword: String): Result {
         val username = playerAccessor.getByPlayer(player).userName
-        val entry = repository.getByName(username) ?: return Result(false, "§c尚未注册")
+        val entry = repository.getByName(username.lowercase()) ?: return Result(false, "§c尚未注册")
         if (!verifyPassword(oldPassword, entry)) {
             return Result(false, "§c旧密码错误")
         }
@@ -97,7 +99,7 @@ class OfflineAuthService(
 
     fun unregister(player: Player, password: String): Result {
         val username = playerAccessor.getByPlayer(player).userName
-        val entry = repository.getByName(username) ?: return Result(false, "§c尚未注册")
+        val entry = repository.getByName(username.lowercase()) ?: return Result(false, "§c尚未注册")
         if (!verifyPassword(password, entry)) {
             return Result(false, "§c密码错误")
         }

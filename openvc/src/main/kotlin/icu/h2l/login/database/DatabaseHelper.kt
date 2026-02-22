@@ -3,6 +3,7 @@ package icu.h2l.login.database
 import icu.h2l.api.db.Profile
 import icu.h2l.api.log.warn
 import icu.h2l.login.manager.DatabaseManager
+import icu.h2l.api.util.RemapUtils
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
@@ -85,10 +86,26 @@ class DatabaseHelper(
      * @return 档案信息，如果不存在返回 null
      */
     fun getProfileByNameOrUuid(name: String, uuid: UUID): Profile? {
-        profileCacheByName[name.lowercase()]?.let { return it }
-        profileCacheByUuid[uuid]?.let { return it }
+        val profileId = RemapUtils.genProfileUUID(name)
+        profileCacheById[profileId]?.let { return it }
+
+        val loadedById = loadProfileById(profileId)
+        if (loadedById != null) {
+            cacheProfile(loadedById)
+            return loadedById
+        }
+
+        profileCacheByName[name.lowercase()]?.let {
+            warn { "Profile 命中 name/uuid 回退逻辑: name=$name uuid=$uuid" }
+            return it
+        }
+        profileCacheByUuid[uuid]?.let {
+            warn { "Profile 命中 name/uuid 回退逻辑: name=$name uuid=$uuid" }
+            return it
+        }
 
         val loaded = loadProfileByNameOrUuid(name, uuid) ?: return null
+        warn { "Profile 命中 name/uuid 回退逻辑: name=$name uuid=$uuid" }
         cacheProfile(loaded)
         return loaded
     }
