@@ -4,12 +4,12 @@ import icu.h2l.api.db.HyperZoneDatabaseManager
 import icu.h2l.api.log.warn
 import icu.h2l.login.auth.offline.api.db.OfflineAuthEntry
 import icu.h2l.login.auth.offline.api.db.OfflineAuthTable
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.update
-import org.jetbrains.exposed.sql.deleteWhere
-import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
-import java.util.UUID
+import java.util.*
 
 class OfflineAuthRepository(
     private val databaseManager: HyperZoneDatabaseManager,

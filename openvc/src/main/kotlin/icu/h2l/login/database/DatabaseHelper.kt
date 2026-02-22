@@ -3,10 +3,11 @@ package icu.h2l.login.database
 import icu.h2l.api.db.Profile
 import icu.h2l.api.log.warn
 import icu.h2l.login.manager.DatabaseManager
-import org.jetbrains.exposed.sql.*
+import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
-import java.util.UUID
+import org.jetbrains.exposed.sql.update
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
 /**

@@ -4,7 +4,7 @@ import com.velocitypowered.api.proxy.Player
 import com.velocitypowered.api.util.GameProfile
 import icu.h2l.api.db.Profile
 import net.kyori.adventure.text.Component
-import java.util.UUID
+import java.util.*
 
 /**
  * HyperZone 登录流程中的统一玩家抽象。

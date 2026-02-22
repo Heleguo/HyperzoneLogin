@@ -6,8 +6,6 @@ import com.velocitypowered.api.event.Subscribe
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent
 import com.velocitypowered.api.plugin.annotation.DataDirectory
 import com.velocitypowered.api.proxy.ProxyServer
-import icu.h2l.api.event.db.TableSchemaAction
-import icu.h2l.api.event.db.TableSchemaEvent
 import icu.h2l.api.command.HyperChatCommandManager
 import icu.h2l.api.command.HyperChatCommandManagerProvider
 import icu.h2l.api.command.HyperChatCommandRegistration
@@ -27,19 +25,19 @@ import icu.h2l.login.database.DatabaseHelper
 import icu.h2l.login.inject.network.VelocityNetworkModule
 import icu.h2l.login.limbo.LimboAuth
 import icu.h2l.login.limbo.command.ExitLimboCommand
-import icu.h2l.login.merge.MergeSubModule
-import icu.h2l.login.util.registerApiLogger
 import icu.h2l.login.listener.EventListener
 import icu.h2l.login.manager.HyperChatCommandManagerImpl
 import icu.h2l.login.manager.HyperZonePlayerManager
 import icu.h2l.login.manager.LoginServerManager
-import java.nio.file.Files
-import java.nio.file.Path
+import icu.h2l.login.merge.MergeSubModule
+import icu.h2l.login.util.registerApiLogger
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger
 import org.spongepowered.configurate.ConfigurationOptions
 import org.spongepowered.configurate.hocon.HoconConfigurationLoader
 import org.spongepowered.configurate.kotlin.dataClassFieldDiscoverer
 import org.spongepowered.configurate.objectmapping.ObjectMapper
+import java.nio.file.Files
+import java.nio.file.Path
 
 @Suppress("ANNOTATION_WILL_BE_APPLIED_ALSO_TO_PROPERTY_OR_FIELD")
 class HyperZoneLoginMain @Inject constructor(

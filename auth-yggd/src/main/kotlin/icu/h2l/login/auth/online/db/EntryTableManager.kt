@@ -5,10 +5,10 @@ import icu.h2l.api.db.HyperZoneDatabaseManager
 import icu.h2l.api.db.table.ProfileTable
 import icu.h2l.api.event.db.TableSchemaAction
 import icu.h2l.api.event.db.TableSchemaEvent
-import icu.h2l.login.auth.online.events.EntryRegisterEvent
 import icu.h2l.api.log.info
 import icu.h2l.api.log.warn
 import icu.h2l.login.auth.online.api.db.EntryTable
+import icu.h2l.login.auth.online.events.EntryRegisterEvent
 import org.jetbrains.exposed.sql.SchemaUtils
 
 /**

@@ -3,7 +3,7 @@ package icu.h2l.api.event.connection
 import com.velocitypowered.api.event.annotation.AwaitingEvent
 import com.velocitypowered.api.event.connection.DisconnectEvent
 import io.netty.channel.Channel
-import java.util.UUID
+import java.util.*
 
 /**
  * 触发PreLogin后触发，用于鉴别是否为离线玩家以及进行离线的验证.

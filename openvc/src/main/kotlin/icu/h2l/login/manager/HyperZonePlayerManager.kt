@@ -8,7 +8,7 @@ import icu.h2l.api.player.HyperZonePlayerAccessor
 import icu.h2l.api.player.getChannel
 import icu.h2l.login.player.OpenVcHyperZonePlayer
 import io.netty.channel.Channel
-import java.util.UUID
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
 object HyperZonePlayerManager : HyperZonePlayerAccessor {

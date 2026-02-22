@@ -6,5 +6,5 @@ enum class TableSchemaAction {
 }
 
 data class TableSchemaEvent(
-    val action: icu.h2l.api.event.db.TableSchemaAction,
+    val action: TableSchemaAction,
 )

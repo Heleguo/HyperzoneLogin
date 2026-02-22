@@ -1,7 +1,7 @@
 package icu.h2l.api.command
 
-import com.velocitypowered.api.command.SimpleCommand
 import com.velocitypowered.api.command.CommandSource
+import com.velocitypowered.api.command.SimpleCommand
 
 data class HyperChatCommandRegistration(
     val name: String,

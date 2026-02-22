@@ -1,5 +1,6 @@
 package icu.h2l.login.auth.online
 
+import com.velocitypowered.api.proxy.Player
 import com.velocitypowered.api.util.GameProfile
 import com.velocitypowered.proxy.VelocityServer
 import icu.h2l.api.db.HyperZoneDatabaseManager
@@ -11,22 +12,15 @@ import icu.h2l.login.auth.online.config.entry.EntryConfig
 import icu.h2l.login.auth.online.db.EntryDatabaseHelper
 import icu.h2l.login.auth.online.db.EntryTableManager
 import icu.h2l.login.auth.online.manager.EntryConfigManager
-import icu.h2l.login.auth.online.req.AuthServerConfig
-import icu.h2l.login.auth.online.req.AuthenticationRequest
-import icu.h2l.login.auth.online.req.AuthenticationRequestEntry
-import icu.h2l.login.auth.online.req.AuthenticationResult
-import icu.h2l.login.auth.online.req.ConcurrentAuthenticationManager
-import icu.h2l.login.auth.online.req.MojangStyleAuthRequest
+import icu.h2l.login.auth.online.req.*
 import kotlinx.coroutines.*
 import net.kyori.adventure.text.Component
 import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
-import com.velocitypowered.api.proxy.Player
 import java.net.http.HttpClient
 import java.time.Duration
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.collections.iterator
 
 /**
  * 验证管理器
@@ -369,7 +363,7 @@ class YggdrasilAuthModule(
         val allEntries = entryConfigManager.getAllConfigs()
 
         databaseManager.executeTransaction {
-            for ((configName, entryConfig) in allEntries) {
+            for ((_, entryConfig) in allEntries) {
                 val entryTable = entryTableManager.getEntryTable(entryConfig.id.lowercase())
 
                 if (entryTable != null) {
@@ -461,9 +455,7 @@ class YggdrasilAuthModule(
         )
 
         // 执行并发验证
-        val result = authManager.authenticate(username, serverId, playerIp)
-
-        return when (result) {
+        return when (val result = authManager.authenticate(username, serverId, playerIp)) {
             is AuthenticationResult.Success -> {
                 YggdrasilAuthResult.Success(
                     profile = result.profile,
@@ -497,8 +489,7 @@ sealed class YggdrasilAuthResult {
         val profile: GameProfile,
         val entryId: String,
         val serverUrl: String
-    ) : YggdrasilAuthResult() {
-    }
+    ) : YggdrasilAuthResult()
 
     /**
      * 验证失败
@@ -506,20 +497,17 @@ sealed class YggdrasilAuthResult {
     data class Failed(
         val reason: String,
         val statusCode: Int? = null
-    ) : YggdrasilAuthResult() {
-    }
+    ) : YggdrasilAuthResult()
 
     /**
      * 验证超时
      */
-    object Timeout : YggdrasilAuthResult() {
-    }
+    object Timeout : YggdrasilAuthResult()
 
     /**
     * 没有配置的Entry
      */
-    object NoEntriesConfigured : YggdrasilAuthResult() {
-    }
+    object NoEntriesConfigured : YggdrasilAuthResult()
 
     val isSuccess: Boolean
         get() = this is Success

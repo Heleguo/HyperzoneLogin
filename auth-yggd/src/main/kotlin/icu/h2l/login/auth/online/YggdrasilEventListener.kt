@@ -7,7 +7,7 @@ import icu.h2l.api.event.limbo.LimboSpawnEvent
 import icu.h2l.api.log.debug
 import icu.h2l.api.player.getChannel
 import io.netty.channel.Channel
-import java.util.UUID
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
 class YggdrasilEventListener(

@@ -3,14 +3,14 @@ package icu.h2l.login.auth.offline
 import com.velocitypowered.api.proxy.ProxyServer
 import icu.h2l.api.command.HyperChatCommandManagerProvider
 import icu.h2l.api.db.HyperZoneDatabaseManager
+import icu.h2l.api.db.table.ProfileTable
+import icu.h2l.api.log.info
 import icu.h2l.api.module.HyperSubModule
 import icu.h2l.api.player.HyperZonePlayerAccessorProvider
-import icu.h2l.api.db.table.ProfileTable
 import icu.h2l.login.auth.offline.command.OfflineAuthCommandRegistrar
 import icu.h2l.login.auth.offline.db.OfflineAuthRepository
 import icu.h2l.login.auth.offline.db.OfflineAuthTableManager
 import icu.h2l.login.auth.offline.service.OfflineAuthService
-import icu.h2l.api.log.info
 import java.nio.file.Path
 
 class OfflineSubModule : HyperSubModule {

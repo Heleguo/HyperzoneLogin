@@ -8,12 +8,12 @@ import icu.h2l.api.module.HyperSubModule
 import icu.h2l.login.merge.command.MergeCommand
 import icu.h2l.login.merge.config.MergeMlConfig
 import icu.h2l.login.merge.service.MlDataMigrator
-import java.nio.file.Files
-import java.nio.file.Path
 import org.spongepowered.configurate.ConfigurationOptions
 import org.spongepowered.configurate.hocon.HoconConfigurationLoader
 import org.spongepowered.configurate.kotlin.dataClassFieldDiscoverer
 import org.spongepowered.configurate.objectmapping.ObjectMapper
+import java.nio.file.Files
+import java.nio.file.Path
 
 class MergeSubModule : HyperSubModule {
     override fun register(

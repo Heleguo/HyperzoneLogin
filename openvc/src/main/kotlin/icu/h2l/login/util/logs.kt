@@ -2,9 +2,9 @@ package icu.h2l.login.util
 
 import icu.h2l.api.log.HyperZoneLogApi
 import icu.h2l.api.log.HyperZoneLogger
+import icu.h2l.login.HyperZoneLoginMain
 import icu.h2l.api.log.debug as apiDebug
 import icu.h2l.api.log.info as apiInfo
-import icu.h2l.login.HyperZoneLoginMain
 
 private const val DEBUG_MESSAGE_PREFIX = "[DEBUG] "
 

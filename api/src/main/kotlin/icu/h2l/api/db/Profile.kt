@@ -1,6 +1,6 @@
 package icu.h2l.api.db
 
-import java.util.UUID
+import java.util.*
 
 /**
  * ProfileTable 对应的数据对象。

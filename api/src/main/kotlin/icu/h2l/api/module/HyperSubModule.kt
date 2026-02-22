@@ -5,5 +5,5 @@ import icu.h2l.api.db.HyperZoneDatabaseManager
 import java.nio.file.Path
 
 interface HyperSubModule {
-    fun register(owner: Any, proxy: ProxyServer, dataDirectory: Path, databaseManager: icu.h2l.api.db.HyperZoneDatabaseManager)
+    fun register(owner: Any, proxy: ProxyServer, dataDirectory: Path, databaseManager: HyperZoneDatabaseManager)
 }

@@ -62,7 +62,7 @@ class ToBackendPacketReplacer : ChannelOutboundHandlerAdapter() {
         ctx: ChannelHandlerContext,
         msg: LoginPluginResponsePacket
     ): LoginPluginResponsePacket {
-        if (config.getPlayerInfoForwardingMode() == PlayerInfoForwarding.MODERN) {
+        if (config.playerInfoForwardingMode == PlayerInfoForwarding.MODERN) {
             val buf = msg.content()
             var requestedForwardingVersion = PlayerDataForwarding.MODERN_DEFAULT
             // Check version
@@ -70,16 +70,16 @@ class ToBackendPacketReplacer : ChannelOutboundHandlerAdapter() {
                 requestedForwardingVersion = ProtocolUtils.readVarInt(buf)
             }
             val forwardingData = PlayerDataForwarding.createForwardingData(
-                config.getForwardingSecret(),
+                config.forwardingSecret,
                 getPlayerRemoteAddressAsString(),
-                player.getProtocolVersion(),
+                player.protocolVersion,
                 getGameProfile(),
-                player.getIdentifiedKey(),
+                player.identifiedKey,
                 requestedForwardingVersion
             )
 
             val response = LoginPluginResponsePacket(
-                msg.getId(), true, forwardingData
+                msg.id, true, forwardingData
             )
             return response
         }
@@ -91,48 +91,44 @@ class ToBackendPacketReplacer : ChannelOutboundHandlerAdapter() {
     private lateinit var fillAddr: InetSocketAddress
 
     private fun genHandshake(ctx: ChannelHandlerContext, msg: HandshakePacket): HandshakePacket {
-        val forwardingMode: PlayerInfoForwarding? = config.getPlayerInfoForwardingMode()
+        val forwardingMode: PlayerInfoForwarding? = config.playerInfoForwardingMode
 //        val player = HyperZonePlayerManager.getByChannel(ctx.channel()).proxyPlayer!! as ConnectedPlayer
 
 
         // Initiate the handshake.
-        val protocolVersion: ProtocolVersion? = player.getConnection().getProtocolVersion()
-        val playerVhost: String? = player.getVirtualHost()
+        val protocolVersion: ProtocolVersion? = player.connection.protocolVersion
+        val playerVhost: String? = player.virtualHost
             .orElseGet { fillAddr }
-            .getHostString()
+            .hostString
 
         val handshake = HandshakePacket()
         handshake.setIntent(HandshakeIntent.LOGIN)
-        handshake.setProtocolVersion(protocolVersion)
+        handshake.protocolVersion = protocolVersion
         if (forwardingMode == PlayerInfoForwarding.LEGACY) {
-            handshake.setServerAddress(createLegacyForwardingAddress())
+            handshake.serverAddress = createLegacyForwardingAddress()
         } else if (forwardingMode == PlayerInfoForwarding.BUNGEEGUARD) {
-            val secret: ByteArray = config.getForwardingSecret()
-            handshake.setServerAddress(createBungeeGuardForwardingAddress(secret))
-        } else if (player.getConnection().getType() === ConnectionTypes.LEGACY_FORGE) {
-            handshake.setServerAddress(playerVhost + LegacyForgeConstants.HANDSHAKE_HOSTNAME_TOKEN)
-        } else if (player.getConnection().getType() is ModernForgeConnectionType) {
-            handshake.setServerAddress(
-                playerVhost + (player
-                    .getConnection().getType() as ModernForgeConnectionType).getModernToken()
-            )
+            val secret: ByteArray = config.forwardingSecret
+            handshake.serverAddress = createBungeeGuardForwardingAddress(secret)
+        } else if (player.connection.type === ConnectionTypes.LEGACY_FORGE) {
+            handshake.serverAddress = playerVhost + LegacyForgeConstants.HANDSHAKE_HOSTNAME_TOKEN
+        } else if (player.connection.type is ModernForgeConnectionType) {
+            handshake.serverAddress = playerVhost + (player
+                .connection.type as ModernForgeConnectionType).getModernToken()
         } else {
-            handshake.setServerAddress(playerVhost)
+            handshake.serverAddress = playerVhost
         }
 
-        handshake.setPort(
-            player.getVirtualHost()
-                .orElseGet(Supplier { fillAddr })
-                .getPort()
-        )
+        handshake.port = player.virtualHost
+            .orElseGet(Supplier { fillAddr })
+            .port
 
         return handshake
     }
 
     private fun createLegacyForwardingAddress(): String {
         return createLegacyForwardingAddress(
-            player.getVirtualHost().orElseGet(Supplier { fillAddr })
-                .getHostString(),
+            player.virtualHost.orElseGet(Supplier { fillAddr })
+                .hostString,
             getPlayerRemoteAddressAsString(),
             getGameProfile()
         )
@@ -140,8 +136,8 @@ class ToBackendPacketReplacer : ChannelOutboundHandlerAdapter() {
 
     private fun createBungeeGuardForwardingAddress(forwardingSecret: ByteArray): String {
         return createBungeeGuardForwardingAddress(
-            player.getVirtualHost().orElseGet(Supplier { fillAddr })
-                .getHostString(),
+            player.virtualHost.orElseGet(Supplier { fillAddr })
+                .hostString,
             getPlayerRemoteAddressAsString(),
             getGameProfile(),
             forwardingSecret
@@ -154,7 +150,7 @@ class ToBackendPacketReplacer : ChannelOutboundHandlerAdapter() {
     }
 
     fun getPlayerRemoteAddressAsString(): String {
-        val addr: String = player.getRemoteAddress().getAddress().getHostAddress()
+        val addr: String = player.remoteAddress.address.hostAddress
         val ipv6ScopeIdx = addr.indexOf('%')
         if (ipv6ScopeIdx == -1) {
             return addr
@@ -165,14 +161,14 @@ class ToBackendPacketReplacer : ChannelOutboundHandlerAdapter() {
 
 
     private fun genServerLogin(ctx: ChannelHandlerContext, msg: ServerLoginPacket): ServerLoginPacket {
-        if (player.getIdentifiedKey() == null
-            && player.getProtocolVersion().noLessThan(ProtocolVersion.MINECRAFT_1_19_3)
+        if (player.identifiedKey == null
+            && player.protocolVersion.noLessThan(ProtocolVersion.MINECRAFT_1_19_3)
         ) {
             return (ServerLoginPacket(hyperPlayer.userName, hyperPlayer.uuid))
         } else {
             return ServerLoginPacket(
                 hyperPlayer.userName,
-                player.getIdentifiedKey()
+                player.identifiedKey
             )
         }
     }
@@ -198,6 +194,6 @@ class ToBackendPacketReplacer : ChannelOutboundHandlerAdapter() {
         this.fillAddr = velocityServerConnection.server.serverInfo.address
         this.hyperPlayer = HyperZonePlayerManager.getByPlayer(player)
         val server = HyperZoneLoginMain.getInstance().proxy
-        config = (server.getConfiguration() as VelocityConfiguration)
+        config = (server.configuration as VelocityConfiguration)
     }
 }

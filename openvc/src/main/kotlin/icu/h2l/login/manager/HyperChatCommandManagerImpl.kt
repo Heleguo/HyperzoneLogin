@@ -5,8 +5,8 @@ import com.velocitypowered.api.command.SimpleCommand
 import com.velocitypowered.api.proxy.ProxyServer
 import icu.h2l.api.command.HyperChatCommandManager
 import icu.h2l.api.command.HyperChatCommandRegistration
-import net.kyori.adventure.text.Component
 import net.elytrium.limboapi.api.Limbo
+import net.kyori.adventure.text.Component
 import java.util.concurrent.ConcurrentHashMap
 
 object HyperChatCommandManagerImpl : HyperChatCommandManager {

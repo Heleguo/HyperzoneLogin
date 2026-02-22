@@ -2,7 +2,6 @@ package icu.h2l.login.util.uuid
 
 import icu.h2l.login.HyperZoneLoginMain
 import java.util.*
-import kotlin.text.iterator
 
 object PCL2UUIDUtil {
     //        PCL2/Plain Craft Launcher 2/Modules/Minecraft/ModLaunch.vb 1120行
@@ -79,7 +78,7 @@ object PCL2UUIDUtil {
         val b = uuid[15].toString().toInt(16)
         val c = uuid[23].toString().toInt(16)
         val d = uuid[31].toString().toInt(16)
-        return if ((0 xor b xor c xor d) % 2 == 1) true else false
+        return (0 xor b xor c xor d) % 2 == 1
     }
 
     private fun getStringUUID(name: String): String = buildString {

@@ -2,12 +2,12 @@ package icu.h2l.login.merge.service
 
 import icu.h2l.login.merge.config.MergeMlConfig
 import java.nio.ByteBuffer
-import java.nio.file.Paths
 import java.nio.file.Path
+import java.nio.file.Paths
 import java.sql.Connection
 import java.sql.DriverManager
 import java.sql.SQLException
-import java.util.UUID
+import java.util.*
 
 data class MlInGameProfileRow(
     val inGameUuid: UUID,

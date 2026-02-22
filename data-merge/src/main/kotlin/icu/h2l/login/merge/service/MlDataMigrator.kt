@@ -4,15 +4,11 @@ import icu.h2l.api.db.HyperZoneDatabaseManager
 import icu.h2l.api.db.table.ProfileTable
 import icu.h2l.login.auth.online.api.db.EntryTable
 import icu.h2l.login.merge.config.MergeMlConfig
+import org.jetbrains.exposed.sql.*
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
 import java.nio.file.Path
-import java.util.UUID
-import org.jetbrains.exposed.sql.SchemaUtils
-import org.jetbrains.exposed.sql.and
-import org.jetbrains.exposed.sql.insert
-import org.jetbrains.exposed.sql.selectAll
-import org.jetbrains.exposed.sql.update
+import java.util.*
 
 class MlDataMigrator(
     private val dataDirectory: Path,

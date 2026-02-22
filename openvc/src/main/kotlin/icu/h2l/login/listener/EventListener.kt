@@ -15,12 +15,11 @@ import icu.h2l.login.util.RemapUtils
 import icu.h2l.login.util.info
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
-import kotlin.random.Random
 
 class EventListener {
     companion object {
-        public const val EXPECTED_NAME_PREFIX = "hzl-login-"
-        public const val REMAP_PREFIX = "check"
+        const val EXPECTED_NAME_PREFIX = "hzl-login-"
+        const val REMAP_PREFIX = "check"
         private const val PLUGIN_CONFLICT_MESSAGE = "登录失败：检测到插件冲突。"
     }
 
