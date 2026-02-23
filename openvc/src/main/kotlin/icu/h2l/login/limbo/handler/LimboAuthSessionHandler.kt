@@ -16,10 +16,12 @@ class LimboAuthSessionHandler(
 
     override fun onSpawn(server: Limbo, player: LimboPlayer) {
         (hyperZonePlayer as OpenVcHyperZonePlayer).onSpawn(player)
+
+        player.disableFalling()
+
         HyperZoneLoginMain.getInstance().proxy.eventManager.fire(
             LimboSpawnEvent(player, proxyPlayer, hyperZonePlayer)
         )
-        player.disableFalling()
     }
 
     override fun onChat(chat: String?) {
