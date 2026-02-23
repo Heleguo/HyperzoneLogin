@@ -1,0 +1,40 @@
+name: Java CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      force-update:
+        description: 'Force Flush Velocity Library Cache'
+        required: false
+        type: boolean
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 'Checkout'
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 2
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: 21
+          cache: 'gradle'
+
+      - name: Build Dev
+        uses: gradle/gradle-build-action@v2
+        with:
+          gradle-version: current
+          arguments: ShadowJar
+
+
+      - name: Upload
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          path: ./*
+          
