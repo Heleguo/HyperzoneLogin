@@ -4,11 +4,6 @@ on:
   push:
   pull_request:
   workflow_dispatch:
-    inputs:
-      force-update:
-        description: 'Force Flush Velocity Library Cache'
-        required: false
-        type: boolean
 
 jobs:
   build:
