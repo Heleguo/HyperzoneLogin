@@ -34,7 +34,8 @@ class OfflineAuthService(
             profileId = profile.id
         )
         return if (created) {
-            Result(true, "§a注册成功")
+            hyperZonePlayer.overVerify()
+            Result(true, "§a注册成功，已自动登录")
         } else {
             Result(false, "§c注册失败，请稍后再试")
         }
