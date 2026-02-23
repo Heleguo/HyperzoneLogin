@@ -18,7 +18,7 @@ class OpenVcHyperZonePlayer(
     override var uuid: UUID,
 ) : HyperZonePlayer {
 
-    override var proxyPlayer: Player? = null
+    private var proxyPlayer: Player? = null
 
     @Volatile
     var profileId: UUID? = null

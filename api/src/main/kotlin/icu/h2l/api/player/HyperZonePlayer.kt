@@ -24,11 +24,6 @@ interface HyperZonePlayer {
     val uuid: UUID
 
     /**
-     * 当前玩家的代理玩家。
-     */
-    var proxyPlayer: Player?
-
-    /**
      * 判断是否允许执行注册流程。
      *
      * 主要依据：数据库中是否已存在该玩家 Profile。
