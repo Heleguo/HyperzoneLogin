@@ -12,6 +12,6 @@ subprojects {
 
         maven("https://repo.papermc.io/repository/maven-public/")
         maven("https://maven.fabricmc.net/")
-        maven("https://maven.elytrium.net/repo/")
+        maven("https://jitpack.io/")
     }
 }

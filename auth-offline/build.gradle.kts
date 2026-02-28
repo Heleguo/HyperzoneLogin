@@ -19,7 +19,7 @@ dependencies {
     compileOnly("org.spongepowered:configurate-hocon:4.2.0")
     compileOnly("org.spongepowered:configurate-extra-kotlin:4.2.0")
 //    limbo
-    compileOnly("net.elytrium.limboapi:api:1.1.26")
+    compileOnly("com.github.Elytrium:LimboAPI:1.1.26")
 
     testImplementation(platform("org.junit:junit-bom:5.10.0"))
     testImplementation("org.junit.jupiter:junit-jupiter")

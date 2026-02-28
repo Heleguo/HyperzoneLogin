@@ -25,7 +25,7 @@ dependencies {
     compileOnly("com.velocitypowered:velocity-api:3.4.0-SNAPSHOT")
     compileOnly("com.velocitypowered:velocity-proxy:3.4.0-SNAPSHOT") // From Elytrium Repo.
 //    limbo
-    compileOnly("net.elytrium.limboapi:api:1.1.26")
+    compileOnly("com.github.Elytrium:LimboAPI:1.1.26")
 
 //    mixin
     compileOnly("space.vectrix.ignite:ignite-api:1.1.0")

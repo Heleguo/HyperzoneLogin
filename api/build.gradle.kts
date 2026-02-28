@@ -14,7 +14,7 @@ dependencies {
     compileOnly("com.velocitypowered:velocity-api:3.4.0-SNAPSHOT")
     compileOnly("com.velocitypowered:velocity-proxy:3.4.0-SNAPSHOT")
 //    limbo
-    compileOnly("net.elytrium.limboapi:api:1.1.26")
+    compileOnly("com.github.Elytrium:LimboAPI:1.1.26")
     compileOnly("io.netty:netty-all:4.2.5.Final")
 // Exposed ORM
     implementation("org.jetbrains.exposed:exposed-core:0.58.0")
