@@ -1,26 +1,32 @@
 # HyperZoneLogin
-实现正版和盗版混合登入的插件
+
+实现多种登入形式的API框架兼少数标准实现
+
 ## 兼容情况
-### 版本兼容情况
-低于1.19.1:  
-域名前加o-或者offline识别为离线玩家  
-高于1.19.1:  
-直接进入即可
-### 启动器兼容情况
-- [x] HMCL  
-- [x] PCL  
-- [x] 原版启动器  
-- [x] Zalith
+
+### 可导入数据的插件
+
+- [x] AuthME
+- [x] MultiLogin
+
+### 兼容性
+登入方式：支持主流登入方式  
+MC版本：1.19.1+暂无问题 低于1.19.1则只能使用域名作为识别方式  
+启动器：支持市面常见  
 
 ## 开发计划
+
 - [x] 基础原理实现
-- [ ] 添加基础toml配置
-- [ ] 取代AuthMe实现离线登入
-- [ ] 取代MultiLogin实现档案管理
+- [x] 添加基础toml配置
+- [x] 取代AuthMe实现离线登入
+- [x] 取代MultiLogin实现多Yggd档案管理
+- [ ] 支持floodgate
+- [ ] 添加地图二维码功能
+- [ ] 开发账户绑定功能
+- [ ] 美化离线交互逻辑
+- [ ] 为离线登入模块提高一定的防御功能
 - [ ] 为档案管理添加一套可用的Web页面
 
 ## 开发时间
-啊。。遥遥无期呢，作者在考研
- 
-## 服务器启动参数
-`java -Dignite.mods=./plugins -Dignite.jar=./velocity-3.4.0-SNAPSHOT-563.jar -Dignite.libraries=./libraries -jar ignite-launcher-1.1.1-SNAPSHOT-all.jar`
+
+作者很忙，年更插件，有需要的话，你可以提交PR，但本仓库不接受低质量的PR，有问题就发issue
