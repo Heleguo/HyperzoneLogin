@@ -4,7 +4,7 @@ import com.velocitypowered.api.event.Subscribe
 import com.velocitypowered.api.event.player.GameProfileRequestEvent
 import com.velocitypowered.api.util.GameProfile
 import com.velocitypowered.proxy.connection.client.InitialInboundConnection
-import icu.h2l.api.connection.getInitialChannel
+import icu.h2l.api.connection.getNettyChannel
 import icu.h2l.api.event.connection.OnlineAuthEvent
 import icu.h2l.api.event.connection.OpenPreLoginEvent
 import icu.h2l.api.util.RemapUtils
@@ -28,9 +28,11 @@ class EventListener {
         val uuid = event.uuid
         val name = event.userName
         val host = event.host
+//        初始化一些channel信息
+        HyperZonePlayerManager.create(event.channel, event.userName, event.uuid)
 
+//        后面是进行离线UUID匹配
         if (!HyperZoneLoginMain.getOfflineMatchConfig().enable) return
-
         val offlineHost = HyperZoneLoginMain.getInstance().loginServerManager.shouldOfflineHost(host)
         if (offlineHost) {
             info { "匹配到离线 host 玩家: $name" }
@@ -42,7 +44,6 @@ class EventListener {
         } else {
             event.isOnline = true
         }
-        HyperZonePlayerManager.create(event.channel, event.userName, event.uuid)
         info { "传入 UUID 信息玩家: $name UUID:$uuid 类型: $offlineUUIDType 在线:${event.isOnline}" }
     }
 
@@ -80,7 +81,7 @@ class EventListener {
             return
         }
 
-        val hyperZonePlayer = HyperZonePlayerManager.getByChannel(event.connection.getInitialChannel())
+        val hyperZonePlayer = HyperZonePlayerManager.getByChannel(event.connection.getNettyChannel())
         val originalProfile = event.originalProfile
 
         val resolvedProfile = hyperZonePlayer.getProfile()

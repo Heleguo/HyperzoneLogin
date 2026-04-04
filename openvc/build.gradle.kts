@@ -22,8 +22,8 @@ dependencies {
     implementation("org.mariadb.jdbc:mariadb-java-client:3.4.1")
     implementation("com.zaxxer:HikariCP:5.0.1")
 //    VC
-    compileOnly("com.velocitypowered:velocity-api:3.4.0-SNAPSHOT")
-    compileOnly("com.velocitypowered:velocity-proxy:3.4.0-SNAPSHOT") // From Elytrium Repo.
+    compileOnly("com.velocitypowered:velocity-api:3.5.0-SNAPSHOT")
+    compileOnly("com.velocitypowered:velocity-proxy:3.5.0-SNAPSHOT") // From Elytrium Repo.
 //    limbo
     compileOnly("net.elytrium.limboapi:api:1.1.26")
 
