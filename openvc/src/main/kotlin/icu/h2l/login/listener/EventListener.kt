@@ -1,9 +1,10 @@
 package icu.h2l.login.listener
 
 import com.velocitypowered.api.event.Subscribe
+import com.velocitypowered.api.event.connection.LoginEvent
 import com.velocitypowered.api.event.player.GameProfileRequestEvent
 import com.velocitypowered.api.util.GameProfile
-import com.velocitypowered.proxy.connection.client.InitialInboundConnection
+import icu.h2l.api.connection.disconnectWithMessage
 import icu.h2l.api.connection.getNettyChannel
 import icu.h2l.api.event.connection.OnlineAuthEvent
 import icu.h2l.api.event.connection.OpenPreLoginEvent
@@ -49,19 +50,20 @@ class EventListener {
 
     @Subscribe
     fun onOnlineAuth(event: OnlineAuthEvent) {
+        if (!HyperZoneLoginMain.getMiscConfig().enableReplaceGameProfile) return
         event.gameProfile = RemapUtils.randomProfile()
     }
 
-
     @Subscribe
     fun onPreLogin(event: GameProfileRequestEvent) {
+//            不进行后端转发的情况下要准许使用原有的
+        if (!HyperZoneLoginMain.getMiscConfig().enableReplaceGameProfile) return
+
         val incomingProfile = event.gameProfile
         val incomingName = incomingProfile.name
         fun disconnectWithError(logMessage: String, userMessage: String) {
             HyperZoneLoginMain.getInstance().logger.error(logMessage)
-            (event.connection as InitialInboundConnection).disconnect(
-                Component.text(userMessage, NamedTextColor.RED)
-            )
+            event.connection.disconnectWithMessage(Component.text(userMessage, NamedTextColor.RED))
         }
 
         if (!incomingName.startsWith(EXPECTED_NAME_PREFIX)) {

@@ -18,6 +18,7 @@ import com.velocitypowered.proxy.protocol.ProtocolUtils
 import com.velocitypowered.proxy.protocol.packet.HandshakePacket
 import com.velocitypowered.proxy.protocol.packet.LoginPluginResponsePacket
 import com.velocitypowered.proxy.protocol.packet.ServerLoginPacket
+import icu.h2l.api.log.error
 import icu.h2l.api.player.HyperZonePlayer
 import icu.h2l.login.HyperZoneLoginMain
 import icu.h2l.login.manager.HyperZonePlayerManager
@@ -173,11 +174,25 @@ class ToBackendPacketReplacer : ChannelOutboundHandlerAdapter() {
     }
 
     override fun write(ctx: ChannelHandlerContext, msg: Any?, promise: ChannelPromise?) {
-        initFields(ctx)
+        try {
+            if (!HyperZoneLoginMain.getMiscConfig().enableReplaceGameProfile) {
+                super.write(ctx, msg, promise)
+                return
+            }
+            initFields(ctx)
 
 //        println("W: $msg")
-
-        super.write(ctx, replaceMessage(ctx.channel(), ctx, msg), promise)
+            super.write(ctx, replaceMessage(ctx.channel(), ctx, msg), promise)
+        } catch (t: Throwable) {
+            // Log via the global API logger bridge so it's consistent with the rest of the project
+            error(t) { "ToBackendPacketReplacer write failed: ${t.message}" }
+            // Propagate to Netty's exception handling to avoid silently swallowing
+            try {
+                ctx.fireExceptionCaught(t)
+            } catch (_: Throwable) {
+                // ignore
+            }
+        }
     }
 
     private fun initFields(ctx: ChannelHandlerContext) {
