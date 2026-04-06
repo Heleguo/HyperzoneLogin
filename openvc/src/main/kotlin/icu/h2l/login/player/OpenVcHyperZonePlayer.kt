@@ -30,6 +30,9 @@ class OpenVcHyperZonePlayer(
     @Volatile
     private var limboPlayer: LimboPlayer? = null
 
+    @Volatile
+    private var initialGameProfile: GameProfile? = null
+
     private val databaseHelper = HyperZoneLoginMain.getInstance().databaseHelper
 
     init {
@@ -125,10 +128,23 @@ class OpenVcHyperZonePlayer(
             return proxyPlayer!!.gameProfile
         }
         val resolvedProfile = getProfile()
+        val resolvedProperties = ArrayList(
+            initialGameProfile?.properties
+                ?: proxyPlayer?.gameProfile?.properties
+                ?: emptyList()
+        )
         return GameProfile(
             resolvedProfile!!.uuid,
             resolvedProfile.name,
-            ArrayList()
+            resolvedProperties
         )
+    }
+
+    override fun getInitialGameProfile(): GameProfile? {
+        return initialGameProfile
+    }
+
+    override fun setInitialGameProfile(profile: GameProfile?) {
+        initialGameProfile = profile
     }
 }

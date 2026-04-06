@@ -1,0 +1,9 @@
+{
+  "id": "hzl-profile-skin",
+  "name": "HyperZoneLogin - Profile Skin",
+  "version": "1.0.0",
+  "authors": ["ksqeib"],
+  "dependencies": [{"id":"hyperzonelogin","optional":false}],
+  "main": "icu.h2l.login.profile.skin.ProfileSkinPlugin"
+}
+

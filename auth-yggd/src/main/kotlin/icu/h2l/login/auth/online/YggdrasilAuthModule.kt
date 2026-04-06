@@ -4,10 +4,16 @@ import com.velocitypowered.api.proxy.Player
 import com.velocitypowered.api.util.GameProfile
 import com.velocitypowered.proxy.VelocityServer
 import icu.h2l.api.db.HyperZoneDatabaseManager
+import icu.h2l.api.event.profile.ProfileSkinPreprocessEvent
 import icu.h2l.api.log.debug
+import icu.h2l.api.log.error
 import icu.h2l.api.log.info
 import icu.h2l.api.player.HyperZonePlayer
 import icu.h2l.api.player.HyperZonePlayerAccessor
+import icu.h2l.api.profile.skin.ProfileSkinModel
+import icu.h2l.api.profile.skin.ProfileSkinSource
+import icu.h2l.api.profile.skin.ProfileSkinTextures
+import icu.h2l.login.HyperZoneLoginMain
 import icu.h2l.login.auth.online.config.entry.EntryConfig
 import icu.h2l.login.auth.online.db.EntryDatabaseHelper
 import icu.h2l.login.auth.online.db.EntryTableManager
@@ -17,6 +23,8 @@ import kotlinx.coroutines.*
 import net.kyori.adventure.text.Component
 import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
+import java.nio.charset.StandardCharsets
+import java.util.Base64
 import java.net.http.HttpClient
 import java.time.Duration
 import java.util.*
@@ -170,6 +178,8 @@ class YggdrasilAuthModule(
         try {
             if (result is YggdrasilAuthResult.Success) {
                 info { "玩家 $username 通过 Yggdrasil 验证，Entry: ${result.entryId}" }
+                handler.setInitialGameProfile(result.profile)
+                fireProfileSkinPreprocessEvent(handler, result)
                 if (!handler.isVerified()) {
                     handler.overVerify()
                     debug { "玩家 $username 调用验证完成接口成功，Entry: ${result.entryId}"  }
@@ -199,6 +209,43 @@ class YggdrasilAuthModule(
         authResults.remove(player)
         limboHandlers.remove(player)
         inFlightAuthJobs.remove(player)?.cancel()
+    }
+
+    private fun fireProfileSkinPreprocessEvent(
+        handler: HyperZonePlayer,
+        result: YggdrasilAuthResult.Success
+    ) {
+        val event = ProfileSkinPreprocessEvent(
+            hyperZonePlayer = handler,
+            authenticatedProfile = result.profile,
+            entryId = result.entryId,
+            serverUrl = result.serverUrl
+        )
+        event.textures = extractTextures(result.profile)
+        event.source = extractSkinSource(event.textures)
+
+        runCatching {
+            HyperZoneLoginMain.getInstance().proxy.eventManager.fire(event).join()
+        }.onFailure { throwable ->
+            error(throwable) { "Profile skin preprocess event failed: ${throwable.message}" }
+        }
+    }
+
+    private fun extractTextures(profile: GameProfile): ProfileSkinTextures? {
+        val property = profile.properties.firstOrNull { it.name.equals("textures", ignoreCase = true) } ?: return null
+        return ProfileSkinTextures(property.value, property.signature)
+    }
+
+    private fun extractSkinSource(textures: ProfileSkinTextures?): ProfileSkinSource? {
+        val value = textures?.value ?: return null
+        val decoded = String(Base64.getDecoder().decode(value), StandardCharsets.UTF_8)
+        val root = gson.fromJson(decoded, Map::class.java)
+        val texturesMap = root["textures"] as? Map<*, *> ?: return null
+        val skinMap = texturesMap["SKIN"] as? Map<*, *> ?: return null
+        val url = skinMap["url"] as? String ?: return null
+        val metadata = skinMap["metadata"] as? Map<*, *>
+        val model = metadata?.get("model") as? String
+        return ProfileSkinSource(url, ProfileSkinModel.normalize(model))
     }
 
     fun clearPlayerCacheOnDisconnect(player: Player) {

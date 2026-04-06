@@ -7,6 +7,8 @@ import icu.h2l.api.connection.disconnectWithMessage
 import icu.h2l.api.connection.getNettyChannel
 import icu.h2l.api.event.connection.OnlineAuthEvent
 import icu.h2l.api.event.connection.OpenPreLoginEvent
+import icu.h2l.api.event.profile.ProfileSkinApplyEvent
+import icu.h2l.api.log.error
 import icu.h2l.api.util.RemapUtils
 import icu.h2l.login.HyperZoneLoginMain
 import icu.h2l.login.manager.HyperZonePlayerManager
@@ -65,8 +67,6 @@ class EventListener {
         }
 
         val hyperZonePlayer = HyperZonePlayerManager.getByChannel(event.connection.getNettyChannel())
-        val originalProfile = event.originalProfile
-
         val resolvedProfile = hyperZonePlayer.getProfile()
         if (resolvedProfile == null) {
             disconnectWithError(
@@ -75,11 +75,26 @@ class EventListener {
             )
             return
         }
+        val baseProfile = hyperZonePlayer.getGameProfile()
+        val applyEvent = ProfileSkinApplyEvent(hyperZonePlayer, baseProfile)
+        runCatching {
+            HyperZoneLoginMain.getInstance().proxy.eventManager.fire(applyEvent).join()
+        }.onFailure { throwable ->
+            error(throwable) { "Profile skin apply event failed: ${throwable.message}" }
+        }
 
-        event.gameProfile = GameProfile(
-            resolvedProfile.uuid,
-            resolvedProfile.name,
-            originalProfile.properties,
-        )
+        val textures = applyEvent.textures
+        event.gameProfile = if (textures == null) {
+            baseProfile
+        } else {
+            GameProfile(
+                baseProfile.id,
+                baseProfile.name,
+                baseProfile.properties
+                    .filterNot { it.name.equals("textures", ignoreCase = true) }
+                    .toMutableList()
+                    .apply { add(textures.toProperty()) }
+            )
+        }
     }
 }

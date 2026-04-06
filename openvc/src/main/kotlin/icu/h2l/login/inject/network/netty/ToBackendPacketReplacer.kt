@@ -18,6 +18,7 @@ import com.velocitypowered.proxy.protocol.ProtocolUtils
 import com.velocitypowered.proxy.protocol.packet.HandshakePacket
 import com.velocitypowered.proxy.protocol.packet.LoginPluginResponsePacket
 import com.velocitypowered.proxy.protocol.packet.ServerLoginPacket
+import icu.h2l.api.event.profile.ProfileSkinApplyEvent
 import icu.h2l.api.log.error
 import icu.h2l.api.player.HyperZonePlayer
 import icu.h2l.login.HyperZoneLoginMain
@@ -146,7 +147,23 @@ class ToBackendPacketReplacer : ChannelOutboundHandlerAdapter() {
     }
 
     fun getGameProfile(): GameProfile {
-        return hyperPlayer.getGameProfile()
+        val baseProfile = hyperPlayer.getGameProfile()
+        val event = ProfileSkinApplyEvent(hyperPlayer, baseProfile)
+        runCatching {
+            HyperZoneLoginMain.getInstance().proxy.eventManager.fire(event).join()
+        }.onFailure { throwable ->
+            error(throwable) { "Profile skin apply event failed: ${throwable.message}" }
+        }
+
+        val textures = event.textures ?: return baseProfile
+        return GameProfile(
+            baseProfile.id,
+            baseProfile.name,
+            baseProfile.properties
+                .filterNot { it.name.equals("textures", ignoreCase = true) }
+                .toMutableList()
+                .apply { add(textures.toProperty()) }
+        )
     }
 
     fun getPlayerRemoteAddressAsString(): String {

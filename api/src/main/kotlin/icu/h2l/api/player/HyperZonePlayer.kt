@@ -69,4 +69,17 @@ interface HyperZonePlayer {
      * 获取当前玩家对应的 GameProfile。
      */
     fun getGameProfile(): GameProfile
+
+    /**
+     * 获取认证阶段拿到的初始 GameProfile。
+     *
+     * 该档案通常来自上游认证服务，
+     * 可用于后续做皮肤修复、属性补全等处理。
+     */
+    fun getInitialGameProfile(): GameProfile?
+
+    /**
+     * 设置认证阶段拿到的初始 GameProfile。
+     */
+    fun setInitialGameProfile(profile: GameProfile?)
 }
