@@ -81,4 +81,17 @@ interface HyperZonePlayer {
      * 设置认证阶段拿到的初始 GameProfile。
      */
     fun setInitialGameProfile(profile: GameProfile?)
+
+    /**
+     * 获取登录阶段生成的临时转发 GameProfile。
+     *
+     * 该档案通常使用随机 name/UUID，
+     * 用于首次进入认证服/大厅服时保持与前置校验逻辑一致。
+     */
+    fun getTemporaryForwardingProfile(): GameProfile?
+
+    /**
+     * 设置登录阶段生成的临时转发 GameProfile。
+     */
+    fun setTemporaryForwardingProfile(profile: GameProfile?)
 }

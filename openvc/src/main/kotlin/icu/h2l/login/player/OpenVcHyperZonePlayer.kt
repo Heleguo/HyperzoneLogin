@@ -41,6 +41,9 @@ class OpenVcHyperZonePlayer(
     @Volatile
     private var initialGameProfile: GameProfile? = null
 
+    @Volatile
+    private var temporaryForwardingProfile: GameProfile? = null
+
     private val databaseHelper = HyperZoneLoginMain.getInstance().databaseHelper
 
     init {
@@ -191,6 +194,14 @@ class OpenVcHyperZonePlayer(
 
     override fun setInitialGameProfile(profile: GameProfile?) {
         initialGameProfile = profile
+    }
+
+    override fun getTemporaryForwardingProfile(): GameProfile? {
+        return temporaryForwardingProfile
+    }
+
+    override fun setTemporaryForwardingProfile(profile: GameProfile?) {
+        temporaryForwardingProfile = profile
     }
 
     fun isOnlinePlayer(): Boolean {

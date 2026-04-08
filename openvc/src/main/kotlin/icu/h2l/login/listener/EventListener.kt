@@ -30,7 +30,13 @@ class EventListener {
     fun onStartAuth(event: OpenStartAuthEvent) {
         if (!HyperZoneLoginMain.getMiscConfig().enableReplaceGameProfile) return
 //        进行档案强制性替换
-        event.gameProfile = RemapUtils.randomProfile()
+        val randomProfile = RemapUtils.randomProfile()
+        event.gameProfile = randomProfile
+        runCatching {
+            HyperZonePlayerManager.getByChannel(event.channel)
+        }.getOrElse {
+            HyperZonePlayerManager.create(event.channel, event.userName, event.userUUID, event.isOnline)
+        }.setTemporaryForwardingProfile(randomProfile)
     }
 
     @Subscribe

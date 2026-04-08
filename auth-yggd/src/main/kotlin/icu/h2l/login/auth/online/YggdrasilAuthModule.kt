@@ -224,8 +224,16 @@ class YggdrasilAuthModule(
         event.textures = extractTextures(result.profile)
         event.source = extractSkinSource(event.textures)
 
+        debug {
+            "[ProfileSkinFlow] preprocess dispatch start: player=${handler.userName}, entry=${result.entryId}, server=${result.serverUrl}, authenticatedProfile=${describeProfile(result.profile)}, eventTextures=${describeTextures(event.textures)}, eventSource=${describeSource(event.source)}"
+        }
+
         runCatching {
             HyperZoneLoginMain.getInstance().proxy.eventManager.fire(event).join()
+        }.onSuccess {
+            debug {
+                "[ProfileSkinFlow] preprocess dispatch completed: player=${handler.userName}, entry=${result.entryId}, resultingTextures=${describeTextures(event.textures)}, resultingSource=${describeSource(event.source)}"
+            }
         }.onFailure { throwable ->
             error(throwable) { "Profile skin preprocess event failed: ${throwable.message}" }
         }
@@ -246,6 +254,27 @@ class YggdrasilAuthModule(
         val metadata = skinMap["metadata"] as? Map<*, *>
         val model = metadata?.get("model") as? String
         return ProfileSkinSource(url, ProfileSkinModel.normalize(model))
+    }
+
+    private fun describeProfile(profile: GameProfile?): String {
+        if (profile == null) {
+            return "null"
+        }
+        return "id=${profile.id}, name=${profile.name}, properties=${profile.properties.size}, textures=${describeTextures(profile.properties.firstOrNull { it.name.equals("textures", ignoreCase = true) }?.let { ProfileSkinTextures(it.value, it.signature) })}"
+    }
+
+    private fun describeTextures(textures: ProfileSkinTextures?): String {
+        if (textures == null) {
+            return "none"
+        }
+        return "present(valueLength=${textures.value.length}, signed=${textures.isSigned})"
+    }
+
+    private fun describeSource(source: ProfileSkinSource?): String {
+        if (source == null) {
+            return "none"
+        }
+        return "url=${source.skinUrl}, model=${source.model}"
     }
 
     fun clearPlayerCacheOnDisconnect(player: Player) {
