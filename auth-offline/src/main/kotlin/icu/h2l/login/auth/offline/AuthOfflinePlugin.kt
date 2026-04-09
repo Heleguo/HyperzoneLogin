@@ -5,7 +5,7 @@ import com.velocitypowered.api.event.Subscribe
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent
 import com.velocitypowered.api.plugin.Plugin
 import com.velocitypowered.api.proxy.ProxyServer
-import icu.h2l.login.HyperZoneLoginMain
+import icu.h2l.api.HyperZoneApiProvider
 
 @Plugin(id = "hzl-auth-offline", name = "HyperZoneLogin - Auth Offline")
 class AuthOfflinePlugin @Inject constructor(private val server: ProxyServer) {
@@ -17,8 +17,7 @@ class AuthOfflinePlugin @Inject constructor(private val server: ProxyServer) {
         val mainPluginPresent = server.pluginManager.getPlugin("hyperzonelogin").isPresent
         if (mainPluginPresent) {
             try {
-                val main = HyperZoneLoginMain.getInstance()
-                main.registerModule(OfflineSubModule())
+                HyperZoneApiProvider.get().registerModule(OfflineSubModule())
             } catch (t: Throwable) {
                 logger.warning("Failed to register OfflineSubModule: ${t.message}")
             }

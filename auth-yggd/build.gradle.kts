@@ -5,8 +5,6 @@ plugins {
 dependencies {
     // Build as standalone plugin; api is provided at runtime by the main plugin
     compileOnly(project(":api"))
-    // Direct reference to the main plugin to call its API without reflection
-    compileOnly(project(":velocity"))
 //    VC
     compileOnly(libs.velocityApi)
     compileOnly(libs.velocityProxy) // From Elytrium Repo.

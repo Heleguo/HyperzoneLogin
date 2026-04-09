@@ -1,6 +1,6 @@
 package icu.h2l.login.profile.skin
 
-import com.velocitypowered.api.proxy.ProxyServer
+import icu.h2l.api.HyperZoneApi
 import icu.h2l.api.db.HyperZoneDatabaseManager
 import icu.h2l.api.db.table.ProfileTable
 import icu.h2l.api.log.info
@@ -10,19 +10,15 @@ import icu.h2l.login.profile.skin.db.ProfileSkinCacheRepository
 import icu.h2l.login.profile.skin.db.ProfileSkinCacheTable
 import icu.h2l.login.profile.skin.db.ProfileSkinCacheTableManager
 import icu.h2l.login.profile.skin.service.ProfileSkinService
-import java.nio.file.Path
-
 class ProfileSkinSubModule : HyperSubModule {
     lateinit var tableManager: ProfileSkinCacheTableManager
     lateinit var repository: ProfileSkinCacheRepository
     lateinit var service: ProfileSkinService
 
-    override fun register(
-        owner: Any,
-        proxy: ProxyServer,
-        dataDirectory: Path,
-        databaseManager: HyperZoneDatabaseManager
-    ) {
+    override fun register(api: HyperZoneApi) {
+        val proxy = api.proxy
+        val dataDirectory = api.dataDirectory
+        val databaseManager: HyperZoneDatabaseManager = api.databaseManager
         val config = ProfileSkinConfigLoader.load(dataDirectory)
         val table = ProfileSkinCacheTable(
             prefix = databaseManager.tablePrefix,
@@ -34,8 +30,8 @@ class ProfileSkinSubModule : HyperSubModule {
         service = ProfileSkinService(config, repository)
 
         tableManager.createTable()
-        proxy.eventManager.register(owner, tableManager)
-        proxy.eventManager.register(owner, service)
+        proxy.eventManager.register(api, tableManager)
+        proxy.eventManager.register(api, service)
 
         info { "ProfileSkinSubModule 已加载，皮肤缓存与修复监听器已注册" }
     }

@@ -5,7 +5,7 @@ import com.velocitypowered.api.event.Subscribe
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent
 import com.velocitypowered.api.plugin.Plugin
 import com.velocitypowered.api.proxy.ProxyServer
-import icu.h2l.login.HyperZoneLoginMain
+import icu.h2l.api.HyperZoneApiProvider
 
 @Plugin(id = "hzl-auth-yggd", name = "HyperZoneLogin - Auth Yggdrasil")
 class AuthYggdPlugin @Inject constructor(private val server: ProxyServer) {
@@ -15,8 +15,7 @@ class AuthYggdPlugin @Inject constructor(private val server: ProxyServer) {
         val mainPluginPresent = server.pluginManager.getPlugin("hyperzonelogin").isPresent
         if (mainPluginPresent) {
             try {
-                val main = HyperZoneLoginMain.getInstance()
-                main.registerModule(YggdrasilSubModule())
+                HyperZoneApiProvider.get().registerModule(YggdrasilSubModule())
             } catch (t: Throwable) {
                 logger.warning("Failed to register YggdrasilSubModule: ${t.message}")
             }

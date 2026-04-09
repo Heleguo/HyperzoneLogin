@@ -1,5 +1,6 @@
 package icu.h2l.login.auth.online
 
+import com.velocitypowered.api.proxy.ProxyServer
 import com.velocitypowered.api.proxy.Player
 import com.velocitypowered.api.util.GameProfile
 import com.velocitypowered.proxy.VelocityServer
@@ -13,7 +14,6 @@ import icu.h2l.api.player.HyperZonePlayerAccessor
 import icu.h2l.api.profile.skin.ProfileSkinModel
 import icu.h2l.api.profile.skin.ProfileSkinSource
 import icu.h2l.api.profile.skin.ProfileSkinTextures
-import icu.h2l.login.HyperZoneLoginMain
 import icu.h2l.login.auth.online.config.entry.EntryConfig
 import icu.h2l.login.auth.online.db.EntryDatabaseHelper
 import icu.h2l.login.auth.online.db.EntryTableManager
@@ -35,6 +35,7 @@ import java.util.concurrent.ConcurrentHashMap
  * 负责管理玩家的一层登入状态和Yggdrasil验证逻辑
  */
 class YggdrasilAuthModule(
+    private val proxy: ProxyServer,
     private val entryConfigManager: EntryConfigManager,
     private val databaseManager: HyperZoneDatabaseManager,
     private val entryTableManager: EntryTableManager,
@@ -229,7 +230,7 @@ class YggdrasilAuthModule(
         }
 
         runCatching {
-            HyperZoneLoginMain.getInstance().proxy.eventManager.fire(event).join()
+            proxy.eventManager.fire(event).join()
         }.onSuccess {
             debug {
                 "[ProfileSkinFlow] preprocess dispatch completed: player=${handler.userName}, entry=${result.entryId}, resultingTextures=${describeTextures(event.textures)}, resultingSource=${describeSource(event.source)}"

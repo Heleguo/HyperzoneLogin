@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package icu.h2l.login.profile.skin
 
 import com.google.inject.Inject
@@ -5,7 +7,7 @@ import com.velocitypowered.api.event.Subscribe
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent
 import com.velocitypowered.api.plugin.Plugin
 import com.velocitypowered.api.proxy.ProxyServer
-import icu.h2l.login.HyperZoneLoginMain
+import icu.h2l.api.HyperZoneApiProvider
 
 @Plugin(id = "hzl-profile-skin", name = "HyperZoneLogin - Profile Skin")
 class ProfileSkinPlugin @Inject constructor(private val server: ProxyServer) {
@@ -16,7 +18,7 @@ class ProfileSkinPlugin @Inject constructor(private val server: ProxyServer) {
         val mainPluginPresent = server.pluginManager.getPlugin("hyperzonelogin").isPresent
         if (mainPluginPresent) {
             try {
-                HyperZoneLoginMain.getInstance().registerModule(ProfileSkinSubModule())
+                HyperZoneApiProvider.get().registerModule(ProfileSkinSubModule())
             } catch (t: Throwable) {
                 logger.warning("Failed to register ProfileSkinSubModule: ${t.message}")
             }

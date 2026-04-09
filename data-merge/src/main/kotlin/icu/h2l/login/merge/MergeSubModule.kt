@@ -1,6 +1,6 @@
 package icu.h2l.login.merge
 
-import com.velocitypowered.api.proxy.ProxyServer
+import icu.h2l.api.HyperZoneApi
 import icu.h2l.api.db.HyperZoneDatabaseManager
 import icu.h2l.api.log.info
 import icu.h2l.api.log.warn
@@ -18,12 +18,10 @@ import java.nio.file.Files
 import java.nio.file.Path
 
 class MergeSubModule : HyperSubModule {
-    override fun register(
-        owner: Any,
-        proxy: ProxyServer,
-        dataDirectory: Path,
-        databaseManager: HyperZoneDatabaseManager
-    ) {
+    override fun register(api: HyperZoneApi) {
+        val proxy = api.proxy
+        val dataDirectory = api.dataDirectory
+        val databaseManager: HyperZoneDatabaseManager = api.databaseManager
         val mergeMlConfig = loadMergeMlConfig(dataDirectory)
         val mergeAmConfig = loadMergeAmConfig(dataDirectory)
         val mlMigrator = MlDataMigrator(dataDirectory, databaseManager, mergeMlConfig)

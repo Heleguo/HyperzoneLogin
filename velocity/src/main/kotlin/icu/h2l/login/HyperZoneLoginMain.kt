@@ -5,14 +5,13 @@ import com.velocitypowered.api.event.Subscribe
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent
 import com.velocitypowered.api.plugin.annotation.DataDirectory
 import com.velocitypowered.api.proxy.ProxyServer
+import icu.h2l.api.HyperZoneApi
+import icu.h2l.api.HyperZoneApiProvider
 import icu.h2l.api.command.HyperChatCommandManager
-import icu.h2l.api.command.HyperChatCommandManagerProvider
 import icu.h2l.api.command.HyperChatCommandRegistration
 import icu.h2l.api.vServer.HyperZoneVServerAdapter
-import icu.h2l.api.vServer.HyperZoneVServerProvider
 import icu.h2l.api.module.HyperSubModule
 import icu.h2l.api.player.HyperZonePlayerAccessor
-import icu.h2l.api.player.HyperZonePlayerAccessorProvider
 // Module implementations (auth-offline, auth-yggd, data-merge) are now separate plugins
 // and will register themselves with the main plugin at runtime. Do not import them here.
 import icu.h2l.login.command.HyperZoneLoginCommand
@@ -42,11 +41,11 @@ import java.nio.file.Path
 class HyperZoneLoginMain @Inject constructor(
     private val server: ProxyServer,
     val logger: ComponentLogger,
-    @DataDirectory private val dataDirectory: Path
-) : HyperZoneVServerProvider, HyperZonePlayerAccessorProvider, HyperChatCommandManagerProvider {
+    @DataDirectory override val dataDirectory: Path
+) : HyperZoneApi {
     var limboServerManager: LimboVServerAuth? = null
     var backendAuthHoldListener: BackendAuthHoldListener? = null
-    lateinit var databaseManager: icu.h2l.login.manager.DatabaseManager
+    override lateinit var databaseManager: icu.h2l.login.manager.DatabaseManager
     lateinit var databaseHelper: DatabaseHelper
     override val serverAdapter: HyperZoneVServerAdapter?
         get() = limboServerManager
@@ -78,6 +77,7 @@ class HyperZoneLoginMain @Inject constructor(
 
     init {
         instance = this
+        HyperZoneApiProvider.bind(this)
     }
 
     @Suppress("unused", "UNUSED_PARAMETER")
@@ -147,12 +147,12 @@ class HyperZoneLoginMain @Inject constructor(
 
     }
 
-    val proxy: ProxyServer
+    override val proxy: ProxyServer
         get() = server
 
-    fun registerModule(module: HyperSubModule) {
+    override fun registerModule(module: HyperSubModule) {
         try {
-            module.register(this, proxy, dataDirectory, databaseManager)
+            module.register(this)
             logger.info("模块加载成功: ${module.javaClass.name}")
         } catch (e: Exception) {
             logger.error("加载模块 ${module.javaClass.name} 失败: ${e.message}", e)

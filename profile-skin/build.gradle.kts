@@ -4,7 +4,6 @@ plugins {
 
 dependencies {
     compileOnly(project(":api"))
-    compileOnly(project(":velocity"))
 
     compileOnly(libs.velocityApi)
     compileOnly(libs.velocityProxy)
