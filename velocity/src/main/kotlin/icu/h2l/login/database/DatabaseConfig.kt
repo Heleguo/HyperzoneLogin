@@ -77,38 +77,12 @@ data class DatabaseConfig(
         )
         
         /**
-         * 创建 H2 配置（用于测试）
-         */
-        fun h2(
-            path: String = "./data/hyperzone_login",
-            tablePrefix: String = "",
-            maximumPoolSize: Int = 10,
-            minimumIdle: Int = 2,
-            connectionTimeout: Long = 30000,
-            idleTimeout: Long = 600000,
-            maxLifetime: Long = 1800000
-        ) = DatabaseConfig(
-            jdbcUrl = "jdbc:h2:file:$path;MODE=MySQL",
-            username = "sa",
-            password = "",
-            driverClassName = "org.h2.Driver",
-            tablePrefix = tablePrefix,
-            maximumPoolSize = maximumPoolSize,
-            minimumIdle = minimumIdle,
-            connectionTimeout = connectionTimeout,
-            idleTimeout = idleTimeout,
-            maxLifetime = maxLifetime
-        )
-        
-        /**
          * 创建 SQLite 配置（推荐用于单机部署）
          * SQLite 使用单线程模式避免并发问题
          */
         fun sqlite(
             path: String = "./data/hyperzone_login.db",
             tablePrefix: String = "",
-            maximumPoolSize: Int = 10,
-            minimumIdle: Int = 2,
             connectionTimeout: Long = 30000,
             idleTimeout: Long = 600000,
             maxLifetime: Long = 1800000

@@ -1,5 +1,9 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import org.gradle.jvm.tasks.Jar
+
 plugins {
     alias(libs.plugins.kotlin)
+    alias(libs.plugins.shadow)
 }
 
 dependencies {
@@ -10,6 +14,8 @@ dependencies {
     compileOnly(project(":auth-offline"))
 
     compileOnly(libs.velocityApi)
+
+    implementation(libs.h2)
 
     compileOnly(libs.exposedCore)
     compileOnly(libs.exposedJdbc)
@@ -24,4 +30,21 @@ dependencies {
 
 tasks.test {
     useJUnitPlatform()
+}
+
+val h2ModuleId = "${libs.h2.get().module.group}:${libs.h2.get().module.name}"
+
+tasks.named<ShadowJar>("shadowJar") {
+    archiveClassifier.set("")
+    dependencies {
+        include(dependency(h2ModuleId))
+    }
+}
+
+tasks.named<Jar>("jar") {
+    enabled = false
+}
+
+tasks.named("build") {
+    dependsOn(tasks.named("shadowJar"))
 }

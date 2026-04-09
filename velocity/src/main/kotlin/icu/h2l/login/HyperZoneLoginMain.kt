@@ -311,8 +311,6 @@ class HyperZoneLoginMain @Inject constructor(
                 DatabaseConfig.sqlite(
                     path = dbPath.toString(),
                     tablePrefix = databaseSourceConfig.tablePrefix,
-                    maximumPoolSize = databaseSourceConfig.pool.maximumPoolSize,
-                    minimumIdle = databaseSourceConfig.pool.minimumIdle,
                     connectionTimeout = databaseSourceConfig.pool.connectionTimeout,
                     idleTimeout = databaseSourceConfig.pool.idleTimeout,
                     maxLifetime = databaseSourceConfig.pool.maxLifetime
@@ -353,17 +351,8 @@ class HyperZoneLoginMain @Inject constructor(
                 )
             }
             "H2" -> {
-                val dbPath = dataDirectory.resolve(databaseSourceConfig.h2.path)
-                // 确保数据库文件的父目录存在
-                dbPath.parent?.let { Files.createDirectories(it) }
-                DatabaseConfig.h2(
-                    path = dbPath.toString(),
-                    tablePrefix = databaseSourceConfig.tablePrefix,
-                    maximumPoolSize = databaseSourceConfig.pool.maximumPoolSize,
-                    minimumIdle = databaseSourceConfig.pool.minimumIdle,
-                    connectionTimeout = databaseSourceConfig.pool.connectionTimeout,
-                    idleTimeout = databaseSourceConfig.pool.idleTimeout,
-                    maxLifetime = databaseSourceConfig.pool.maxLifetime
+                throw IllegalArgumentException(
+                    "核心模块已不再支持 H2 数据库，请改用 SQLITE/MYSQL/MARIADB。若需要读取旧 H2 数据，请使用 data-merge 模块。"
                 )
             }
             else -> {

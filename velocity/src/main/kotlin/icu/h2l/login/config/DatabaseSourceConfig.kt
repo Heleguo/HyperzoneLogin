@@ -8,7 +8,7 @@ class DatabaseSourceConfig {
 
     @Comment(
         """数据库类型
-        支持的值: SQLITE, MYSQL, MARIADB, H2"""
+        支持的值: SQLITE, MYSQL, MARIADB"""
     )
     val type: String = "SQLITE"
 
@@ -20,9 +20,6 @@ class DatabaseSourceConfig {
 
     @Comment("MariaDB 数据库配置")
     val mariadb: MariaDBConfig = MariaDBConfig()
-
-    @Comment("H2 数据库配置（用于测试）")
-    val h2: H2Config = H2Config()
 
     @Comment("数据库表前缀")
     val tablePrefix: String = "hz_"
@@ -84,11 +81,6 @@ class DatabaseSourceConfig {
         val driverClassName: String = "org.mariadb.jdbc.Driver"
     }
 
-    @ConfigSerializable
-    class H2Config {
-        @Comment("H2 数据库文件路径（相对于插件数据目录）")
-        val path: String = "data/hyperzone_login"
-    }
 
     @ConfigSerializable
     class PoolConfig {

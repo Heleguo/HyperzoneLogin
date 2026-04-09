@@ -24,7 +24,6 @@ dependencies {
     implementation(libs.exposedJdbc)
     implementation(libs.exposedJavaTime)
 // Database drivers
-    implementation(libs.h2)
     implementation(libs.sqliteJdbc)
     implementation(libs.mysql)
     implementation(libs.mariadb)
@@ -71,7 +70,6 @@ tasks {
             include(dependency(moduleId(libs.exposedJdbc)))
             include(dependency(moduleId(libs.exposedJavaTime)))
 //            Database drivers
-            include(dependency(moduleId(libs.h2)))
             include(dependency(moduleId(libs.sqliteJdbc)))
             include(dependency(moduleId(libs.mysql)))
             include(dependency(moduleId(libs.mariadb)))

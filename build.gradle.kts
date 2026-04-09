@@ -26,7 +26,7 @@ val pluginBundleDir = layout.buildDirectory.dir("HZL")
 
 val collectPluginJars by tasks.registering(Sync::class) {
     group = "build"
-    description = "Collects all non-API plugin jars into one directory. velocity uses shadowJar; all other modules are prefixed with HZL-."
+    description = "Collects all non-API plugin jars into one directory. velocity and data-merge use shadowJar; all other modules are prefixed with HZL-."
     into(pluginBundleDir)
 
     val velocityProject = project(":velocity")
@@ -36,8 +36,9 @@ val collectPluginJars by tasks.registering(Sync::class) {
     subprojects
         .filter { it.path != ":api" && it.path != ":velocity" }
         .forEach { subproject ->
-            dependsOn(subproject.tasks.named("jar"))
-            from(subproject.tasks.named("jar", Jar::class).flatMap { it.archiveFile }) {
+            val archiveTaskName = if (subproject.path == ":data-merge") "shadowJar" else "jar"
+            dependsOn(subproject.tasks.named(archiveTaskName))
+            from(subproject.tasks.named(archiveTaskName, Jar::class).flatMap { it.archiveFile }) {
                 rename { fileName ->
                     if (fileName.startsWith("HZL-")) fileName else "HZL-$fileName"
                 }
