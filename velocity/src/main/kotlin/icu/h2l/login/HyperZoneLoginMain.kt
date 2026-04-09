@@ -1,7 +1,6 @@
 package icu.h2l.login
 
 import com.google.inject.Inject
-import com.google.inject.Injector
 import com.velocitypowered.api.event.Subscribe
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent
 import com.velocitypowered.api.plugin.annotation.DataDirectory
@@ -43,8 +42,7 @@ import java.nio.file.Path
 class HyperZoneLoginMain @Inject constructor(
     private val server: ProxyServer,
     val logger: ComponentLogger,
-    @DataDirectory private val dataDirectory: Path,
-    private val injector: Injector
+    @DataDirectory private val dataDirectory: Path
 ) : HyperZoneVServerProvider, HyperZonePlayerAccessorProvider, HyperChatCommandManagerProvider {
     var limboServerManager: LimboVServerAuth? = null
     var backendAuthHoldListener: BackendAuthHoldListener? = null
@@ -69,9 +67,6 @@ class HyperZoneLoginMain @Inject constructor(
         fun getInstance(): HyperZoneLoginMain = instance
 
         @JvmStatic
-        fun getDatabaseConfig(): DatabaseSourceConfig = databaseSourceConfig
-        
-        @JvmStatic
         fun getRemapConfig(): RemapConfig = remapConfig
 
         @JvmStatic
@@ -85,6 +80,7 @@ class HyperZoneLoginMain @Inject constructor(
         instance = this
     }
 
+    @Suppress("unused", "UNUSED_PARAMETER")
     @Subscribe
     fun onEnable(event: ProxyInitializeEvent) {
         registerApiLogger()
@@ -141,10 +137,8 @@ class HyperZoneLoginMain @Inject constructor(
         // External modules (auth-offline, auth-yggd, data-merge) will be loaded as
         // separate Velocity plugins and should call `registerModule(...)` on this
         // main plugin during their own initialization.
-
-
-
-        proxy.commandManager.register("hzl", HyperZoneLoginCommand())
+        val hzlCommandMeta = proxy.commandManager.metaBuilder("hzl").build()
+        proxy.commandManager.register(hzlCommandMeta, HyperZoneLoginCommand())
         proxy.eventManager.register(this, EventListener())
         proxy.eventManager.register(this, HyperZonePlayerManager)
         // If Limbo was present, we've already registered its event listener above

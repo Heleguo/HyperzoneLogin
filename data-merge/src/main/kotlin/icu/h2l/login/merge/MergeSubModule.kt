@@ -29,8 +29,9 @@ class MergeSubModule : HyperSubModule {
         val mlMigrator = MlDataMigrator(dataDirectory, databaseManager, mergeMlConfig)
         val amMigrator = AmDataMigrator(dataDirectory, databaseManager, mergeAmConfig)
 
+        val mergeCommandMeta = proxy.commandManager.metaBuilder("hzl-merge").build()
         proxy.commandManager.register(
-            "hzl-merge",
+            mergeCommandMeta,
             MergeCommand(
                 runMlMigration = {
                     val report = mlMigrator.migrate()

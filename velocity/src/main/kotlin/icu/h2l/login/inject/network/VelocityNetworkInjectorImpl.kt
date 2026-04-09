@@ -64,6 +64,7 @@ class VelocityNetworkInjectorImpl(
     }
 
 
+    @Suppress("DEPRECATION")
     fun injectToBackend() {
         cm.backendChannelInitializer.let { initializer ->
             val old = initializer.get()
