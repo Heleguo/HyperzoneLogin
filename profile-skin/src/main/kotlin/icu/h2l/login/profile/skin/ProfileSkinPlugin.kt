@@ -27,11 +27,19 @@ import com.google.inject.Inject
 import com.velocitypowered.api.event.Subscribe
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent
 import com.velocitypowered.api.plugin.Plugin
+import com.velocitypowered.api.plugin.annotation.DataDirectory
 import com.velocitypowered.api.proxy.ProxyServer
 import icu.h2l.api.HyperZoneApiProvider
+import icu.h2l.api.dependency.HyperDependencyManager
+import icu.h2l.api.dependency.HyperRuntimeLibraries
+import icu.h2l.api.dependency.VelocityHyperDependencyClassPathAppender
+import java.nio.file.Path
 
 @Plugin(id = "hzl-profile-skin", name = "HyperZoneLogin - Profile Skin")
-class ProfileSkinPlugin @Inject constructor(private val server: ProxyServer) {
+class ProfileSkinPlugin @Inject constructor(
+    private val server: ProxyServer,
+    @param:DataDirectory private val dataDirectory: Path
+) {
     private val logger = java.util.logging.Logger.getLogger("hzl-profile-skin")
 
     @Subscribe
@@ -39,7 +47,13 @@ class ProfileSkinPlugin @Inject constructor(private val server: ProxyServer) {
         val mainPluginPresent = server.pluginManager.getPlugin("hyperzonelogin").isPresent
         if (mainPluginPresent) {
             try {
-                HyperZoneApiProvider.get().registerModule(ProfileSkinSubModule())
+                val api = HyperZoneApiProvider.get()
+                val cacheDirectory = HyperZoneApiProvider.getOrNull()?.dataDirectory?.resolve("libs") ?: dataDirectory.resolve("libs")
+                HyperDependencyManager(
+                    cacheDirectory,
+                    VelocityHyperDependencyClassPathAppender(server, this)
+                ).loadDependencies(HyperRuntimeLibraries.PROFILE_SKIN)
+                api.registerModule(ProfileSkinSubModule())
             } catch (t: Throwable) {
                 logger.warning("Failed to register ProfileSkinSubModule: ${t.message}")
             }

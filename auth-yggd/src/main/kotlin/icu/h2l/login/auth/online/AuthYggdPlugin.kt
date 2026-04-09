@@ -25,18 +25,32 @@ import com.google.inject.Inject
 import com.velocitypowered.api.event.Subscribe
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent
 import com.velocitypowered.api.plugin.Plugin
+import com.velocitypowered.api.plugin.annotation.DataDirectory
 import com.velocitypowered.api.proxy.ProxyServer
 import icu.h2l.api.HyperZoneApiProvider
+import icu.h2l.api.dependency.HyperDependencyManager
+import icu.h2l.api.dependency.HyperRuntimeLibraries
+import icu.h2l.api.dependency.VelocityHyperDependencyClassPathAppender
+import java.nio.file.Path
 
 @Plugin(id = "hzl-auth-yggd", name = "HyperZoneLogin - Auth Yggdrasil")
-class AuthYggdPlugin @Inject constructor(private val server: ProxyServer) {
+class AuthYggdPlugin @Inject constructor(
+    private val server: ProxyServer,
+    @param:DataDirectory private val dataDirectory: Path
+) {
     private val logger = java.util.logging.Logger.getLogger("hzl-auth-yggd")
     @Subscribe
     fun onEnable(@Suppress("UNUSED_PARAMETER") e: ProxyInitializeEvent) {
         val mainPluginPresent = server.pluginManager.getPlugin("hyperzonelogin").isPresent
         if (mainPluginPresent) {
             try {
-                HyperZoneApiProvider.get().registerModule(YggdrasilSubModule())
+                val api = HyperZoneApiProvider.get()
+                val cacheDirectory = HyperZoneApiProvider.getOrNull()?.dataDirectory?.resolve("libs") ?: dataDirectory.resolve("libs")
+                HyperDependencyManager(
+                    cacheDirectory,
+                    VelocityHyperDependencyClassPathAppender(server, this)
+                ).loadDependencies(HyperRuntimeLibraries.AUTH_YGGD)
+                api.registerModule(YggdrasilSubModule())
             } catch (t: Throwable) {
                 logger.warning("Failed to register YggdrasilSubModule: ${t.message}")
             }
