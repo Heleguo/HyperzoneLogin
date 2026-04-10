@@ -25,6 +25,7 @@ import icu.h2l.api.HyperZoneApi
 import icu.h2l.api.log.info
 import icu.h2l.api.module.HyperSubModule
 import icu.h2l.login.safe.config.SafeConfigLoader
+import icu.h2l.login.safe.listener.AuthFailureGuardListener
 import icu.h2l.login.safe.listener.PreLoginGuardListener
 import icu.h2l.login.safe.service.ConnectionRateLimiter
 import icu.h2l.login.safe.service.IpCooldownManager
@@ -35,6 +36,12 @@ class SafeSubModule : HyperSubModule {
     override fun register(api: HyperZoneApi) {
         val config = SafeConfigLoader.load(api.dataDirectory)
         val logger = java.util.logging.Logger.getLogger("hzl-safe")
+        val authFailureCooldownManager = IpCooldownManager(
+            enabled = config.authFailure.enabled,
+            windowSeconds = config.authFailure.windowSeconds,
+            triggerAttempts = config.authFailure.triggerAttempts,
+            cooldownSeconds = config.authFailure.cooldownSeconds
+        )
         val listener = PreLoginGuardListener(
             config = config,
             globalRateLimiter = ConnectionRateLimiter(config.globalRateLimit.windowSeconds, config.globalRateLimit.maxAttempts),
@@ -53,6 +60,7 @@ class SafeSubModule : HyperSubModule {
                 triggerAttempts = config.ipCooldown.triggerAttempts,
                 cooldownSeconds = config.ipCooldown.cooldownSeconds
             ),
+            authFailureCooldownManager = authFailureCooldownManager,
             strictModeController = StrictModeController(
                 enabled = config.strictMode.enabled,
                 windowSeconds = config.strictMode.windowSeconds,
@@ -63,6 +71,7 @@ class SafeSubModule : HyperSubModule {
             usernameValidator = UsernameValidator(config.username)
         )
         api.proxy.eventManager.register(api, listener)
+        api.proxy.eventManager.register(api, AuthFailureGuardListener(authFailureCooldownManager, logger))
         info { "SafeSubModule 已加载，入口层安全防护已启用" }
     }
 }

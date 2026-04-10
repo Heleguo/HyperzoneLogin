@@ -45,6 +45,10 @@ class SafeConfig {
     @JvmField
     val strictMode = StrictModeConfig()
 
+    @Comment("认证失败联动防护")
+    @JvmField
+    val authFailure = AuthFailureConfig()
+
     @Comment("用户名基础校验")
     @JvmField
     val username = UsernameConfig()
@@ -111,6 +115,21 @@ class SafeConfig {
         @Comment("strict mode 下的同 IP 限流")
         @JvmField
         val ipRateLimit = RateLimitConfig(maxAttempts = 4, windowSeconds = 10)
+    }
+
+    @ConfigSerializable
+    class AuthFailureConfig {
+        @Comment("是否启用统一认证失败联动")
+        val enabled = true
+
+        @Comment("同一 IP 在统计窗口内累计多少次认证失败后开始冷却")
+        val triggerAttempts = 4
+
+        @Comment("认证失败统计窗口（秒）")
+        val windowSeconds = 300
+
+        @Comment("触发后的冷却时长（秒）")
+        val cooldownSeconds = 600
     }
 }
 

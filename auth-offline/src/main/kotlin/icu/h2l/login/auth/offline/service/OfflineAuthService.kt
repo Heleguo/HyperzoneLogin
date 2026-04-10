@@ -21,7 +21,9 @@
 
 package icu.h2l.login.auth.offline.service
 
+import com.velocitypowered.api.proxy.ProxyServer
 import com.velocitypowered.api.proxy.Player
+import icu.h2l.api.event.auth.AuthenticationFailureEvent
 import icu.h2l.api.player.HyperZonePlayerAccessor
 import icu.h2l.login.auth.offline.OfflineAuthMessages
 import icu.h2l.login.auth.offline.config.OfflineAuthConfigLoader
@@ -38,7 +40,8 @@ class OfflineAuthService(
     private val repository: OfflineAuthRepository,
     private val playerAccessor: HyperZonePlayerAccessor,
     private val emailSender: OfflineAuthEmailSender,
-    private val totpAuthenticator: OfflineTotpAuthenticator
+    private val totpAuthenticator: OfflineTotpAuthenticator,
+    private val proxy: ProxyServer
 ) {
     data class Result(val success: Boolean, val message: String)
     data class SessionCheckResult(val passed: Boolean, val message: String? = null)
@@ -123,6 +126,12 @@ class OfflineAuthService(
         val now = System.currentTimeMillis()
         val blockedUntil = entry.loginBlockedUntil
         if (blockedUntil != null && blockedUntil > now) {
+            publishAuthFailure(
+                player = player,
+                authType = AuthenticationFailureEvent.AuthType.OFFLINE,
+                reason = AuthenticationFailureEvent.Reason.RATE_LIMITED,
+                reasonMessage = "offline login temporarily blocked"
+            )
             return Result(false, OfflineAuthMessages.loginBlocked(((blockedUntil - now) / 1000).coerceAtLeast(1)))
         }
 
@@ -132,11 +141,23 @@ class OfflineAuthService(
             if (nextFailCount >= protection.maxAttempts) {
                 val blockedTo = now + protection.blockSeconds * 1000L
                 repository.updateLoginProtection(entry.profileId, 0, blockedTo)
+                publishAuthFailure(
+                    player = player,
+                    authType = AuthenticationFailureEvent.AuthType.OFFLINE,
+                    reason = AuthenticationFailureEvent.Reason.RATE_LIMITED,
+                    reasonMessage = "offline login blocked after too many failures"
+                )
                 return Result(false, OfflineAuthMessages.loginBlocked(protection.blockSeconds.toLong()))
             }
 
             repository.updateLoginProtection(entry.profileId, nextFailCount, null)
             val remainingAttempts = (protection.maxAttempts - nextFailCount).coerceAtLeast(0)
+            publishAuthFailure(
+                player = player,
+                authType = AuthenticationFailureEvent.AuthType.OFFLINE,
+                reason = AuthenticationFailureEvent.Reason.INVALID_CREDENTIALS,
+                reasonMessage = "offline password mismatch"
+            )
             return Result(false, OfflineAuthMessages.wrongPasswordWithRemainingAttempts(remainingAttempts))
         }
 
@@ -145,9 +166,21 @@ class OfflineAuthService(
         if (isTotpEnabled(entry)) {
             val trimmedCode = totpCode?.trim().orEmpty()
             if (trimmedCode.isEmpty()) {
+                publishAuthFailure(
+                    player = player,
+                    authType = AuthenticationFailureEvent.AuthType.OFFLINE,
+                    reason = AuthenticationFailureEvent.Reason.TOTP_REQUIRED,
+                    reasonMessage = "totp code required for offline login"
+                )
                 return Result(false, OfflineAuthMessages.TOTP_LOGIN_REQUIRED)
             }
             if (!totpAuthenticator.verifyCode(entry.name, entry.totpSecret!!, trimmedCode)) {
+                publishAuthFailure(
+                    player = player,
+                    authType = AuthenticationFailureEvent.AuthType.OFFLINE,
+                    reason = AuthenticationFailureEvent.Reason.TOTP_INVALID,
+                    reasonMessage = "invalid offline totp code"
+                )
                 return Result(false, OfflineAuthMessages.TOTP_INVALID_CODE)
             }
         }
@@ -479,6 +512,12 @@ class OfflineAuthService(
         val entry = repository.getByName(hyperPlayer.userName.lowercase()) ?: return null
         if (isTotpEnabled(entry) && !OfflineAuthConfigLoader.getConfig().totp.allowSessionBypass) {
             repository.clearSession(entry.profileId)
+            publishAuthFailure(
+                player = player,
+                authType = AuthenticationFailureEvent.AuthType.OFFLINE,
+                reason = AuthenticationFailureEvent.Reason.SESSION_REJECTED,
+                reasonMessage = "session bypass rejected because totp is enabled"
+            )
             return SessionCheckResult(false, OfflineAuthMessages.TOTP_LOGIN_REQUIRED)
         }
         val sessionIssuedAt = entry.sessionIssuedAt ?: return null
@@ -490,6 +529,12 @@ class OfflineAuthService(
         val invalidByIp = sessionConfig.bindIp && !entry.sessionIp.isNullOrBlank() && entry.sessionIp != currentIp
         if (invalidByTime || invalidByIp) {
             repository.clearSession(entry.profileId)
+            publishAuthFailure(
+                player = player,
+                authType = AuthenticationFailureEvent.AuthType.OFFLINE,
+                reason = AuthenticationFailureEvent.Reason.SESSION_REJECTED,
+                reasonMessage = if (invalidByIp) "session ip mismatch" else "session expired"
+            )
             return SessionCheckResult(false, OfflineAuthMessages.SESSION_INVALID)
         }
 
@@ -624,6 +669,27 @@ class OfflineAuthService(
         } else {
             hostAddress.substring(0, ipv6ScopeIdx)
         }
+    }
+
+    private fun publishAuthFailure(
+        player: Player,
+        authType: AuthenticationFailureEvent.AuthType,
+        reason: AuthenticationFailureEvent.Reason,
+        reasonMessage: String,
+        providerId: String? = null,
+        throwableSummary: String? = null
+    ) {
+        proxy.eventManager.fire(
+            AuthenticationFailureEvent(
+                userName = player.username,
+                playerIp = getPlayerRemoteAddress(player),
+                authType = authType,
+                reason = reason,
+                reasonMessage = reasonMessage,
+                providerId = providerId,
+                throwableSummary = throwableSummary
+            )
+        )
     }
 
     private fun isTotpEnabled(entry: OfflineAuthEntry): Boolean {

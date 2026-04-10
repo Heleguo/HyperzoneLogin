@@ -37,6 +37,7 @@ class PreLoginGuardListener(
     private val strictGlobalRateLimiter: ConnectionRateLimiter,
     private val strictIpRateLimiter: ConnectionRateLimiter,
     private val ipCooldownManager: IpCooldownManager,
+    private val authFailureCooldownManager: IpCooldownManager,
     private val strictModeController: StrictModeController,
     private val usernameValidator: UsernameValidator
 ) {
@@ -48,6 +49,11 @@ class PreLoginGuardListener(
 
         usernameValidator.validate(event.userName)?.let { reason ->
             deny(event, "§c连接已被入口防护拒绝：$reason")
+            return
+        }
+
+        authFailureCooldownManager.getCooldownState(event.playerIp)?.let { cooldown ->
+            deny(event, "§c该 IP 因认证失败过多已被临时限制，请在 ${cooldown.remainingSeconds} 秒后再试")
             return
         }
 

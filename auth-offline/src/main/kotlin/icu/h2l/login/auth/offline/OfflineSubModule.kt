@@ -82,7 +82,8 @@ class OfflineSubModule : HyperSubModule {
             repository = offlineAuthRepository,
             playerAccessor = api.hyperZonePlayers,
             emailSender = emailSender,
-            totpAuthenticator = totpAuthenticator
+            totpAuthenticator = totpAuthenticator,
+            proxy = proxy
         )
         offlineAuthTableManager.createTable()
         proxy.eventManager.register(api, offlineAuthTableManager)

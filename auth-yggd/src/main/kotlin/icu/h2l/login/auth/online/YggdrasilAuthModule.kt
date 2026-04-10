@@ -26,6 +26,7 @@ import com.velocitypowered.api.proxy.Player
 import com.velocitypowered.api.util.GameProfile
 import com.velocitypowered.proxy.VelocityServer
 import icu.h2l.api.db.HyperZoneDatabaseManager
+import icu.h2l.api.event.auth.AuthenticationFailureEvent
 import icu.h2l.api.event.profile.ProfileSkinPreprocessEvent
 import icu.h2l.api.log.debug
 import icu.h2l.api.log.error
@@ -214,6 +215,7 @@ class YggdrasilAuthModule(
                 is YggdrasilAuthResult.Timeout -> "Timeout"
                 is YggdrasilAuthResult.NoEntriesConfigured -> "No entries configured"
             }
+            publishAuthFailure(player, username, result)
             handler.sendMessage(Component.text("玩家 $username Yggdrasil 验证失败"))
             info { "玩家 $username Yggdrasil 验证失败" }
             debug { "玩家 $username Yggdrasil 验证失败原因: $failureReason" }
@@ -572,6 +574,45 @@ class YggdrasilAuthModule(
             is AuthenticationResult.Timeout -> {
                 YggdrasilAuthResult.Timeout
             }
+        }
+    }
+
+    private fun publishAuthFailure(player: Player, username: String, result: YggdrasilAuthResult) {
+        val reason = when (result) {
+            is YggdrasilAuthResult.Failed -> AuthenticationFailureEvent.Reason.REMOTE_REJECTED
+            is YggdrasilAuthResult.Timeout -> AuthenticationFailureEvent.Reason.TIMEOUT
+            is YggdrasilAuthResult.NoEntriesConfigured -> AuthenticationFailureEvent.Reason.NO_PROVIDERS
+            is YggdrasilAuthResult.Success -> return
+        }
+        val reasonMessage = when (result) {
+            is YggdrasilAuthResult.Failed -> result.reason
+            is YggdrasilAuthResult.Timeout -> "Yggdrasil authentication timeout"
+            is YggdrasilAuthResult.NoEntriesConfigured -> "No Yggdrasil providers configured"
+            is YggdrasilAuthResult.Success -> return
+        }
+        val providerId = (result as? YggdrasilAuthResult.Success)?.entryId
+        val throwableSummary = (result as? YggdrasilAuthResult.Failed)?.statusCode?.let { "HTTP $it" }
+
+        proxy.eventManager.fire(
+            AuthenticationFailureEvent(
+                userName = username,
+                playerIp = getPlayerRemoteAddress(player),
+                authType = AuthenticationFailureEvent.AuthType.YGGDRASIL,
+                reason = reason,
+                reasonMessage = reasonMessage,
+                providerId = providerId,
+                throwableSummary = throwableSummary
+            )
+        )
+    }
+
+    private fun getPlayerRemoteAddress(player: Player): String {
+        val hostAddress = player.remoteAddress.address.hostAddress
+        val ipv6ScopeIdx = hostAddress.indexOf('%')
+        return if (ipv6ScopeIdx == -1) {
+            hostAddress
+        } else {
+            hostAddress.substring(0, ipv6ScopeIdx)
         }
     }
 }
