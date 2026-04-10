@@ -68,6 +68,9 @@ class OfflineAuthConfig {
         @Comment("是否启用邮箱相关命令")
         val enabled = true
 
+        @Comment("恢复码投递模式：LOG 或 SMTP")
+        val deliveryMode = "LOG"
+
         @Comment("恢复码长度")
         val recoveryCodeLength = 6
 
@@ -83,10 +86,59 @@ class OfflineAuthConfig {
         @Comment("恢复码校验成功后，允许修改密码的时间窗口（分钟）")
         val resetPasswordWindowMinutes = 10
 
+        @Comment("恢复邮件模板与 SMTP 配置")
+        @JvmField
+        val smtp = SmtpConfig()
+    }
+
+    @ConfigSerializable
+    class SmtpConfig {
+        @Comment("邮件里显示的服务器名称")
+        val serverName = "HyperZoneLogin"
+
+        @Comment("SMTP 服务器地址")
+        val host = "smtp.example.com"
+
+        @Comment("SMTP 端口")
+        val port = 587
+
+        @Comment("是否启用 SMTP 认证")
+        val auth = true
+
+        @Comment("SMTP 用户名")
+        val username = "noreply@example.com"
+
+        @Comment("SMTP 密码或应用专用密码")
+        val password = "change-me"
+
+        @Comment("是否启用 STARTTLS")
+        val startTls = true
+
+        @Comment("是否直接使用 SSL")
+        val ssl = false
+
+        @Comment("连接超时（毫秒）")
+        val connectionTimeoutMillis = 10000
+
+        @Comment("读取超时（毫秒）")
+        val readTimeoutMillis = 10000
+
+        @Comment("写入超时（毫秒）")
+        val writeTimeoutMillis = 10000
+
+        @Comment("发件人邮箱")
+        val fromAddress = "noreply@example.com"
+
+        @Comment("发件人名称")
+        val fromName = "HyperZoneLogin"
+
+        @Comment("恢复邮件主题，支持占位符：%server%、%player%")
+        val recoverySubject = "[%server%] 账号密码找回验证码"
+
         @Comment(
-            "恢复码投递模式。当前内置仅支持 LOG：把邮件内容写入服务端日志，便于后续接入真正 SMTP。"
+            "恢复邮件正文，支持占位符：%server%、%player%、%email%、%code%、%minutes%。使用 \\n 表示换行"
         )
-        val deliveryMode = "LOG"
+        val recoveryBody = "你好，%player%。\\n\\n你在 %server% 请求了离线账号密码找回。\\n验证码：%code%\\n有效期：%minutes% 分钟\\n\\n如果不是你本人操作，请忽略这封邮件。"
     }
 
     @ConfigSerializable

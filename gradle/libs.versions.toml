@@ -8,6 +8,7 @@ spotless = "7.2.1"
 configurate = "4.2.0"
 adventure = "4.19.0"
 kotlin = "2.3.20"
+angusMail = "2.0.4"
 
 exposed = "0.58.0"
 h2 = "2.1.214"
@@ -56,6 +57,7 @@ jarRelocator = { group = "me.lucko", name = "jar-relocator", version.ref = "jarR
 
 configurateHocon = { group = "org.spongepowered", name = "configurate-hocon", version.ref = "configurate" }
 configurateExtraKotlin = { group = "org.spongepowered", name = "configurate-extra-kotlin", version.ref = "configurate" }
+angusMail = { group = "org.eclipse.angus", name = "angus-mail", version.ref = "angusMail" }
 
 nettyAll = { group = "io.netty", name = "netty-all", version.ref = "netty" }
 gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }

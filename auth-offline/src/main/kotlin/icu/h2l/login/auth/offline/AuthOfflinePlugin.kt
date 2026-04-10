@@ -25,22 +25,61 @@ import com.google.inject.Inject
 import com.velocitypowered.api.event.Subscribe
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent
 import com.velocitypowered.api.plugin.Plugin
+import com.velocitypowered.api.plugin.annotation.DataDirectory
 import com.velocitypowered.api.proxy.ProxyServer
 import icu.h2l.api.HyperZoneApiProvider
+import icu.h2l.api.dependency.HyperDependencyManifest
+import icu.h2l.api.dependency.HyperDependencyManager
+import icu.h2l.api.dependency.HyperDependencyProgressListener
+import icu.h2l.api.dependency.HyperDependencyRepository
+import icu.h2l.api.dependency.VelocityHyperDependencyClassPathAppender
+import java.nio.file.Path
 
 @Plugin(id = "hzl-auth-offline", name = "HyperZoneLogin - Auth Offline")
 class AuthOfflinePlugin @Inject constructor(
-    private val server: ProxyServer
+    private val server: ProxyServer,
+    @param:DataDirectory private val dataDirectory: Path
 ) {
     private val logger = java.util.logging.Logger.getLogger("hzl-auth-offline")
+
     @Subscribe
     fun onEnable(@Suppress("UNUSED_PARAMETER") e: ProxyInitializeEvent) {
-        // Prefer direct API usage: call the main plugin's registerModule method.
-        // Check plugin presence first (soft-dependency) then invoke the main plugin API directly.
         val mainPluginPresent = server.pluginManager.getPlugin("hyperzonelogin").isPresent
         if (mainPluginPresent) {
             try {
-                HyperZoneApiProvider.get().registerModule(OfflineSubModule())
+                val api = HyperZoneApiProvider.get()
+                val cacheDirectory = HyperZoneApiProvider.getOrNull()?.dataDirectory?.resolve("libs") ?: dataDirectory.resolve("libs")
+                HyperDependencyManager(
+                    cacheDirectory,
+                    VelocityHyperDependencyClassPathAppender(server, this),
+                    HyperDependencyRepository.DEFAULT_REPOSITORIES,
+                    object : HyperDependencyProgressListener {
+                        override fun onDownloadStart(
+                            dependency: icu.h2l.api.dependency.HyperDependency,
+                            repository: HyperDependencyRepository,
+                            targetPath: Path
+                        ) {
+                            logger.info("正在下载运行库: ${dependency.id()} <- ${repository.baseUrl}")
+                        }
+
+                        override fun onDownloadSuccess(
+                            dependency: icu.h2l.api.dependency.HyperDependency,
+                            repository: HyperDependencyRepository,
+                            targetPath: Path
+                        ) {
+                            logger.info("运行库下载完成: ${dependency.id()}")
+                        }
+
+                        override fun onDownloadFailure(
+                            dependency: icu.h2l.api.dependency.HyperDependency,
+                            repository: HyperDependencyRepository,
+                            exception: Exception
+                        ) {
+                            logger.warning("运行库下载失败: ${dependency.id()} <- ${repository.baseUrl} (${exception.message})")
+                        }
+                    }
+                ).loadDependencies(HyperDependencyManifest.readFrom(this::class.java.classLoader))
+                api.registerModule(OfflineSubModule())
             } catch (t: Throwable) {
                 logger.warning("Failed to register OfflineSubModule: ${t.message}")
             }

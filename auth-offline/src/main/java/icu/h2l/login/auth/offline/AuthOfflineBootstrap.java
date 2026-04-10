@@ -24,14 +24,17 @@ package icu.h2l.login.auth.offline;
 import com.google.inject.Inject;
 import com.velocitypowered.api.event.Subscribe;
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
+import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
+
+import java.nio.file.Path;
 
 public final class AuthOfflineBootstrap {
     private final AuthOfflinePlugin delegate;
 
     @Inject
-    public AuthOfflineBootstrap(ProxyServer server) {
-        this.delegate = new AuthOfflinePlugin(server);
+    public AuthOfflineBootstrap(ProxyServer server, @DataDirectory Path dataDirectory) {
+        this.delegate = new AuthOfflinePlugin(server, dataDirectory);
     }
 
     @Subscribe

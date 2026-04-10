@@ -27,6 +27,7 @@ import icu.h2l.login.auth.offline.OfflineAuthMessages
 import icu.h2l.login.auth.offline.config.OfflineAuthConfigLoader
 import icu.h2l.login.auth.offline.api.db.OfflineAuthEntry
 import icu.h2l.login.auth.offline.db.OfflineAuthRepository
+import icu.h2l.login.auth.offline.mail.OfflineAuthEmailSender
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.security.SecureRandom
@@ -34,7 +35,8 @@ import java.util.Locale
 
 class OfflineAuthService(
     private val repository: OfflineAuthRepository,
-    private val playerAccessor: HyperZonePlayerAccessor
+    private val playerAccessor: HyperZonePlayerAccessor,
+    private val emailSender: OfflineAuthEmailSender
 ) {
     data class Result(val success: Boolean, val message: String)
 
@@ -271,8 +273,20 @@ class OfflineAuthService(
             return Result(false, "§c写入恢复码失败，请稍后再试")
         }
 
-        deliverRecoveryCode(player.username, normalizedEmail, code, expireAt)
-        return Result(true, OfflineAuthMessages.RECOVERY_EMAIL_SENT)
+        val deliveryResult = deliverRecoveryCode(player.username, normalizedEmail, code, expireAt)
+        if (!deliveryResult.success) {
+            repository.clearRecoveryState(entry.profileId)
+            return Result(false, OfflineAuthMessages.recoverySendFailure(deliveryResult.diagnosticMessage))
+        }
+
+        val successMessage = if (!deliveryResult.diagnosticMessage.isNullOrBlank() &&
+            !deliveryResult.diagnosticMessage.equals("SMTP", ignoreCase = true)
+        ) {
+            "${OfflineAuthMessages.RECOVERY_EMAIL_SENT} §7(${deliveryResult.diagnosticMessage})"
+        } else {
+            OfflineAuthMessages.RECOVERY_EMAIL_SENT
+        }
+        return Result(true, successMessage)
     }
 
     fun verifyRecoveryCode(player: Player, code: String): Result {
@@ -434,10 +448,24 @@ class OfflineAuthService(
         }
     }
 
-    private fun deliverRecoveryCode(playerName: String, email: String, code: String, expireAt: Long) {
-        val deliveryMode = OfflineAuthConfigLoader.getConfig().email.deliveryMode.uppercase(Locale.ROOT)
+    private fun deliverRecoveryCode(
+        playerName: String,
+        email: String,
+        code: String,
+        expireAt: Long
+    ): OfflineAuthEmailSender.DeliveryResult {
         val expireMinutes = ((expireAt - System.currentTimeMillis()) / 60_000L).coerceAtLeast(1)
-        logger.warning("[$deliveryMode] 离线找回验证码 player=$playerName email=$email code=$code expireIn=${expireMinutes}m")
+        val mailMessage = OfflineAuthEmailSender.RecoveryCodeMailMessage(
+            playerName = playerName,
+            email = email,
+            recoveryCode = code,
+            expireMinutes = expireMinutes
+        )
+        val result = emailSender.sendRecoveryCode(mailMessage)
+        if (!result.success) {
+            logger.warning("离线找回邮件发送失败: player=$playerName email=$email cause=${result.diagnosticMessage}")
+        }
+        return result
     }
 
     companion object {

@@ -19,34 +19,21 @@
  *
  */
 
-import icu.h2l.gradle.needPackageCompileOnly
+package icu.h2l.login.auth.offline.mail
 
-plugins {
-    alias(libs.plugins.kotlin)
-    id("icu.h2l.runtime-dependencies")
+interface OfflineAuthEmailSender {
+    fun sendRecoveryCode(message: RecoveryCodeMailMessage): DeliveryResult
+
+    data class RecoveryCodeMailMessage(
+        val playerName: String,
+        val email: String,
+        val recoveryCode: String,
+        val expireMinutes: Long
+    )
+
+    data class DeliveryResult(
+        val success: Boolean,
+        val diagnosticMessage: String? = null
+    )
 }
 
-dependencies {
-    // The API is provided by the main plugin at runtime. Use compileOnly so
-    // the submodule is built as a standalone Velocity plugin and doesn't
-    // bundle the API classes (avoids duplication in the main shadow jar).
-    compileOnly(project(":api"))
-//    VC
-    compileOnly(libs.velocityApi)
-    // Exposed ORM
-    compileOnly(libs.exposedCore)
-//    config
-    compileOnly(libs.configurateHocon)
-    compileOnly(libs.configurateExtraKotlin)
-//    limbo
-    compileOnly(libs.limboApi)
-    needPackageCompileOnly(libs.angusMail)
-
-    testImplementation(platform(libs.junitBom))
-    testImplementation(libs.junitJupiter)
-    testRuntimeOnly(libs.junitPlatformLauncher)
-}
-
-tasks.test {
-    useJUnitPlatform()
-}

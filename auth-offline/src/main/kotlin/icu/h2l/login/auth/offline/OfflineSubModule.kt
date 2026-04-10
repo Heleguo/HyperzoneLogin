@@ -30,9 +30,14 @@ import icu.h2l.login.auth.offline.command.OfflineAuthCommandRegistrar
 import icu.h2l.login.auth.offline.config.OfflineAuthConfigLoader
 import icu.h2l.login.auth.offline.db.OfflineAuthRepository
 import icu.h2l.login.auth.offline.db.OfflineAuthTableManager
+import icu.h2l.login.auth.offline.mail.JakartaMailOfflineAuthEmailSender
+import icu.h2l.login.auth.offline.mail.LoggingOfflineAuthEmailSender
+import icu.h2l.login.auth.offline.mail.OfflineAuthEmailSender
 import icu.h2l.login.auth.offline.service.OfflineAuthService
 import icu.h2l.login.auth.offline.config.OfflineMatchConfigLoader
 import icu.h2l.login.auth.offline.listener.OfflinePreLoginListener
+import java.util.Locale
+
 class OfflineSubModule : HyperSubModule {
     lateinit var offlineAuthTableManager: OfflineAuthTableManager
     lateinit var offlineAuthRepository: OfflineAuthRepository
@@ -56,9 +61,21 @@ class OfflineSubModule : HyperSubModule {
             databaseManager = databaseManager,
             table = offlineAuthTableManager.offlineAuthTable
         )
+        val offlineAuthConfig = OfflineAuthConfigLoader.getConfig()
+        val logger = java.util.logging.Logger.getLogger("hzl-auth-offline")
+        val emailSender: OfflineAuthEmailSender = when (offlineAuthConfig.email.deliveryMode.uppercase(Locale.ROOT)) {
+            "SMTP" -> JakartaMailOfflineAuthEmailSender(
+                config = offlineAuthConfig.email.smtp,
+                serverName = offlineAuthConfig.email.smtp.serverName,
+                logger = logger
+            )
+
+            else -> LoggingOfflineAuthEmailSender(logger, offlineAuthConfig.email.deliveryMode.uppercase(Locale.ROOT))
+        }
         offlineAuthService = OfflineAuthService(
             repository = offlineAuthRepository,
-            playerAccessor = api.hyperZonePlayers
+            playerAccessor = api.hyperZonePlayers,
+            emailSender = emailSender
         )
         offlineAuthTableManager.createTable()
         proxy.eventManager.register(api, offlineAuthTableManager)

@@ -99,6 +99,14 @@ object OfflineAuthMessages {
         return "${PREFIX}§c恢复码输错次数已达上限，请重新使用 /email recovery <邮箱> 获取新的验证码"
     }
 
+    fun recoverySendFailure(reason: String?): String {
+        return if (reason.isNullOrBlank()) {
+            "${PREFIX}§c恢复邮件发送失败，请联系管理员检查邮箱配置"
+        } else {
+            "${PREFIX}§c恢复邮件发送失败：$reason"
+        }
+    }
+
     fun invalidRecoveryDeliveryMode(mode: String): String {
         return "${PREFIX}§e当前恢复码投递模式为 $mode，验证码内容已写入服务端日志"
     }
