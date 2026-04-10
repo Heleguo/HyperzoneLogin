@@ -21,7 +21,8 @@ Auth Offline 模块 (hzl-auth-offline)
   - 密码处理支持多种存储格式：plain、sha256、authme（兼容 AuthMe 风格的存储），默认使用 sha256。
   - 密码校验逻辑位于 `OfflineAuthService.verifyPassword` 和 `verifyAuthMe` 中；内部使用 SHA-256 hex 编码（见 `sha256Hex`）。
   - 支持邮箱绑定与找回密码；恢复邮件可走 `LOG` 或 `SMTP` 投递模式，SMTP 基于 Jakarta Mail / Angus Mail 运行库。
-  - 支持短期 session 自动登录：可按 IP 绑定、按分钟过期，并在登出、改密、邮箱找回改密后立即失效。
+  - 支持短期 session 自动登录：可按 IP 绑定、按分钟过期，并在登出、改密、邮箱找回改密后立即失效；出于安全考虑默认关闭。
+  - 支持 TOTP 二步验证：使用成熟验证器库生成密钥与 `otpauth://` 链接，登录时可要求 `/login <password> <code>` 双因子验证。
 - 事件与集成：
   - 模块会在注册时向代理事件管理器注册 `OfflineAuthTableManager`、命令注册器和监听器（例如 `OfflineLimboEventListener`）。
   - 模块实现依赖的 provider 接口包括 `HyperChatCommandManagerProvider` 与 `HyperZonePlayerAccessorProvider`，注册时会对 owner 做类型断言并在缺失时抛出异常以防止错误集成。
@@ -31,7 +32,8 @@ Auth Offline 模块 (hzl-auth-offline)
 以下命令为聊天命令（玩家在聊天框输入），示例语法与说明：
 
 - /login <password>
-  - 用法：立即使用指定密码尝试登录（适用于已注册账号）；登录成功后会按配置签发短期 session。
+- /login <password> [code]
+  - 用法：立即使用指定密码尝试登录（适用于已注册账号）；若账号启用了 TOTP，则必须额外提供验证码。
 - /register <password>
   - 用法：为当前连接的玩家创建一个离线账号并自动登录（若允许注册）。
 - /bind <password>
@@ -54,6 +56,12 @@ Auth Offline 模块 (hzl-auth-offline)
   - 用法：验证邮箱收到的恢复码。
 - /email setpassword <newPassword> <newPassword>
   - 用法：在恢复码验证通过后重置密码并自动完成本次认证。
+- /totp add <password>
+  - 用法：生成待确认的 TOTP 密钥与 `otpauth://` 链接。
+- /totp confirm <code>
+  - 用法：在验证器 App 中添加密钥后，输入当前验证码完成启用。
+- /totp remove <password> <code>
+  - 用法：验证当前密码与 TOTP 验证码后关闭二步验证。
 
 权限（Permission）
 -------------------
@@ -68,13 +76,15 @@ Auth Offline 模块 (hzl-auth-offline)
 | /logout | 注销会话 | 无 |
 | /unregister | 注销账号 | 无（需提供密码） |
 | /email ... | 邮箱绑定 / 找回 | 无（部分子命令需提供密码） |
+| /totp ... | 二步验证启用 / 关闭 | 无（需提供密码或验证码） |
 
 注意事项
 ---------
 - 本模块不打包 `api`；运行时必须由 `velocity` 主模块或主插件提供 API。若未找到主插件，会在初始化时打印警告并在主插件就绪后尝试注册。
 - 密码兼容注意：如果你从其他插件迁移数据，`authme` 格式会被识别并验证，但建议统一迁移为 sha256 以获得一致性和更简单的实现。
 - 首次启动会生成 `offline-auth.conf`；若要启用真实邮件发送，请将 `email.deliveryMode` 改为 `SMTP` 并完整填写 `email.smtp.*` 配置。
-- 若要启用或调整 short session 自动登录，请编辑 `offline-auth.conf` 中的 `session.enabled`、`session.expireMinutes`、`session.bindIp`、`session.issueOnRegister`。
+- short session 自动登录默认关闭；如需启用，请编辑 `offline-auth.conf` 中的 `session.enabled`、`session.expireMinutes`、`session.bindIp`、`session.issueOnRegister`。
+- TOTP 二步验证由 `offline-auth.conf` 中的 `totp.*` 控制；默认启用功能，但仅在玩家主动使用 `/totp add` 后才会生效到账号。
 
 开发者提示
 -----------

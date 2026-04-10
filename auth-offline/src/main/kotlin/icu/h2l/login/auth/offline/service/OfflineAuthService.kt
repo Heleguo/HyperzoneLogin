@@ -28,6 +28,7 @@ import icu.h2l.login.auth.offline.config.OfflineAuthConfigLoader
 import icu.h2l.login.auth.offline.api.db.OfflineAuthEntry
 import icu.h2l.login.auth.offline.db.OfflineAuthRepository
 import icu.h2l.login.auth.offline.mail.OfflineAuthEmailSender
+import icu.h2l.login.auth.offline.totp.OfflineTotpAuthenticator
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.security.SecureRandom
@@ -36,7 +37,8 @@ import java.util.Locale
 class OfflineAuthService(
     private val repository: OfflineAuthRepository,
     private val playerAccessor: HyperZonePlayerAccessor,
-    private val emailSender: OfflineAuthEmailSender
+    private val emailSender: OfflineAuthEmailSender,
+    private val totpAuthenticator: OfflineTotpAuthenticator
 ) {
     data class Result(val success: Boolean, val message: String)
     data class SessionCheckResult(val passed: Boolean, val message: String? = null)
@@ -109,7 +111,7 @@ class OfflineAuthService(
         }
     }
 
-    fun login(player: Player, password: String): Result {
+    fun login(player: Player, password: String, totpCode: String? = null): Result {
         val hyperPlayer = playerAccessor.getByPlayer(player)
         if (hyperPlayer.isVerified()) {
             return Result(false, OfflineAuthMessages.ALREADY_LOGGED_IN)
@@ -139,9 +141,78 @@ class OfflineAuthService(
         }
 
         repository.resetLoginProtection(entry.profileId)
+
+        if (isTotpEnabled(entry)) {
+            val trimmedCode = totpCode?.trim().orEmpty()
+            if (trimmedCode.isEmpty()) {
+                return Result(false, OfflineAuthMessages.TOTP_LOGIN_REQUIRED)
+            }
+            if (!totpAuthenticator.verifyCode(entry.name, entry.totpSecret!!, trimmedCode)) {
+                return Result(false, OfflineAuthMessages.TOTP_INVALID_CODE)
+            }
+        }
+
         hyperPlayer.overVerify()
         issueSession(entry.profileId, player)
         return Result(true, OfflineAuthMessages.LOGIN_SUCCESS)
+    }
+
+    fun beginTotpSetup(player: Player, password: String): Result {
+        ensureTotpFeatureEnabled()?.let { return it }
+
+        val entry = resolveEntryByPlayer(player) ?: return Result(false, OfflineAuthMessages.UNREGISTERED)
+        if (!verifyPassword(password, entry)) {
+            return Result(false, OfflineAuthMessages.PASSWORD_WRONG)
+        }
+        if (isTotpEnabled(entry)) {
+            return Result(false, OfflineAuthMessages.TOTP_ALREADY_ENABLED)
+        }
+
+        val setup = totpAuthenticator.createSetup(entry.profileId, entry.name)
+        return Result(true, OfflineAuthMessages.totpSetupGenerated(setup.secret, setup.otpAuthUrl))
+    }
+
+    fun confirmTotpSetup(player: Player, code: String): Result {
+        ensureTotpFeatureEnabled()?.let { return it }
+
+        val entry = resolveEntryByPlayer(player) ?: return Result(false, OfflineAuthMessages.UNREGISTERED)
+        if (isTotpEnabled(entry)) {
+            return Result(false, OfflineAuthMessages.TOTP_ALREADY_ENABLED)
+        }
+
+        val pendingSetup = totpAuthenticator.getPendingSetup(entry.profileId)
+            ?: return Result(false, OfflineAuthMessages.TOTP_PENDING_NOT_FOUND)
+        if (!totpAuthenticator.verifyPendingCode(entry.profileId, entry.name, code)) {
+            return Result(false, OfflineAuthMessages.TOTP_INVALID_CODE)
+        }
+
+        return if (repository.updateTotpSecret(entry.profileId, pendingSetup.secret)) {
+            totpAuthenticator.clearPendingSetup(entry.profileId)
+            repository.clearSession(entry.profileId)
+            Result(true, OfflineAuthMessages.TOTP_ENABLED)
+        } else {
+            Result(false, "§c二步验证启用失败，请稍后再试")
+        }
+    }
+
+    fun disableTotp(player: Player, password: String, code: String): Result {
+        ensureTotpFeatureEnabled()?.let { return it }
+
+        val entry = resolveEntryByPlayer(player) ?: return Result(false, OfflineAuthMessages.UNREGISTERED)
+        if (!verifyPassword(password, entry)) {
+            return Result(false, OfflineAuthMessages.PASSWORD_WRONG)
+        }
+        val secret = entry.totpSecret ?: return Result(false, OfflineAuthMessages.TOTP_NOT_ENABLED)
+        if (!totpAuthenticator.verifyCode(entry.name, secret, code)) {
+            return Result(false, OfflineAuthMessages.TOTP_INVALID_CODE)
+        }
+
+        return if (repository.updateTotpSecret(entry.profileId, null)) {
+            totpAuthenticator.clearPendingSetup(entry.profileId)
+            Result(true, OfflineAuthMessages.TOTP_DISABLED)
+        } else {
+            Result(false, "§c二步验证关闭失败，请稍后再试")
+        }
     }
 
     fun changePassword(player: Player, oldPassword: String, newPassword: String): Result {
@@ -370,6 +441,9 @@ class OfflineAuthService(
         }
 
         prompts += OfflineAuthMessages.LOGIN_REQUEST
+        if (isTotpEnabled(entry)) {
+            prompts += OfflineAuthMessages.TOTP_LOGIN_HINT
+        }
         prompts += "§8[§6玩家系统§8] §7如需修改密码：/changepassword <旧密码> <新密码>"
         if (OfflineAuthConfigLoader.getConfig().prompt.showRecoveryHint && !entry.email.isNullOrBlank()) {
             prompts += OfflineAuthMessages.RECOVERY_HINT
@@ -379,6 +453,13 @@ class OfflineAuthService(
                 "§8[§6玩家系统§8] §7可使用 /email add <当前密码> <邮箱> <再次输入邮箱> 绑定邮箱"
             } else {
                 OfflineAuthMessages.emailShow(entry.email)
+            }
+        }
+        if (OfflineAuthConfigLoader.getConfig().totp.enabled) {
+            prompts += if (isTotpEnabled(entry)) {
+                "§8[§6玩家系统§8] §7已启用 TOTP，可使用 /totp remove <密码> <验证码> 关闭"
+            } else {
+                "§8[§6玩家系统§8] §7可使用 /totp add <密码> 启用二步验证"
             }
         }
         return prompts
@@ -396,6 +477,10 @@ class OfflineAuthService(
         }
 
         val entry = repository.getByName(hyperPlayer.userName.lowercase()) ?: return null
+        if (isTotpEnabled(entry) && !OfflineAuthConfigLoader.getConfig().totp.allowSessionBypass) {
+            repository.clearSession(entry.profileId)
+            return SessionCheckResult(false, OfflineAuthMessages.TOTP_LOGIN_REQUIRED)
+        }
         val sessionIssuedAt = entry.sessionIssuedAt ?: return null
         val sessionExpiresAt = entry.sessionExpiresAt ?: return null
         val currentIp = getPlayerRemoteAddress(player)
@@ -477,6 +562,13 @@ class OfflineAuthService(
         return null
     }
 
+    private fun ensureTotpFeatureEnabled(): Result? {
+        if (!OfflineAuthConfigLoader.getConfig().totp.enabled) {
+            return Result(false, OfflineAuthMessages.TOTP_DISABLED_BY_CONFIG)
+        }
+        return null
+    }
+
     private fun generateRecoveryCode(length: Int): String {
         val resolvedLength = length.coerceAtLeast(4)
         return buildString(resolvedLength) {
@@ -508,6 +600,11 @@ class OfflineAuthService(
 
     private fun issueSession(profileId: java.util.UUID, player: Player) {
         val sessionConfig = OfflineAuthConfigLoader.getConfig().session
+        val entry = repository.getByProfileId(profileId)
+        if (entry != null && isTotpEnabled(entry) && !OfflineAuthConfigLoader.getConfig().totp.allowSessionBypass) {
+            repository.clearSession(profileId)
+            return
+        }
         if (!sessionConfig.enabled) {
             repository.clearSession(profileId)
             return
@@ -527,6 +624,10 @@ class OfflineAuthService(
         } else {
             hostAddress.substring(0, ipv6ScopeIdx)
         }
+    }
+
+    private fun isTotpEnabled(entry: OfflineAuthEntry): Boolean {
+        return !entry.totpSecret.isNullOrBlank()
     }
 
     companion object {

@@ -36,7 +36,7 @@ object OfflineAuthMessages {
     const val REGISTER_REPEAT = "${PREFIX}§c此用户已经注册过，无法重复注册"
     const val REGISTER_USAGE = "${PREFIX}§e/register <密码> <再次输入密码>"
     const val REGISTER_REQUEST = "${PREFIX}§c请输入“/register <密码> <再次输入密码>”以注册"
-    const val LOGIN_USAGE = "${PREFIX}§e/login <密码>"
+    const val LOGIN_USAGE = "${PREFIX}§e/login <密码> [验证码]"
     const val LOGIN_REQUEST = "${PREFIX}§c请输入“/login <密码>”以登录"
     const val LOGIN_SUCCESS = "${PREFIX}§a已成功登录！"
     const val LOGIN_WRONG_PASSWORD = "${PREFIX}§c错误的密码"
@@ -72,6 +72,19 @@ object OfflineAuthMessages {
     const val RECOVERY_PASSWORD_WINDOW_EXPIRED = "${PREFIX}§c当前不可通过恢复码修改密码，请重新申请找回"
     const val OLD_PASSWORD_WRONG = "${PREFIX}§c旧密码错误"
     const val PASSWORD_WRONG = "${PREFIX}§c密码错误"
+    const val TOTP_USAGE = "${PREFIX}§e/totp <add|confirm|remove> ..."
+    const val TOTP_ADD_USAGE = "${PREFIX}§e/totp add <密码>"
+    const val TOTP_CONFIRM_USAGE = "${PREFIX}§e/totp confirm <验证码>"
+    const val TOTP_REMOVE_USAGE = "${PREFIX}§e/totp remove <密码> <验证码>"
+    const val TOTP_DISABLED_BY_CONFIG = "${PREFIX}§c当前服务器未启用 TOTP 二步验证功能"
+    const val TOTP_ALREADY_ENABLED = "${PREFIX}§e当前账号已启用 TOTP 二步验证"
+    const val TOTP_NOT_ENABLED = "${PREFIX}§e当前账号尚未启用 TOTP 二步验证"
+    const val TOTP_PENDING_NOT_FOUND = "${PREFIX}§e未找到待确认的 TOTP 配置，请先使用 /totp add <密码>"
+    const val TOTP_INVALID_CODE = "${PREFIX}§cTOTP 验证码错误或已被使用"
+    const val TOTP_ENABLED = "${PREFIX}§a已成功启用 TOTP 二步验证"
+    const val TOTP_DISABLED = "${PREFIX}§a已成功关闭 TOTP 二步验证"
+    const val TOTP_LOGIN_REQUIRED = "${PREFIX}§e该账号已启用 TOTP，请使用 /login <密码> <验证码> 完成登录"
+    const val TOTP_LOGIN_HINT = "${PREFIX}§7已启用 TOTP，请使用 /login <密码> <验证码> 登录"
 
     fun loginBlocked(seconds: Long): String {
         return "${PREFIX}§c由于登录失败次数过多，请在 ${formatDuration(seconds)} 后再试"
@@ -107,6 +120,10 @@ object OfflineAuthMessages {
         } else {
             "${PREFIX}§c恢复邮件发送失败：$reason"
         }
+    }
+
+    fun totpSetupGenerated(secret: String, otpAuthUrl: String): String {
+        return "${PREFIX}§a已生成 TOTP 密钥\n§7Secret: §f$secret\n§7OTPAuth: §f$otpAuthUrl\n§e请在验证器 App 中添加后，使用 /totp confirm <验证码> 完成启用"
     }
 
     fun invalidRecoveryDeliveryMode(mode: String): String {

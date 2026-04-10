@@ -27,7 +27,7 @@ import icu.h2l.login.auth.offline.service.OfflineAuthService
 
 class LoginCommand(
 	private val authService: OfflineAuthService
-	) : BasePlaceholderAuthCommand("/login <password>") {
+	) : BasePlaceholderAuthCommand("/login <password> [code]") {
 	override fun execute(invocation: SimpleCommand.Invocation) {
 		val source = invocation.source()
 		if (source !is Player) {
@@ -36,12 +36,12 @@ class LoginCommand(
 		}
 
 		val args = invocation.arguments()
-		if (args.size != 1) {
-			source.sendPlainMessage("§e/login <password>")
+		if (args.isEmpty() || args.size > 2) {
+			source.sendPlainMessage("§e/login <password> [code]")
 			return
 		}
 
-		val result = authService.login(source, args[0])
+		val result = authService.login(source, args[0], args.getOrNull(1))
 		source.sendPlainMessage(result.message)
 	}
 }

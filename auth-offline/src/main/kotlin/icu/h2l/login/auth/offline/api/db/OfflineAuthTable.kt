@@ -41,7 +41,8 @@ data class OfflineAuthEntry(
     val loginBlockedUntil: Long?,
     val sessionIp: String?,
     val sessionIssuedAt: Long?,
-    val sessionExpiresAt: Long?
+    val sessionExpiresAt: Long?,
+    val totpSecret: String?
 )
 
 class OfflineAuthTable(prefix: String, profileTable: ProfileTable) : Table("${prefix}offline_auth") {
@@ -61,6 +62,7 @@ class OfflineAuthTable(prefix: String, profileTable: ProfileTable) : Table("${pr
     val sessionIp = varchar("session_ip", 64).nullable()
     val sessionIssuedAt = long("session_issued_at").nullable()
     val sessionExpiresAt = long("session_expires_at").nullable()
+    val totpSecret = varchar("totp_secret", 64).nullable()
 
     init {
         uniqueIndex("${tableName}_name", name)

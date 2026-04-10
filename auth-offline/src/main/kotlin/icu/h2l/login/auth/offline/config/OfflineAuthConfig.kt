@@ -46,6 +46,10 @@ class OfflineAuthConfig {
     @JvmField
     val session = SessionConfig()
 
+    @Comment("TOTP 二步验证")
+    @JvmField
+    val totp = TotpConfig()
+
     @ConfigSerializable
     class PasswordPolicy {
         @Comment("最短密码长度")
@@ -154,7 +158,7 @@ class OfflineAuthConfig {
     @ConfigSerializable
     class SessionConfig {
         @Comment("是否启用短期会话自动登录")
-        val enabled = true
+        val enabled = false
 
         @Comment("会话有效期（分钟）")
         val expireMinutes = 30
@@ -164,6 +168,21 @@ class OfflineAuthConfig {
 
         @Comment("注册成功后是否立刻签发会话")
         val issueOnRegister = true
+    }
+
+    @ConfigSerializable
+    class TotpConfig {
+        @Comment("是否启用 TOTP 二步验证功能")
+        val enabled = true
+
+        @Comment("在验证器 App 中显示的发行方名称")
+        val issuer = "HyperZoneLogin"
+
+        @Comment("待确认 TOTP 密钥的有效期（分钟）")
+        val pendingExpireMinutes = 10
+
+        @Comment("当账号启用 TOTP 时，是否允许 short session 直接绕过二次验证")
+        val allowSessionBypass = false
     }
 }
 

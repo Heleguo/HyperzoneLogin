@@ -41,6 +41,7 @@ dependencies {
 //    limbo
     compileOnly(libs.limboApi)
     needPackageCompileOnly(libs.angusMail)
+    needPackageCompileOnly(libs.googleAuth)
 
     testImplementation(platform(libs.junitBom))
     testImplementation(libs.junitJupiter)

@@ -239,6 +239,24 @@ class OfflineAuthRepository(
         }
     }
 
+    fun updateTotpSecret(profileId: UUID, totpSecret: String?): Boolean {
+        return try {
+            databaseManager.executeTransaction {
+                table.update({ table.profileId eq profileId }) {
+                    it[this.totpSecret] = totpSecret
+                    if (totpSecret == null) {
+                        it[this.sessionIp] = null
+                        it[this.sessionIssuedAt] = null
+                        it[this.sessionExpiresAt] = null
+                    }
+                }
+            } > 0
+        } catch (e: Exception) {
+            warn { "更新离线认证 TOTP 状态失败: ${e.message}" }
+            false
+        }
+    }
+
     fun deleteByProfileId(profileId: UUID): Boolean {
         return try {
             databaseManager.executeTransaction {
@@ -267,7 +285,8 @@ class OfflineAuthRepository(
             loginBlockedUntil = row[table.loginBlockedUntil],
             sessionIp = row[table.sessionIp],
             sessionIssuedAt = row[table.sessionIssuedAt],
-            sessionExpiresAt = row[table.sessionExpiresAt]
+            sessionExpiresAt = row[table.sessionExpiresAt],
+            totpSecret = row[table.totpSecret]
         )
     }
 }

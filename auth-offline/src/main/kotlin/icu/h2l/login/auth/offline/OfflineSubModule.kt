@@ -37,6 +37,7 @@ import icu.h2l.login.auth.offline.service.OfflineAuthService
 import icu.h2l.login.auth.offline.config.OfflineMatchConfigLoader
 import icu.h2l.login.auth.offline.listener.OfflinePreLoginListener
 import icu.h2l.login.auth.offline.listener.OfflineSessionAuthListener
+import icu.h2l.login.auth.offline.totp.OfflineTotpAuthenticator
 import java.util.Locale
 
 class OfflineSubModule : HyperSubModule {
@@ -73,10 +74,15 @@ class OfflineSubModule : HyperSubModule {
 
             else -> LoggingOfflineAuthEmailSender(logger, offlineAuthConfig.email.deliveryMode.uppercase(Locale.ROOT))
         }
+        val totpAuthenticator = OfflineTotpAuthenticator(
+            issuer = offlineAuthConfig.totp.issuer,
+            pendingExpireMinutes = offlineAuthConfig.totp.pendingExpireMinutes
+        )
         offlineAuthService = OfflineAuthService(
             repository = offlineAuthRepository,
             playerAccessor = api.hyperZonePlayers,
-            emailSender = emailSender
+            emailSender = emailSender,
+            totpAuthenticator = totpAuthenticator
         )
         offlineAuthTableManager.createTable()
         proxy.eventManager.register(api, offlineAuthTableManager)

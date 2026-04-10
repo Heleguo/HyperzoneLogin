@@ -73,6 +73,13 @@ object OfflineAuthCommandRegistrar {
         )
         commandManager.register(
             HyperChatCommandRegistration(
+                name = "totp",
+                aliases = setOf("2fa"),
+                command = TotpCommand(authService)
+            )
+        )
+        commandManager.register(
+            HyperChatCommandRegistration(
                 name = "unregister",
                 aliases = setOf("delaccount"),
                 command = UnregisterCommand(authService)
