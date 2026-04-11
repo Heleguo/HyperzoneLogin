@@ -43,6 +43,13 @@ class EntryTableManager(
 ) {
     private val entryTables = mutableMapOf<String, EntryTable>()
 
+    @Suppress("DEPRECATION")
+    private fun createEntryTable(entryTable: EntryTable) {
+        databaseManager.executeTransaction {
+            SchemaUtils.createMissingTablesAndColumns(entryTable)
+        }
+    }
+
     fun registerEntry(entryId: String): EntryTable {
         val normalizedId = entryId.lowercase()
         return entryTables.getOrPut(normalizedId) {
@@ -56,11 +63,7 @@ class EntryTableManager(
     }
 
     fun createAllEntryTables() {
-        databaseManager.executeTransaction {
-            entryTables.values.forEach { entryTable ->
-                SchemaUtils.create(entryTable)
-            }
-        }
+        entryTables.values.forEach(::createEntryTable)
     }
 
    fun dropAllEntryTables() {
@@ -86,8 +89,6 @@ class EntryTableManager(
 
         val entryTable = registerEntry(event.entryConfig.id)
 
-        databaseManager.executeTransaction {
-            SchemaUtils.create(entryTable)
-        }
+        createEntryTable(entryTable)
     }
 }

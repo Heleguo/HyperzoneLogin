@@ -153,8 +153,8 @@ class EntryConfigManager(
             entryConfigs[configName] = config
             debug { "成功加载配置: $configName (ID: ${config.id}, Name: ${config.name}, Url: $resolvedUrl)" }
 
-            // 发布 Entry 注册事件
-            proxyServer.eventManager.fireAndForget(EntryRegisterEvent(configName, config))
+            // 发布 Entry 注册事件，并等待相关注册与建表逻辑完成
+            proxyServer.eventManager.fire(EntryRegisterEvent(configName, config)).join()
         } catch (e: Exception) {
             error(e) { "加载配置文件 ${path.fileName} 时出错: ${e.message}" }
         }

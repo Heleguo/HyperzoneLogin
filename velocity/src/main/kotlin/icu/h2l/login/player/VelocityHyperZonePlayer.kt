@@ -23,11 +23,15 @@ package icu.h2l.login.player
 
 import com.velocitypowered.api.proxy.Player
 import com.velocitypowered.api.util.GameProfile
+import com.velocitypowered.proxy.connection.client.ConnectedPlayer
 import icu.h2l.api.db.Profile
 import icu.h2l.api.event.profile.ProfileResolveEvent
+import icu.h2l.api.log.error
 import icu.h2l.api.player.HyperZonePlayer
+import icu.h2l.api.profile.skin.ProfileSkinTextures
 import icu.h2l.api.util.RemapUtils
 import icu.h2l.login.HyperZoneLoginMain
+import icu.h2l.login.inject.network.VelocityNetworkInjectorImpl
 import net.elytrium.limboapi.api.player.LimboPlayer
 import net.kyori.adventure.text.Component
 import java.util.*
@@ -52,6 +56,28 @@ class VelocityHyperZonePlayer(
     override var uuid: UUID,
     isOnline: Boolean,
 ) : HyperZonePlayer {
+
+    /**
+     * 仅用于客户端自皮肤修复链路的“回传给客户端的名称”。
+     *
+     * 该值必须固定为 OpenPreLoginEvent 阶段客户端最初带入的用户名；
+     * 后续即使 attach / resolve 到正式 Profile，也绝不能被重写。
+     *
+     * 警告：严禁将该字段作为通用身份字段或对外 API 使用。
+     * 如有其他需求想读取它，请先重新审视设计，而不是直接复用。
+     */
+    internal val clientSendName: String = userName
+
+    /**
+     * 仅用于客户端自皮肤修复链路的“回传给客户端的 UUID”。
+     *
+     * 该值必须固定为 OpenPreLoginEvent 阶段客户端最初带入的 UUID；
+     * 后续即使 attach / resolve 到正式 Profile，也绝不能被重写。
+     *
+     * 警告：严禁将该字段作为通用身份字段或对外 API 使用。
+     * 如有其他需求想读取它，请先重新审视设计，而不是直接复用。
+     */
+    internal val clientSendUUID: UUID = uuid
 
     private var proxyPlayer: Player? = null
 
@@ -83,6 +109,10 @@ class VelocityHyperZonePlayer(
     private val authHoldServerName = AtomicReference<String?>(null)
     private val postAuthTargetServerName = AtomicReference<String?>(null)
     private val onlineState = AtomicBoolean(isOnline)
+    private val selfSkinAddPlayerSent = AtomicBoolean(false)
+    private val pendingSelfSkinTextures = AtomicReference<ProfileSkinTextures?>(null)
+    private val latestSelfSkinTextures = AtomicReference<ProfileSkinTextures?>(null)
+    private val interceptedSelfAddPlayerName = AtomicReference<String?>(null)
 
     /**
      * Limbo / 等待区玩家实体，仅在等待区存在。
@@ -138,6 +168,8 @@ class VelocityHyperZonePlayer(
         val resolvedName = userName ?: this.userName
         val remapPrefix = HyperZoneLoginMain.getRemapConfig().prefix
         val resolvedUuid = uuid ?: RemapUtils.genUUID(resolvedName, remapPrefix)
+//        测试用的
+//        val resolvedUuid = RemapUtils.genUUID(resolvedName, remapPrefix)
 
         val event = ProfileResolveEvent(
             hyperZonePlayer = this,
@@ -308,6 +340,157 @@ class VelocityHyperZonePlayer(
         authHoldServerName.set(null)
         postAuthTargetServerName.set(null)
         authJoinAnnounced.set(false)
+    }
+
+    /**
+     * 仅供 `ProfileSkinPreprocessEvent` 监听器调用：
+     * 提前缓存“等会儿要拿来替换原始 self ADD_PLAYER 的皮肤数据”。
+     *
+     * 当前方案不是在这里直接发包，而是：
+     * 1. 预处理阶段先拿到正版返回的最初皮肤；
+     * 2. 暂存为待替换数据；
+     * 3. 等客户端链路上真正出现原始 self `ADD_PLAYER` 时，再由拦截器替换并退役。
+     *
+     * 警告：这里只服务于“客户端自皮肤修复”，禁止扩展成通用资料缓存入口。
+     */
+    internal fun armSelfSkinAddPlayerReplacementFromPreprocess(textures: ProfileSkinTextures) {
+        if (!HyperZoneLoginMain.getMiscConfig().enableReplaceGameProfile) {
+            return
+        }
+        if (textures.value.isBlank()) {
+            return
+        }
+        if (selfSkinAddPlayerSent.get()) {
+            return
+        }
+
+        latestSelfSkinTextures.set(textures)
+        pendingSelfSkinTextures.set(textures)
+        tryFlushInterceptedSelfAddPlayerReplacement()
+    }
+
+    internal fun markSelfAddPlayerIntercepted(playerName: String) {
+        if (selfSkinAddPlayerSent.get()) {
+            return
+        }
+        interceptedSelfAddPlayerName.set(playerName)
+    }
+
+    internal fun shouldReplaceSelfAddPlayer(originalProfileId: UUID): Boolean {
+        if (selfSkinAddPlayerSent.get()) {
+            return false
+        }
+        return originalProfileId == temporaryGameProfile?.id
+    }
+
+    internal fun createPendingSelfAddPlayerProfile(): GameProfile? {
+        if (selfSkinAddPlayerSent.get()) {
+            return null
+        }
+
+        val textures = pendingSelfSkinTextures.get() ?: return null
+        if (textures.value.isBlank()) {
+            return null
+        }
+
+        return GameProfile(
+            clientSendUUID,
+            clientSendName,
+            listOf(textures.toProperty())
+        )
+    }
+
+    internal fun completeSelfSkinAddPlayerReplacement() {
+        pendingSelfSkinTextures.set(null)
+        interceptedSelfAddPlayerName.set(null)
+        selfSkinAddPlayerSent.set(true)
+    }
+
+    /**
+     * `ClientboundFinishConfigurationPacket` 之后客户端会重建 `ClientPacketListener`，
+     * 原先 self `PlayerInfo` 可能随之丢失。
+     *
+     * 因此在 Velocity 的 `PlayerFinishConfigurationEvent` 到来后，
+     * 这里会基于最近一次可用的 self 皮肤资料重新补发一次 self `ADD_PLAYER`。
+     */
+    internal fun requestSelfAddPlayerReplayAfterConfigurationFinish() {
+        if (!HyperZoneLoginMain.getMiscConfig().enableReplaceGameProfile) {
+            return
+        }
+
+        val textures = latestSelfSkinTextures.get() ?: return
+        if (textures.value.isBlank()) {
+            return
+        }
+
+        pendingSelfSkinTextures.set(textures)
+        interceptedSelfAddPlayerName.set(null)
+        selfSkinAddPlayerSent.set(false)
+
+        val connectedPlayer = proxyPlayer as? ConnectedPlayer ?: return
+        if (!connectedPlayer.isActive || connectedPlayer.connection.isClosed) {
+            return
+        }
+
+        val replayProfile = GameProfile(
+            clientSendUUID,
+            clientSendName,
+            listOf(textures.toProperty())
+        )
+
+        connectedPlayer.connection.eventLoop().execute {
+            try {
+                if (!connectedPlayer.isActive || connectedPlayer.connection.isClosed) {
+                    return@execute
+                }
+
+                val pipeline = connectedPlayer.connection.channel.pipeline()
+                if (pipeline.names().contains(VelocityNetworkInjectorImpl.SELF_ADD_PLAYER_REPLACER_HANDLER)) {
+                    pipeline.remove(VelocityNetworkInjectorImpl.SELF_ADD_PLAYER_REPLACER_HANDLER)
+                }
+
+                SelfPlayerInfoSkinSender.sendAddPlayer(connectedPlayer, replayProfile)
+                completeSelfSkinAddPlayerReplacement()
+            } catch (throwable: Throwable) {
+                error(throwable) {
+                    "Post-configuration self ADD_PLAYER replay failed for player=$userName: ${throwable.message}"
+                }
+            }
+        }
+    }
+
+    private fun tryFlushInterceptedSelfAddPlayerReplacement() {
+        if (selfSkinAddPlayerSent.get()) {
+            return
+        }
+
+        interceptedSelfAddPlayerName.get() ?: return
+        val connectedPlayer = proxyPlayer as? ConnectedPlayer ?: return
+        if (!connectedPlayer.isActive || connectedPlayer.connection.isClosed) {
+            return
+        }
+
+        val replacementProfile = createPendingSelfAddPlayerProfile() ?: return
+
+        connectedPlayer.connection.eventLoop().execute {
+            try {
+                if (!connectedPlayer.isActive || connectedPlayer.connection.isClosed) {
+                    return@execute
+                }
+
+                val pipeline = connectedPlayer.connection.channel.pipeline()
+                if (pipeline.names().contains(VelocityNetworkInjectorImpl.SELF_ADD_PLAYER_REPLACER_HANDLER)) {
+                    pipeline.remove(VelocityNetworkInjectorImpl.SELF_ADD_PLAYER_REPLACER_HANDLER)
+                }
+
+                SelfPlayerInfoSkinSender.sendAddPlayer(connectedPlayer, replacementProfile)
+                completeSelfSkinAddPlayerReplacement()
+            } catch (throwable: Throwable) {
+                error(throwable) {
+                    "Deferred self ADD_PLAYER flush failed for player=$userName: ${throwable.message}"
+                }
+            }
+        }
     }
 }
 

@@ -352,6 +352,73 @@ return minecraft.getSkinManager().createLookup(profile, requireSecure);
 
 ---
 
+### 3.1 `PlayerInfo` 到底会用到哪些字段
+
+结合 `ClientboundPlayerInfoUpdatePacket`、`ClientPacketListener`、`PlayerInfo`、`AbstractClientPlayer` 当前版本源码，可以把客户端对 `PlayerInfo` 的读取拆成下面几类：
+
+#### A. `profile.id`（UUID）——**关键，决定关联与皮肤查找主键**
+
+- `ClientPacketListener.playerInfoMap` 以 `UUID` 为 key 存储 `PlayerInfo`
+- `AbstractClientPlayer.getPlayerInfo()` 也是按 `this.getUUID()` 去 `getPlayerInfo(UUID)`
+- `DefaultPlayerSkin` 回退也是按 `UUID`
+- `SkinManager` 缓存 key 里也包含 `profile.id`
+- `PlayerInfo.createSkinLookup(...)` 里 `requireSecure` 的判断，也会看这个 `UUID` 是否等于 `Minecraft.user.uuid`
+
+也就是说：
+
+> 对“自己皮肤能不能命中到这份 PlayerInfo”来说，`UUID` 是绝对核心字段。
+
+#### B. `profile.properties`（尤其 `textures`）——**关键，决定皮肤内容**
+
+- `SkinManager.get(profile)` 通过 `sessionService().getPackedTextures(profile)` 读取纹理属性
+- `PlayerInfo.getSkin()` 懒加载后会缓存这份皮肤解析结果
+
+也就是说：
+
+> `textures` 是否存在、是否能通过当前 secure 判定，直接决定最终是自定义皮肤还是默认皮肤。
+
+#### C. `profile.name`（玩家名）——**会被使用，但不是当前版本皮肤查找主键**
+
+当前版本明确能看到的使用点主要是：
+
+- `ClientPacketListener.getPlayerInfo(String)` / `getPlayerInfoIgnoreCase(String)`：按名字查 `PlayerInfo`
+- `PlayerInfo.getTeam()`：按 `this.getProfile().name()` 去记分板查队伍
+- `AbstractClientPlayer` 构造时会用实体自己的 `GameProfile.name` 判断 `deadmau5` 彩蛋耳朵
+- 某些日志 / 社交 / UI 语义里也会读名字
+
+但对“自己皮肤渲染主链”来说，当前版本源码没有看到：
+
+- 用 `profile.name` 去命中 `playerInfoMap`
+- 用 `profile.name` 去选择皮肤纹理
+- 用 `profile.name` 去决定 `AbstractClientPlayer.getSkin()` 返回哪一张皮肤
+
+因此当前版本可以下一个比较稳的结论：
+
+> **名字不是 self 皮肤命中的主键；UUID 和 textures 才是。**
+
+---
+
+### 3.2 但工程上仍建议 self `ADD_PLAYER` 的名字与客户端 self 名字保持一致
+
+虽然当前版本源码里，名字不是皮肤主链的关键字段，但工程上仍然建议：
+
+- self `ADD_PLAYER.profile.name`
+- 登录阶段客户端最终认定的 self name
+
+尽量保持一致。
+
+原因不是“否则一定没皮肤”，而是：
+
+1. 可以避免记分板队伍、按名字查玩家、tab 相关语义出现分裂；
+2. 可以避免排障时把“名字不一致带来的副作用”误判成“皮肤链本身有问题”；
+3. 如果未来还要兼容旧版本客户端，名字参与行为的概率会比当前版本更高。
+
+所以更准确的说法是：
+
+> **名字在当前版本不是皮肤主因，但应保持一致，以免引入额外变量。**
+
+---
+
 ### 4. 默认皮肤只和 UUID 有关
 
 文件：`ref/mc/net/minecraft/client/resources/DefaultPlayerSkin.java`
@@ -416,6 +483,40 @@ if (this.skinLookup == null) {
 
 > `ClientboundLoginFinishedPacket` 无皮肤时，后续 `ADD_PLAYER` **有机会补救**；
 > 但补救是否稳定，取决于 self `PlayerInfo` 的建立时机、是否同 UUID，以及本地玩家是否已经缓存住旧 `PlayerInfo`。
+
+再补一个非常关键、很容易误判的实现细节：
+
+`ClientPacketListener.handlePlayerInfoUpdate(...)` 在处理 `ADD_PLAYER` 时，是先：
+
+```java
+this.playerInfoMap.putIfAbsent(entry.profileId(), playerInfo)
+```
+
+然后再对该 entry 的 `actions` 逐项调用：
+
+```java
+this.applyPlayerInfoUpdate(action, entryx, info)
+```
+
+而 `applyPlayerInfoUpdate(...)` **并没有 `ADD_PLAYER` 分支**，也不会把 `profile`、`name`、`properties` 重写进已存在的 `PlayerInfo`。
+
+这意味着：
+
+> 对同一个 UUID 来说，**第一次成功放进 `playerInfoMap` 的那份 `GameProfile` 才真正决定 profile/name/textures**；
+> 后面再来一个同 UUID `ADD_PLAYER`，并不会把旧 `PlayerInfo.profile` 替换掉。
+
+因此如果你观察到：
+
+- “我后来补发了 self `ADD_PLAYER`”；
+- “包里 UUID、textures 看起来都对”；
+- “但客户端仍然不显示预期皮肤”；
+
+那么比起“名字不对导致皮肤不显示”，当前版本更值得优先怀疑的是：
+
+1. **客户端先收到了另一份同 UUID 的旧 `ADD_PLAYER`，你的补包没有真正替换进去；**
+2. **本地 `AbstractClientPlayer` 已经缓存住旧 `PlayerInfo`；**
+3. **旧 `PlayerInfo` 的 `skinLookup` 已经按无皮肤或不通过 secure 的状态建立完成；**
+4. **当前测试客户端版本并不是本文这份源码对应的版本。**
 
 ---
 
@@ -686,6 +787,12 @@ public UUID getProfileId() {
 4. 让客户端对“自己是谁”和“自己显示什么皮肤”分别落在：
    - 本地身份链：`ClientboundLoginFinishedPacket` / 对应成功登录身份；
    - 皮肤显示链：自定义的同 UUID `PlayerInfo ADD_PLAYER`。
+
+当前实现层面还需要补一条工程约束：
+
+- 如果上游 `textures` 自带 `signature`，替换 self `ADD_PLAYER` 时应原样保留；
+- 不要把 `signature` 强行改成 `null`，否则在当前代理实现里可能连包体都无法按预期发送；
+- 因而更稳妥的实现是直接缓存并复用整份 `ProfileSkinTextures`，而不是只取 `value` 后手动重建。
 
 这个方向的优点在于：
 
