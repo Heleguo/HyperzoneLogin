@@ -40,8 +40,8 @@ import com.velocitypowered.proxy.protocol.packet.EncryptionRequestPacket
 import com.velocitypowered.proxy.protocol.packet.EncryptionResponsePacket
 import com.velocitypowered.proxy.protocol.packet.ServerLoginPacket
 import com.velocitypowered.proxy.util.VelocityProperties
-import icu.h2l.api.event.connection.OpenStartAuthEvent
 import icu.h2l.api.event.connection.OpenPreLoginEvent
+import icu.h2l.api.event.connection.OpenStartAuthEvent
 import icu.h2l.login.inject.network.NettyReflectionHelper
 import icu.h2l.login.inject.network.NettyReflectionHelper.fireLogin
 import icu.h2l.login.inject.network.VelocityNetworkInjectorImpl
@@ -66,6 +66,12 @@ class NettyLoginSessionHandler(
 ) : ChannelInboundHandlerAdapter() {
     companion object {
         val logger: Logger = LogManager.getLogger(InitialLoginSessionHandler::class.java)
+
+        private val encryptionRequestShouldAuthenticateField by lazy {
+            EncryptionRequestPacket::class.java.getDeclaredField("shouldAuthenticate").also {
+                it.isAccessible = true
+            }
+        }
     }
 
     private lateinit var sessionHandler: InitialLoginSessionHandler
@@ -108,13 +114,14 @@ class NettyLoginSessionHandler(
         channel.pipeline().remove(this)
     }
 
-    private fun generateEncryptionRequest(): EncryptionRequestPacket {
+    private fun generateEncryptionRequest(shouldAuthenticate: Boolean): EncryptionRequestPacket {
         val verify = ByteArray(4)
         ThreadLocalRandom.current().nextBytes(verify)
 
         val request = EncryptionRequestPacket()
         request.publicKey = injector.proxy.serverKeyPair.public.encoded
         request.verifyToken = verify
+        encryptionRequestShouldAuthenticateField.setBoolean(request, shouldAuthenticate)
         return request
     }
 
@@ -192,23 +199,35 @@ class NettyLoginSessionHandler(
                     val remoteAddress = mcConnection.remoteAddress as InetSocketAddress
                     val playerIp = remoteAddress.hostString
 
-                    val openPreLoginEvent = OpenPreLoginEvent(holderUuid!!, userName, host, playerIp, mcConnection.channel)
+                    val openPreLoginEvent =
+                        OpenPreLoginEvent(holderUuid!!, userName, host, playerIp, mcConnection.channel)
                     injector.proxy.eventManager.fire(openPreLoginEvent).thenRun {
                         if (!openPreLoginEvent.allow) {
                             inbound.disconnect(openPreLoginEvent.disconnectMessage)
                             return@thenRun
                         }
                         onlineMode = openPreLoginEvent.isOnline
-                        if (openPreLoginEvent.isOnline) {
-                            val request: EncryptionRequestPacket = generateEncryptionRequest()
+                        if (mcConnection.protocolVersion.noLessThan(ProtocolVersion.MINECRAFT_1_20_5)) {
+//                            高版本离线也可以加密
+                            val request: EncryptionRequestPacket = generateEncryptionRequest(onlineMode)
                             this.verify = request.verifyToken.copyOf(4)
                             mcConnection.write(request)
                             cState = 2
+                        } else {
+//                            太低的版本不能发加密包，不然会退出
+                            if (onlineMode) {
+                                //低版本不用管shoudAuthenticate，没有这个参数
+                                val request: EncryptionRequestPacket = generateEncryptionRequest(true)
+                                this.verify = request.verifyToken.copyOf(4)
+                                mcConnection.write(request)
+                                cState = 2
 
 //                            this.currentState = InitialLoginSessionHandler.LoginState.ENCRYPTION_REQUEST_SENT;
-                        } else {
-                            doLogin(false, "", null)
+                            } else {
+                                doLogin(encrypt = false, serverId = "", decryptedSharedSecret = null)
+                            }
                         }
+
                     }.exceptionally { ex: Throwable? ->
                         logger.error("Exception in pre-login stage", ex)
                         null
@@ -221,7 +240,7 @@ class NettyLoginSessionHandler(
         }
     }
 
-    private fun doLogin(online: Boolean, serverId: String?, decryptedSharedSecret: ByteArray?) {
+    private fun doLogin(encrypt: Boolean, serverId: String?, decryptedSharedSecret: ByteArray?) {
 
 
         val remoteAddress = mcConnection.remoteAddress as InetSocketAddress
@@ -232,7 +251,7 @@ class NettyLoginSessionHandler(
             serverId!!,
             playerIp,
             mcConnection.channel,
-            online
+            onlineMode
         )
         val preProfile = GameProfile(login.holderUuid, login.username, Collections.emptyList())
 
@@ -247,7 +266,7 @@ class NettyLoginSessionHandler(
                 // Go ahead and enable encryption. Once the client sends EncryptionResponse, encryption
                 // is enabled.
                 try {
-                    if (online) {
+                    if (encrypt) {
 //                            logger.info(
 //                                    "已开启加密为 {} ({})",
 //                                    login.getUsername(), playerIp);
@@ -270,7 +289,7 @@ class NettyLoginSessionHandler(
 
                 val authSessionHandler =
                     createHandler(
-                        injector.proxy, inbound, getProfile, online,
+                        injector.proxy, inbound, getProfile, onlineMode = onlineMode,
                         UUID.randomUUID().toString() // For LoginEvent, not important
                     )
 
@@ -316,7 +335,7 @@ class NettyLoginSessionHandler(
             val decryptedSharedSecret = EncryptionUtils.decryptRsa(serverKeyPair, packet.sharedSecret)
             val serverId = EncryptionUtils.generateServerId(decryptedSharedSecret, serverKeyPair.public)
 
-            doLogin(true, serverId, decryptedSharedSecret)
+            doLogin(encrypt = true, serverId = serverId, decryptedSharedSecret = decryptedSharedSecret)
         } catch (e: Throwable) {
             logger.error("认证出错", e)
             mcConnection.close(true)
