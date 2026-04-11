@@ -22,7 +22,6 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import icu.h2l.gradle.needPackageCompileOnly
 import org.gradle.api.file.DuplicatesStrategy
-import org.gradle.api.tasks.Delete
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.jvm.tasks.Jar
 
@@ -36,6 +35,14 @@ val bstatsRelocatedClasspath by configurations.creating {
     isCanBeConsumed = false
     isCanBeResolved = true
 }
+
+val embeddedModuleProjects = listOf(
+    project(":auth-offline"),
+    project(":auth-yggd"),
+    project(":data-merge"),
+    project(":safe"),
+    project(":profile-skin"),
+)
 
 val relocateBstatsCompileOnlyJar by tasks.registering(ShadowJar::class) {
     archiveBaseName.set("bstats-relocated-compileonly")
@@ -77,6 +84,11 @@ dependencies {
 
     needPackageCompileOnly(libs.configurateExtraKotlin)
     needPackageCompileOnly(libs.configurateHocon)
+//    for subModule
+    needPackageCompileOnly(libs.angusMail)
+    needPackageCompileOnly(libs.googleAuth)
+    needPackageCompileOnly(libs.h2)
+//    ====
     compileOnly(libs.nettyAll)
     compileOnly(libs.gson)
     compileOnly(libs.log4jApi)
@@ -113,11 +125,37 @@ tasks {
         from(apiSourceSets.named("main").get().output)
     }
 
+    register<Jar>("monolithJar") {
+        group = "build"
+        description = "Builds an all-in-one HyperZoneLogin jar with embedded optional modules."
+        archiveBaseName.set("HyperZoneLogin")
+        archiveClassifier.set("all")
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+
+        val currentSourceSets = project.extensions.getByType(SourceSetContainer::class.java)
+        from(currentSourceSets.named("main").get().output)
+
+        val apiProject = project(":api")
+        val apiSourceSets = apiProject.extensions.getByType(SourceSetContainer::class.java)
+        dependsOn(apiProject.tasks.named("classes"))
+        from(apiSourceSets.named("main").get().output)
+
+        embeddedModuleProjects.forEach { embeddedProject ->
+            val embeddedSourceSets = embeddedProject.extensions.getByType(SourceSetContainer::class.java)
+            dependsOn(embeddedProject.tasks.named("classes"))
+            from(embeddedSourceSets.named("main").get().output) {
+                exclude("velocity-plugin.json")
+                exclude("META-INF/hzl/runtime-dependencies.properties")
+            }
+        }
+    }
+
     named<ShadowJar>("shadowJar") {
         enabled = false
     }
 
     named("assemble") {
         dependsOn(named("jar"))
+        dependsOn(named("monolithJar"))
     }
 }

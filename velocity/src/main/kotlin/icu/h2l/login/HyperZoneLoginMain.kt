@@ -34,8 +34,9 @@ import icu.h2l.api.player.HyperZonePlayerAccessor
 import icu.h2l.login.command.HyperZoneLoginCommand
 import icu.h2l.login.config.BackendServerConfig
 import icu.h2l.login.config.DatabaseSourceConfig
-import icu.h2l.login.config.RemapConfig
 import icu.h2l.login.config.MiscConfig
+import icu.h2l.login.config.ModulesConfig
+import icu.h2l.login.config.RemapConfig
 import icu.h2l.login.database.DatabaseConfig
 import icu.h2l.login.database.DatabaseHelper
 import icu.h2l.login.inject.network.VelocityNetworkModule
@@ -45,6 +46,8 @@ import icu.h2l.login.vServer.limbo.command.ExitLimboCommand
 import icu.h2l.login.listener.EventListener
 import icu.h2l.login.manager.HyperChatCommandManagerImpl
 import icu.h2l.login.manager.HyperZonePlayerManager
+import icu.h2l.login.module.EmbeddedModuleRegistry
+import icu.h2l.login.module.EmbeddedModuleSpec
 import icu.h2l.login.util.registerApiLogger
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger
 import org.spongepowered.configurate.ConfigurationOptions
@@ -78,6 +81,7 @@ class HyperZoneLoginMain(
         private lateinit var databaseSourceConfig: DatabaseSourceConfig
         private lateinit var remapConfig: RemapConfig
         private lateinit var miscConfig: MiscConfig
+        private lateinit var modulesConfig: ModulesConfig
         private lateinit var backendServerConfig: BackendServerConfig
 
         @JvmStatic
@@ -103,6 +107,7 @@ class HyperZoneLoginMain(
         loadDatabaseConfig()
         loadRemapConfig()
         loadMiscConfig()
+        loadModulesConfig()
         loadBackendServerConfig()
         connectDatabase()
         // 创建基础表（Profile 表等）
@@ -150,6 +155,7 @@ class HyperZoneLoginMain(
 //        最后加载模块
         // Keep internal modules that are part of the main plugin
         registerModule(VelocityNetworkModule(), plugin)
+        registerConfiguredEmbeddedModules()
         // External modules (auth-offline, auth-yggd, data-merge) will be loaded as
         // separate Velocity plugins and should call `registerModule(...)` on this
         // main plugin during their own initialization.
@@ -174,6 +180,40 @@ class HyperZoneLoginMain(
         } catch (e: Exception) {
             logger.error("加载模块 ${module.javaClass.name} 失败: ${e.message}", e)
         }
+    }
+
+    private fun registerConfiguredEmbeddedModules() {
+        registerEmbeddedModule(EmbeddedModuleRegistry.authOffline, modulesConfig.authOffline)
+        registerEmbeddedModule(EmbeddedModuleRegistry.authYggd, modulesConfig.authYggd)
+        registerEmbeddedModule(EmbeddedModuleRegistry.safe, modulesConfig.safe)
+        registerEmbeddedModule(EmbeddedModuleRegistry.profileSkin, modulesConfig.profileSkin)
+        registerEmbeddedModule(EmbeddedModuleRegistry.dataMerge, modulesConfig.dataMerge)
+    }
+
+    private fun registerEmbeddedModule(spec: EmbeddedModuleSpec, enabled: Boolean) {
+        if (!enabled) {
+            logger.info("内置模块已禁用: ${spec.displayName} (modules.conf -> ${spec.configKey}=false)")
+            return
+        }
+
+        if (proxy.pluginManager.getPlugin(spec.externalPluginId).isPresent) {
+            logger.info("检测到外部插件 ${spec.externalPluginId}，跳过内置模块 ${spec.displayName}")
+            return
+        }
+
+        val embeddedModule = try {
+            EmbeddedModuleRegistry.instantiate(spec, javaClass.classLoader)
+        } catch (e: Throwable) {
+            logger.error("内置模块 ${spec.displayName} 实例化失败: ${e.message}", e)
+            return
+        }
+
+        if (embeddedModule == null) {
+            logger.info("当前主 jar 未内置模块 ${spec.displayName}，已跳过；如需单文件分发，请使用 monolith 产物")
+            return
+        }
+
+        registerModule(embeddedModule, plugin)
     }
 
     /**
@@ -284,6 +324,38 @@ class HyperZoneLoginMain(
         }
         if (config != null) {
             miscConfig = config
+        }
+    }
+
+    private fun loadModulesConfig() {
+        val path = dataDirectory.resolve("modules.conf")
+        val firstCreation = Files.notExists(path)
+        val loader = HoconConfigurationLoader.builder()
+            .defaultOptions { opts: ConfigurationOptions ->
+                opts
+                    .shouldCopyDefaults(true)
+                    .header(
+                        """
+                            HyperZoneLogin Embedded Modules Configuration | by ksqeib
+                            在单文件版中控制内置模块是否启用；若同名外部插件已安装，则自动跳过内置版本。
+                            
+                        """.trimIndent()
+                    ).serializers { s ->
+                        s.registerAnnotatedObjects(
+                            ObjectMapper.factoryBuilder().addDiscoverer(dataClassFieldDiscoverer()).build()
+                        )
+                    }
+            }
+            .path(path)
+            .build()
+        val node = loader.load()
+        val config = node.get(ModulesConfig::class.java)
+        if (firstCreation) {
+            node.set(config)
+            loader.save(node)
+        }
+        if (config != null) {
+            modulesConfig = config
         }
     }
 

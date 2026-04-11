@@ -87,11 +87,22 @@ subprojects {
 }
 
 val pluginBundleDir = layout.buildDirectory.dir("HZL")
+val splitPluginBundleDir = layout.buildDirectory.dir("HZL-split")
 
 val collectPluginJars by tasks.registering(Sync::class) {
     group = "build"
-    description = "Collects all non-API plugin jars into one directory, embedding the core plugin as HyperZoneLogin and prefixing optional modules with HZL-."
+    description = "Collects the all-in-one HyperZoneLogin jar into one distribution directory."
     into(pluginBundleDir)
+
+    val velocityProject = project(":velocity")
+    dependsOn(velocityProject.tasks.named("monolithJar"))
+    from(velocityProject.tasks.named("monolithJar", Jar::class).flatMap { it.archiveFile })
+}
+
+val collectSplitPluginJars by tasks.registering(Sync::class) {
+    group = "build"
+    description = "Collects the split plugin distribution with the main plugin and optional module jars."
+    into(splitPluginBundleDir)
 
     val velocityProject = project(":velocity")
     dependsOn(velocityProject.tasks.named("jar"))
@@ -108,6 +119,19 @@ val collectPluginJars by tasks.registering(Sync::class) {
                 }
             }
         }
+}
+
+val buildMonolith by tasks.registering {
+    group = "build"
+    description = "Builds the all-in-one HyperZoneLogin distribution."
+    dependsOn(collectPluginJars)
+}
+
+val buildAllDistributions by tasks.registering {
+    group = "build"
+    description = "Builds both the all-in-one and split HyperZoneLogin distributions."
+    dependsOn(collectPluginJars)
+    dependsOn(collectSplitPluginJars)
 }
 
 tasks.named("assemble") {
