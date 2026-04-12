@@ -25,6 +25,8 @@ import com.velocitypowered.api.proxy.ProxyServer
 import com.velocitypowered.api.proxy.Player
 import icu.h2l.api.event.auth.AuthenticationFailureEvent
 import icu.h2l.api.player.HyperZonePlayerAccessor
+import icu.h2l.api.profile.HyperZoneCredential
+import icu.h2l.api.profile.HyperZoneProfileService
 import icu.h2l.login.auth.offline.OfflineAuthMessages
 import icu.h2l.login.auth.offline.config.OfflineAuthConfigLoader
 import icu.h2l.login.auth.offline.api.db.OfflineAuthEntry
@@ -39,6 +41,7 @@ import java.util.Locale
 class OfflineAuthService(
     private val repository: OfflineAuthRepository,
     private val playerAccessor: HyperZonePlayerAccessor,
+    private val profileService: HyperZoneProfileService,
     private val emailSender: OfflineAuthEmailSender,
     private val totpAuthenticator: OfflineTotpAuthenticator,
     private val proxy: ProxyServer
@@ -51,9 +54,9 @@ class OfflineAuthService(
 
     fun register(player: Player, password: String): Result {
         val hyperZonePlayer = playerAccessor.getByPlayer(player)
-        val username = hyperZonePlayer.userName
+        val username = hyperZonePlayer.clientOriginalName
         val normalizedName = username.lowercase()
-        if (hyperZonePlayer.canResolveOrCreateProfile()) {
+        if (profileService.canResolveOrCreateProfile(hyperZonePlayer)) {
             if (repository.getByName(normalizedName) != null) {
                 return Result(false, OfflineAuthMessages.OFFLINE_PASSWORD_ALREADY_SET)
             }
@@ -62,7 +65,7 @@ class OfflineAuthService(
                 return it
             }
 
-            val profile = hyperZonePlayer.resolveOrCreateProfile()
+            val profile = profileService.resolveOrCreateProfile(hyperZonePlayer)
             return createOfflinePasswordEntry(
                 player = player,
                 hyperZonePlayer = hyperZonePlayer,
@@ -91,7 +94,8 @@ class OfflineAuthService(
             return Result(false, OfflineAuthMessages.REGISTER_BIND_DENIED)
         }
 
-        val profile = hyperZonePlayer.getDBProfile() ?: return Result(false, OfflineAuthMessages.REGISTER_BIND_PROFILE_MISSING)
+        val profile = profileService.getAttachedProfile(hyperZonePlayer)
+            ?: return Result(false, OfflineAuthMessages.REGISTER_BIND_PROFILE_MISSING)
         if (repository.getByProfileId(profile.id) != null || repository.getByName(normalizedName) != null) {
             return Result(false, OfflineAuthMessages.OFFLINE_PASSWORD_ALREADY_SET)
         }
@@ -130,7 +134,12 @@ class OfflineAuthService(
         )
         return if (created) {
             if (markVerified) {
-                hyperZonePlayer.overVerify()
+                hyperZonePlayer.submitCredential(offlineCredential(normalizedName, profileId))
+                runCatching {
+                    hyperZonePlayer.overVerify()
+                }.getOrElse { throwable ->
+                    return Result(false, throwable.message ?: "§c离线认证成功，但 Profile 绑定失败")
+                }
             }
             if (issueSession) {
                 issueSession(profileId, player)
@@ -211,8 +220,12 @@ class OfflineAuthService(
             }
         }
 
-        ensureAttachedProfile(player, entry)?.let { return it }
-        hyperPlayer.overVerify()
+        hyperPlayer.submitCredential(offlineCredential(entry.name, entry.profileId))
+        runCatching {
+            hyperPlayer.overVerify()
+        }.getOrElse { throwable ->
+            return Result(false, throwable.message ?: "§c未找到已绑定的游戏档案，无法完成本次认证")
+        }
         issueSession(entry.profileId, player)
         return Result(true, OfflineAuthMessages.LOGIN_SUCCESS)
     }
@@ -281,7 +294,7 @@ class OfflineAuthService(
             return Result(false, OfflineAuthMessages.OLD_PASSWORD_WRONG)
         }
 
-        val username = playerAccessor.getByPlayer(player).userName
+        val username = playerAccessor.getByPlayer(player).clientOriginalName
 
         validatePassword(username, newPassword)?.let {
             return it
@@ -461,7 +474,7 @@ class OfflineAuthService(
         ensureEmailFeatureEnabled()?.let { return it }
 
         val hyperPlayer = playerAccessor.getByPlayer(player)
-        val username = hyperPlayer.userName
+        val username = hyperPlayer.clientOriginalName
         val entry = resolveEntryByPlayer(player) ?: return Result(false, OfflineAuthMessages.UNREGISTERED)
         val verifiedUntil = entry.resetPasswordVerifiedUntil
         val now = System.currentTimeMillis()
@@ -479,8 +492,12 @@ class OfflineAuthService(
             return Result(false, "§c密码重置失败，请稍后再试")
         }
 
-        ensureAttachedProfile(player, entry)?.let { return it }
-        hyperPlayer.overVerify()
+        hyperPlayer.submitCredential(offlineCredential(entry.name, entry.profileId))
+        runCatching {
+            hyperPlayer.overVerify()
+        }.getOrElse { throwable ->
+            return Result(false, throwable.message ?: "§c未找到已绑定的游戏档案，无法完成本次认证")
+        }
         return Result(true, "${OfflineAuthMessages.PASSWORD_CHANGED} §7已自动通过本次认证")
     }
 
@@ -495,7 +512,7 @@ class OfflineAuthService(
 
         if (entry == null) {
             prompts += OfflineAuthMessages.REGISTER_REQUEST
-            if (!hyperPlayer.canResolveOrCreateProfile()) {
+            if (!profileService.canResolveOrCreateProfile(hyperPlayer)) {
                 prompts += OfflineAuthMessages.REGISTER_BIND_HINT
             }
             return prompts
@@ -566,21 +583,13 @@ class OfflineAuthService(
             return SessionCheckResult(false, OfflineAuthMessages.SESSION_INVALID)
         }
 
-        ensureAttachedProfile(player, entry)?.let { failed ->
-            return SessionCheckResult(false, failed.message)
+        hyperPlayer.submitCredential(offlineCredential(entry.name, entry.profileId))
+        runCatching {
+            hyperPlayer.overVerify()
+        }.getOrElse { throwable ->
+            return SessionCheckResult(false, throwable.message ?: "§c未找到已绑定的游戏档案，无法完成本次认证")
         }
-        hyperPlayer.overVerify()
         return SessionCheckResult(true, OfflineAuthMessages.SESSION_AUTO_LOGIN)
-    }
-
-    private fun ensureAttachedProfile(player: Player, entry: OfflineAuthEntry): Result? {
-        val hyperPlayer = playerAccessor.getByPlayer(player)
-        val attached = hyperPlayer.attachProfile(entry.profileId)
-        return if (attached != null) {
-            null
-        } else {
-            Result(false, "§c未找到已绑定的游戏档案，无法完成本次认证")
-        }
     }
 
     private fun verifyPassword(password: String, entry: OfflineAuthEntry): Boolean {
@@ -630,7 +639,7 @@ class OfflineAuthService(
 
     private fun resolveEntryByPlayer(player: Player, allowNameFallback: Boolean = true): OfflineAuthEntry? {
         val hyperPlayer = playerAccessor.getByPlayer(player)
-        val profileId = hyperPlayer.getDBProfile()?.id
+        val profileId = profileService.getAttachedProfile(hyperPlayer)?.id
         if (profileId != null) {
             repository.getByProfileId(profileId)?.let { return it }
         }
@@ -639,7 +648,7 @@ class OfflineAuthService(
             return null
         }
 
-        return repository.getByName(hyperPlayer.userName.lowercase())
+        return repository.getByName(hyperPlayer.clientOriginalName.lowercase())
     }
 
     private fun normalizeEmail(email: String): String? {
@@ -747,10 +756,19 @@ class OfflineAuthService(
     }
 
     companion object {
+        private const val OFFLINE_CHANNEL_ID = "offline"
         private const val HASH_FORMAT_PLAIN = "plain"
         private const val HASH_FORMAT_SHA256 = "sha256"
         private const val HASH_FORMAT_AUTHME = "authme"
         private val EMAIL_PATTERN = Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$")
         private const val RECOVERY_CODE_CHARS = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
+
+        private fun offlineCredential(credentialId: String, profileId: java.util.UUID): HyperZoneCredential {
+            return HyperZoneCredential(
+                channelId = OFFLINE_CHANNEL_ID,
+                credentialId = credentialId,
+                profileId = profileId
+            )
+        }
     }
 }

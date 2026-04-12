@@ -27,6 +27,7 @@ import com.velocitypowered.api.proxy.Player
 import icu.h2l.api.player.HyperZonePlayer
 import icu.h2l.api.player.HyperZonePlayerAccessor
 import icu.h2l.api.player.getChannel
+import icu.h2l.login.HyperZoneLoginMain
 import icu.h2l.login.player.VelocityHyperZonePlayer
 import io.netty.channel.Channel
 import java.util.*
@@ -36,14 +37,12 @@ object HyperZonePlayerManager : HyperZonePlayerAccessor {
     private val playersByPlayer = ConcurrentHashMap<Channel, VelocityHyperZonePlayer>()
 
     override fun create(channel: Channel, userName: String, uuid: UUID, isOnline: Boolean): HyperZonePlayer {
-        return playersByPlayer.compute(channel) { _, existing ->
-            if (existing != null) {
-                existing.setOnlinePlayer(isOnline)
-                existing
-            } else {
-                VelocityHyperZonePlayer(userName, uuid, isOnline)
-            }
-        }!!
+        val createdPlayer = VelocityHyperZonePlayer(userName, uuid, isOnline)
+        val existing = playersByPlayer.putIfAbsent(channel, createdPlayer)
+        if (existing != null) {
+            throw IllegalStateException("重复创建 HyperZonePlayer：channel=$channel clientOriginal=$userName")
+        }
+        return createdPlayer
     }
 
     override fun getByPlayer(player: Player): HyperZonePlayer {
@@ -51,11 +50,16 @@ object HyperZonePlayerManager : HyperZonePlayerAccessor {
     }
 
     override fun getByChannel(channel: Channel): HyperZonePlayer {
-        return playersByPlayer[channel]!!
+        return playersByPlayer[channel]
+            ?: throw IllegalStateException("未找到对应的 HyperZonePlayer：channel=$channel")
     }
 
     fun remove(player: Player) {
-        playersByPlayer.remove(player.getChannel())
+        playersByPlayer.remove(player.getChannel())?.let { removedPlayer ->
+            runCatching {
+                HyperZoneLoginMain.getInstance().profileService.clear(removedPlayer)
+            }
+        }
     }
 
     @Subscribe

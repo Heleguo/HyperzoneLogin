@@ -54,7 +54,7 @@ class ServerLoginSuccessPacketReplacer(
                 return
             }
 
-            msg.uuid = hyperPlayer.getClientOriginalUUID()
+            msg.uuid = hyperPlayer.clientOriginalUUID
 
             ctx.pipeline().remove(this)
             super.write(ctx, msg, promise)

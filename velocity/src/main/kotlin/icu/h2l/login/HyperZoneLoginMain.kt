@@ -26,6 +26,7 @@ import com.velocitypowered.api.proxy.ProxyServer
 import icu.h2l.api.HyperZoneApi
 import icu.h2l.api.command.HyperChatCommandManager
 import icu.h2l.api.command.HyperChatCommandRegistration
+import icu.h2l.api.profile.HyperZoneProfileServiceProvider
 import icu.h2l.api.vServer.HyperZoneVServerAdapter
 import icu.h2l.api.module.HyperSubModule
 import icu.h2l.api.player.HyperZonePlayerAccessor
@@ -48,6 +49,7 @@ import icu.h2l.login.manager.HyperChatCommandManagerImpl
 import icu.h2l.login.manager.HyperZonePlayerManager
 import icu.h2l.login.module.EmbeddedModuleRegistry
 import icu.h2l.login.module.EmbeddedModuleSpec
+import icu.h2l.login.profile.VelocityHyperZoneProfileService
 import icu.h2l.login.util.registerApiLogger
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger
 import org.spongepowered.configurate.ConfigurationOptions
@@ -67,6 +69,7 @@ class HyperZoneLoginMain(
     var activeVServerAdapter: HyperZoneVServerAdapter? = null
     lateinit var databaseManager: icu.h2l.login.manager.DatabaseManager
     lateinit var databaseHelper: DatabaseHelper
+    lateinit var profileService: VelocityHyperZoneProfileService
     val serverAdapter: HyperZoneVServerAdapter?
         get() = activeVServerAdapter
     val hyperZonePlayers: HyperZonePlayerAccessor
@@ -111,6 +114,8 @@ class HyperZoneLoginMain(
         connectDatabase()
         // 创建基础表（Profile 表等）
         createBaseTables()
+        profileService = VelocityHyperZoneProfileService(databaseHelper)
+        HyperZoneProfileServiceProvider.bind(profileService)
 
         activeVServerAdapter = null
 

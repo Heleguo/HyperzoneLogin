@@ -35,6 +35,7 @@ import icu.h2l.api.log.debug
 import icu.h2l.api.log.error
 import icu.h2l.api.log.warn
 import icu.h2l.api.player.HyperZonePlayer
+import icu.h2l.api.profile.HyperZoneProfileService
 import icu.h2l.api.profile.skin.ProfileSkinTextures
 import icu.h2l.login.profile.skin.config.ProfileSkinConfig
 import icu.h2l.login.profile.skin.db.ProfileSkinCacheRepository
@@ -51,7 +52,8 @@ private class SelfSkinReplayState {
 class ProfileSkinSelfReplayService(
     private val api: HyperZoneApi,
     private val config: ProfileSkinConfig,
-    private val repository: ProfileSkinCacheRepository
+    private val repository: ProfileSkinCacheRepository,
+    private val profileService: HyperZoneProfileService
 ) {
     private val replayStates = ConcurrentHashMap<HyperZonePlayer, SelfSkinReplayState>()
 
@@ -153,10 +155,10 @@ class ProfileSkinSelfReplayService(
             return preferred
         }
 
-        val profileId = hyperZonePlayer.getDBProfile()?.id ?: return null
+        val profileId = profileService.getAttachedProfile(hyperZonePlayer)?.id ?: return null
         val cached = repository.findByProfileId(profileId)?.textures?.takeIf(::canReplayTextures) ?: return null
         debug {
-            "[ProfileSkinFlow] self replay fallback to cached profile textures: player=${hyperZonePlayer.userName}, profile=$profileId, valueLength=${cached.value.length}, signed=${cached.isSigned}"
+            "[ProfileSkinFlow] self replay fallback to cached profile textures: clientOriginal=${hyperZonePlayer.clientOriginalName}, profile=$profileId, valueLength=${cached.value.length}, signed=${cached.isSigned}"
         }
         return cached
     }
@@ -182,7 +184,7 @@ class ProfileSkinSelfReplayService(
 
         val property = textures.toPropertyOrNull() ?: run {
             warn {
-                "[ProfileSkinFlow] $failureLabel self ADD_PLAYER skipped due to incomplete textures: player=${hyperZonePlayer.userName}, valueLength=${textures.value.length}, signed=${textures.isSigned}"
+                "[ProfileSkinFlow] $failureLabel self ADD_PLAYER skipped due to incomplete textures: clientOriginal=${hyperZonePlayer.clientOriginalName}, valueLength=${textures.value.length}, signed=${textures.isSigned}"
             }
             return
         }
@@ -192,8 +194,8 @@ class ProfileSkinSelfReplayService(
         }
 
         val replayProfile = GameProfile(
-            hyperZonePlayer.getClientOriginalUUID(),
-            hyperZonePlayer.getClientOriginalName(),
+            hyperZonePlayer.clientOriginalUUID,
+            hyperZonePlayer.clientOriginalName,
             listOf(property)
         )
 
@@ -213,7 +215,7 @@ class ProfileSkinSelfReplayService(
                     state.selfAddPlayerSent.set(false)
                 }
                 error(throwable) {
-                    "$failureLabel self ADD_PLAYER failed for player=${hyperZonePlayer.userName}: ${throwable.message}"
+                    "$failureLabel self ADD_PLAYER failed for clientOriginal=${hyperZonePlayer.clientOriginalName}: ${throwable.message}"
                 }
             }
         }

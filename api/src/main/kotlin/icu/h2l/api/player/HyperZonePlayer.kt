@@ -23,7 +23,7 @@ package icu.h2l.api.player
 
 import com.velocitypowered.api.proxy.Player
 import com.velocitypowered.api.util.GameProfile
-import icu.h2l.api.db.Profile
+import icu.h2l.api.profile.HyperZoneCredential
 import net.kyori.adventure.text.Component
 import java.util.*
 
@@ -35,77 +35,53 @@ import java.util.*
  */
 interface HyperZonePlayer {
     /**
-     * 当前玩家的用户名（登录流程内的统一名称）。
-     */
-    val userName: String
-
-    /**
-     * 当前玩家的UUID（登录流程内的统一名称）。
-     */
-    val uuid: UUID
-
-    /**
-     * 当前玩家是否已经 attach 到一个已存在的游戏档案。
+     * 客户端在进入登录链路时上报的原始用户名。
      *
-     * 认证通过并不代表一定已有 Profile；只有 attach 完成后，
-     * 才允许离开等待区并使用正式游戏身份进入游戏区。
+     * 该值明确为“不可信身份”，不会因为后续 attach Profile 而被改写。
+     * 它只允许用于：
+     * 1. 调试日志；
+     * 2. 第一次为玩家拟定默认生成名；
+     * 3. 少量弱匹配/客户端回放场景。
+     *
+     * 严禁把它当成正式游戏身份、可信认证结果或已绑定 Profile 身份使用。
+     */
+    val clientOriginalName: String
+
+    /**
+     * 客户端在进入登录链路时上报的原始 UUID。
+     *
+     * 该值明确为“不可信身份”，不会因为后续 attach Profile 而被改写。
+     * 它只允许用于调试、客户端回放或极弱的候选发现流程；
+     * 严禁把它作为可信认证结果或正式游戏 UUID 使用。
+     */
+    val clientOriginalUUID: UUID
+
+    /**
+     * 当前连接在预登录阶段最终判定出的在线模式。
+     *
+     * 该值只在第一次创建登录期玩家对象时确定，之后只允许读取，不允许修改。
+     */
+    val isOnlinePlayer: Boolean
+
+    /**
+     * 当前玩家是否已经 attach 到一个正式游戏档案。
+     *
+     * 该状态由核心层 Profile 服务统一维护；认证子模块不应直接改写。
      */
     fun hasAttachedProfile(): Boolean
 
     /**
-     * 判断当前玩家是否允许请求核心层解析或创建 Profile。
+     * 向当前登录会话提交一个已认证凭证。
      *
-     * 主要依据：数据库中是否已存在该玩家 Profile。
+     * 子模块应在“认证成功后、调用 overVerify() 前”提交凭证，
+     * 由核心在完成验证时统一根据凭证 attach 正式 Profile。
      */
-    fun canResolveOrCreateProfile(): Boolean
+    fun submitCredential(credential: HyperZoneCredential)
 
     /**
-     * 使用可信资料请求核心层解析或创建 Profile。
-     *
-     * 该流程会通过核心统一判断名称/UUID 冲突，并在必要时创建新档案。
-     *
-     * @return 核心层解析后的 Profile 对象
+     * 获取当前会话已提交的全部凭证快照。
      */
-    fun resolveOrCreateProfile(userName: String? = null, uuid: UUID? = null): Profile
-
-    /**
-     * 兼容旧接口名。
-     */
-    @Deprecated(
-        message = "Use canResolveOrCreateProfile() instead",
-        replaceWith = ReplaceWith("canResolveOrCreateProfile()")
-    )
-    fun canRegister(): Boolean {
-        return canResolveOrCreateProfile()
-    }
-
-    /**
-     * 兼容旧接口名。
-     */
-    @Deprecated(
-        message = "Use resolveOrCreateProfile(...) instead",
-        replaceWith = ReplaceWith("resolveOrCreateProfile(userName, uuid)")
-    )
-    fun register(userName: String? = null, uuid: UUID? = null): Profile {
-        return resolveOrCreateProfile(userName, uuid)
-    }
-
-    /**
-     * 将当前玩家绑定到一个已知的 Profile。
-     *
-     * 适用于认证子模块已经通过可信映射拿到 profileId 的场景。
-     *
-     * @param profileId 已知的档案ID
-     * @return 绑定成功后的 Profile，不存在时返回 null
-     */
-    fun attachProfile(profileId: UUID): Profile?
-
-    /**
-     * 获取当前玩家数据库中对应的 Profile。如果是第一次加入游戏，是获取不到的。只有已注册用户才有。
-     *
-     * @return Profile，不存在时返回 null
-     */
-    fun getDBProfile(): Profile?
+    fun getSubmittedCredentials(): List<HyperZoneCredential>
 
     /**
      * 当前玩家是否仍处于等待区。
@@ -155,26 +131,6 @@ interface HyperZonePlayer {
      */
     fun getProxyPlayerOrNull(): Player? {
         return null
-    }
-
-    /**
-     * 获取客户端最初进入登录链路时携带的原始用户名。
-     *
-     * 该值仅用于需要“回放给客户端自己”的资料修复链路，
-     * 不能替代统一登录身份字段 `userName`。
-     */
-    fun getClientOriginalName(): String {
-        return userName
-    }
-
-    /**
-     * 获取客户端最初进入登录链路时携带的原始 UUID。
-     *
-     * 该值仅用于需要“回放给客户端自己”的资料修复链路，
-     * 不能替代统一登录身份字段 `uuid`。
-     */
-    fun getClientOriginalUUID(): UUID {
-        return uuid
     }
 
 

@@ -35,7 +35,7 @@ object ProfileSkinApplySupport {
             hyperZonePlayer.getAttachedGameProfile()
         }.getOrElse { throwable ->
             debug {
-                "[ProfileSkinFlow] apply aborted: player=${hyperZonePlayer.userName}, reason=${throwable.message ?: throwable.javaClass.simpleName}, waitingArea=${hyperZonePlayer.isInWaitingArea()}, attachedProfile=${hyperZonePlayer.hasAttachedProfile()}"
+                "[ProfileSkinFlow] apply aborted: clientOriginal=${hyperZonePlayer.clientOriginalName}, reason=${throwable.message ?: throwable.javaClass.simpleName}, waitingArea=${hyperZonePlayer.isInWaitingArea()}, attachedProfile=${hyperZonePlayer.hasAttachedProfile()}"
             }
             return null
         }
@@ -50,7 +50,7 @@ object ProfileSkinApplySupport {
         val textures = event.textures ?: return baseProfile
         val property = textures.toPropertyOrNull() ?: run {
             warn {
-                "[ProfileSkinFlow] apply skipped incomplete textures: player=${hyperZonePlayer.userName}, profile=${baseProfile.id}, valueLength=${textures.value.length}, signed=${textures.isSigned}"
+                "[ProfileSkinFlow] apply skipped incomplete textures: clientOriginal=${hyperZonePlayer.clientOriginalName}, profile=${baseProfile.id}, valueLength=${textures.value.length}, signed=${textures.isSigned}"
             }
             return baseProfile
         }

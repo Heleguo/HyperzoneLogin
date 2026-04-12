@@ -26,6 +26,7 @@ import icu.h2l.api.db.HyperZoneDatabaseManager
 import icu.h2l.api.db.table.ProfileTable
 import icu.h2l.api.log.info
 import icu.h2l.api.module.HyperSubModule
+import icu.h2l.api.profile.HyperZoneProfileServiceProvider
 import icu.h2l.login.auth.offline.command.OfflineAuthCommandRegistrar
 import icu.h2l.login.auth.offline.config.OfflineAuthConfigLoader
 import icu.h2l.login.auth.offline.db.OfflineAuthRepository
@@ -81,6 +82,7 @@ class OfflineSubModule : HyperSubModule {
         offlineAuthService = OfflineAuthService(
             repository = offlineAuthRepository,
             playerAccessor = api.hyperZonePlayers,
+            profileService = HyperZoneProfileServiceProvider.get(),
             emailSender = emailSender,
             totpAuthenticator = totpAuthenticator,
             proxy = proxy

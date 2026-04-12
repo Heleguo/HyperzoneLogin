@@ -19,24 +19,20 @@
  *
  */
 
-package icu.h2l.api.player
+package icu.h2l.api.profile
 
-import com.velocitypowered.api.proxy.Player
-import io.netty.channel.Channel
-import java.util.*
+import java.util.UUID
 
-interface HyperZonePlayerAccessor {
-    /**
-     * 为一个新的连接创建登录期玩家对象。
-     *
-     * 该操作应只在预登录初始化阶段执行一次；
-     * 如果同一 channel 重复创建，调用方应视为流程错误。
-     */
-    fun create(channel: Channel, userName: String, uuid: UUID, isOnline: Boolean): HyperZonePlayer
-    fun getByPlayer(player: Player): HyperZonePlayer
-    fun getByChannel(channel: Channel): HyperZonePlayer
-}
+/**
+ * 认证子模块向登录核心提交的可信凭证。
+ *
+ * - [channelId]：认证渠道唯一标识，由子模块负责稳定定义；
+ * - [credentialId]：该渠道内部可识别的凭证标识；
+ * - [profileId]：该凭证最终绑定到的正式 Profile。
+ */
+data class HyperZoneCredential(
+    val channelId: String,
+    val credentialId: String,
+    val profileId: UUID
+)
 
-interface HyperZonePlayerAccessorProvider {
-    val hyperZonePlayers: HyperZonePlayerAccessor
-}

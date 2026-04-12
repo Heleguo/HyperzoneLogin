@@ -28,6 +28,8 @@ import icu.h2l.api.db.HyperZoneDatabaseManager
 import icu.h2l.api.db.table.ProfileTable
 import icu.h2l.api.player.HyperZonePlayer
 import icu.h2l.api.player.HyperZonePlayerAccessor
+import icu.h2l.api.profile.HyperZoneCredential
+import icu.h2l.api.profile.HyperZoneProfileService
 import icu.h2l.login.auth.offline.OfflineAuthMessages
 import icu.h2l.login.auth.offline.api.db.OfflineAuthTable
 import icu.h2l.login.auth.offline.config.OfflineAuthConfigLoader
@@ -58,6 +60,7 @@ class OfflineAuthServiceRegisterTest {
     private lateinit var player: Player
     private lateinit var hyperZonePlayer: HyperZonePlayer
     private lateinit var proxy: ProxyServer
+    private lateinit var profileService: HyperZoneProfileService
     private lateinit var service: OfflineAuthService
     private lateinit var profileTable: ProfileTable
     private lateinit var offlineAuthTable: OfflineAuthTable
@@ -88,12 +91,14 @@ class OfflineAuthServiceRegisterTest {
         player = mockk(relaxed = true)
         hyperZonePlayer = mockk(relaxUnitFun = true)
         proxy = mockk(relaxed = true)
+        profileService = mockk()
 
-        every { hyperZonePlayer.userName } returns USERNAME
+        every { hyperZonePlayer.clientOriginalName } returns USERNAME
 
         service = OfflineAuthService(
             repository = repository,
             playerAccessor = TestPlayerAccessor(hyperZonePlayer),
+            profileService = profileService,
             emailSender = NoopEmailSender,
             totpAuthenticator = OfflineTotpAuthenticator("HyperZoneLogin-Test", 5),
             proxy = proxy
@@ -104,8 +109,8 @@ class OfflineAuthServiceRegisterTest {
     fun `register creates a new offline password entry when player can resolve profile`() {
         insertProfile(PROFILE)
 
-        every { hyperZonePlayer.canResolveOrCreateProfile() } returns true
-        every { hyperZonePlayer.resolveOrCreateProfile() } returns PROFILE
+        every { profileService.canResolveOrCreateProfile(hyperZonePlayer) } returns true
+        every { profileService.resolveOrCreateProfile(hyperZonePlayer, null, null) } returns PROFILE
 
         val result = service.register(player, VALID_PASSWORD)
         val saved = repository.getByName(NORMALIZED_NAME)
@@ -117,6 +122,11 @@ class OfflineAuthServiceRegisterTest {
         assertEquals("sha256", saved.hashFormat)
         assertEquals(64, saved.passwordHash.length)
         assertNotEquals(VALID_PASSWORD, saved.passwordHash)
+        verify(exactly = 1) {
+            hyperZonePlayer.submitCredential(
+                HyperZoneCredential("offline", NORMALIZED_NAME, PROFILE.id)
+            )
+        }
         verify(exactly = 1) { hyperZonePlayer.overVerify() }
     }
 
@@ -124,9 +134,9 @@ class OfflineAuthServiceRegisterTest {
     fun `register falls back to binding existing profile when direct registration is unavailable`() {
         insertProfile(PROFILE)
 
-        every { hyperZonePlayer.canResolveOrCreateProfile() } returns false
+        every { profileService.canResolveOrCreateProfile(hyperZonePlayer) } returns false
         every { hyperZonePlayer.canBind() } returns true
-        every { hyperZonePlayer.getDBProfile() } returns PROFILE
+        every { profileService.getAttachedProfile(hyperZonePlayer) } returns PROFILE
 
         val result = service.register(player, VALID_PASSWORD)
         val saved = repository.getByProfileId(PROFILE.id)
@@ -134,13 +144,13 @@ class OfflineAuthServiceRegisterTest {
         assertTrue(result.success)
         assertEquals(OfflineAuthMessages.REGISTER_BOUND_SUCCESS, result.message)
         assertNotNull(saved)
-        verify(exactly = 1) { hyperZonePlayer.getDBProfile() }
+        verify(exactly = 1) { profileService.getAttachedProfile(hyperZonePlayer) }
         verify(exactly = 0) { hyperZonePlayer.overVerify() }
     }
 
     @Test
     fun `register reports denial when neither registration nor binding is allowed`() {
-        every { hyperZonePlayer.canResolveOrCreateProfile() } returns false
+        every { profileService.canResolveOrCreateProfile(hyperZonePlayer) } returns false
         every { hyperZonePlayer.canBind() } returns false
 
         val result = service.register(player, VALID_PASSWORD)
@@ -159,9 +169,9 @@ class OfflineAuthServiceRegisterTest {
             profileId = PROFILE.id
         )
 
-        every { hyperZonePlayer.canResolveOrCreateProfile() } returns false
+        every { profileService.canResolveOrCreateProfile(hyperZonePlayer) } returns false
         every { hyperZonePlayer.canBind() } returns true
-        every { hyperZonePlayer.getDBProfile() } returns PROFILE
+        every { profileService.getAttachedProfile(hyperZonePlayer) } returns PROFILE
 
         val result = service.register(player, VALID_PASSWORD)
 
@@ -174,8 +184,8 @@ class OfflineAuthServiceRegisterTest {
         insertProfile(PROFILE)
 
         every { hyperZonePlayer.isInWaitingArea() } returns true
-        every { hyperZonePlayer.getDBProfile() } returns PROFILE
-        every { hyperZonePlayer.canResolveOrCreateProfile() } returns false
+        every { profileService.getAttachedProfile(hyperZonePlayer) } returns PROFILE
+        every { profileService.canResolveOrCreateProfile(hyperZonePlayer) } returns false
 
         val prompts = service.getJoinPrompts(player)
 

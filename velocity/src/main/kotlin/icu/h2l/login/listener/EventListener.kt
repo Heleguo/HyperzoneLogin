@@ -90,11 +90,7 @@ class EventListener {
 //        进行档案强制性替换
         val randomProfile = RemapUtils.randomProfile()
         event.gameProfile = randomProfile
-        runCatching {
-            HyperZonePlayerManager.getByChannel(event.channel)
-        }.getOrElse {
-            HyperZonePlayerManager.create(event.channel, event.userName, event.userUUID, event.isOnline)
-        }.setTemporaryGameProfile(randomProfile)
+        HyperZonePlayerManager.getByChannel(event.channel).setTemporaryGameProfile(randomProfile)
     }
 
     @Subscribe

@@ -25,6 +25,7 @@ import com.mojang.brigadier.Command
 import com.velocitypowered.api.command.BrigadierCommand
 import com.velocitypowered.api.command.CommandSource
 import com.velocitypowered.api.proxy.Player
+import icu.h2l.api.profile.HyperZoneProfileServiceProvider
 import icu.h2l.login.HyperZoneLoginMain
 import icu.h2l.login.manager.HyperZonePlayerManager
 
@@ -93,11 +94,15 @@ class HyperZoneLoginCommand {
 
         val proxyPlayer = sender
         val hyperZonePlayer = HyperZonePlayerManager.getByPlayer(proxyPlayer)
-        val profile = hyperZonePlayer.getDBProfile()
+        val profileService = HyperZoneProfileServiceProvider.get()
+        val profile = profileService.getAttachedProfile(hyperZonePlayer)
 
         sender.sendPlainMessage("§e[ProxyPlayer] name=${proxyPlayer.username} uuid=${proxyPlayer.uniqueId}")
         sender.sendPlainMessage(
-            "§e[HyperZonePlayer] verified=${hyperZonePlayer.isVerified()} attachedProfile=${hyperZonePlayer.hasAttachedProfile()} waitingArea=${hyperZonePlayer.isInWaitingArea()} canResolveOrCreateProfile=${hyperZonePlayer.canResolveOrCreateProfile()}"
+            "§e[ClientOriginal][UNTRUSTED] name=${hyperZonePlayer.clientOriginalName} uuid=${hyperZonePlayer.clientOriginalUUID}"
+        )
+        sender.sendPlainMessage(
+            "§e[HyperZonePlayer] verified=${hyperZonePlayer.isVerified()} attachedProfile=${hyperZonePlayer.hasAttachedProfile()} waitingArea=${hyperZonePlayer.isInWaitingArea()} canResolveOrCreateProfile=${profileService.canResolveOrCreateProfile(hyperZonePlayer)} credentials=${hyperZonePlayer.getSubmittedCredentials().size}"
         )
         if (profile != null) {
             sender.sendPlainMessage("§e[Profile] id=${profile.id} name=${profile.name} uuid=${profile.uuid}")

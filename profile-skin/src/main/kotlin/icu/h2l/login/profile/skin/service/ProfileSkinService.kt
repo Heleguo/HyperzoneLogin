@@ -30,6 +30,7 @@ import icu.h2l.api.event.profile.ProfileSkinPreprocessEvent
 import icu.h2l.api.log.debug
 import icu.h2l.api.log.error
 import icu.h2l.api.log.warn
+import icu.h2l.api.profile.HyperZoneProfileService
 import icu.h2l.api.profile.skin.ProfileSkinModel
 import icu.h2l.api.profile.skin.ProfileSkinSource
 import icu.h2l.api.profile.skin.ProfileSkinTextures
@@ -109,7 +110,8 @@ internal fun sanitizeFallbackSourceHash(
 
 class ProfileSkinService(
     private val config: ProfileSkinConfig,
-    private val repository: ProfileSkinCacheRepository
+    private val repository: ProfileSkinCacheRepository,
+    private val profileService: HyperZoneProfileService
 ) {
     private val httpClient: HttpClient = HttpClient.newBuilder()
         .connectTimeout(Duration.ofMillis(config.mineSkin.timeoutMillis))
@@ -120,9 +122,9 @@ class ProfileSkinService(
     fun onPreprocess(event: ProfileSkinPreprocessEvent) {
         if (!config.enabled) return
 
-        val profileId = event.hyperZonePlayer.getDBProfile()?.id ?: run {
+        val profileId = profileService.getAttachedProfile(event.hyperZonePlayer)?.id ?: run {
             debug {
-                "[ProfileSkinFlow] preprocess skip: no DB profile, player=${event.hyperZonePlayer.userName}, entry=${event.entryId}"
+                "[ProfileSkinFlow] preprocess skip: no DB profile, clientOriginal=${event.hyperZonePlayer.clientOriginalName}, entry=${event.entryId}"
             }
             return
         }
@@ -237,9 +239,9 @@ class ProfileSkinService(
     fun onApply(event: ProfileSkinApplyEvent) {
         if (!config.enabled) return
 
-        val profileId = event.hyperZonePlayer.getDBProfile()?.id ?: run {
+        val profileId = profileService.getAttachedProfile(event.hyperZonePlayer)?.id ?: run {
             debug {
-                "[ProfileSkinFlow] apply listener failed: no attached DB profile, player=${event.hyperZonePlayer.userName}, base=${describeProfile(event.baseProfile)}"
+                "[ProfileSkinFlow] apply listener failed: no attached DB profile, clientOriginal=${event.hyperZonePlayer.clientOriginalName}, base=${describeProfile(event.baseProfile)}"
             }
             event.hyperZonePlayer.sendMessage(Component.text("§c皮肤修复失败，需要重新进入游戏"))
             return

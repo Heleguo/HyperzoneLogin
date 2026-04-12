@@ -33,6 +33,8 @@ import icu.h2l.api.log.error
 import icu.h2l.api.log.info
 import icu.h2l.api.player.HyperZonePlayer
 import icu.h2l.api.player.HyperZonePlayerAccessor
+import icu.h2l.api.profile.HyperZoneCredential
+import icu.h2l.api.profile.HyperZoneProfileService
 import icu.h2l.api.profile.skin.ProfileSkinModel
 import icu.h2l.api.profile.skin.ProfileSkinSource
 import icu.h2l.api.profile.skin.ProfileSkinTextures
@@ -61,7 +63,8 @@ class YggdrasilAuthModule(
     private val entryConfigManager: EntryConfigManager,
     private val databaseManager: HyperZoneDatabaseManager,
     private val entryTableManager: EntryTableManager,
-    private val playerAccessor: HyperZonePlayerAccessor
+    private val playerAccessor: HyperZonePlayerAccessor,
+    private val profileService: HyperZoneProfileService
 ) {
     private val httpClient: HttpClient = HttpClient.newBuilder()
         .connectTimeout(Duration.ofSeconds(5))
@@ -200,7 +203,7 @@ class YggdrasilAuthModule(
     ) {
         try {
             if (result is YggdrasilAuthResult.Success) {
-                val profileResolveError = ensureProfileForSuccessfulAuth(handler, result)
+                val profileResolveError = ensureCredentialForSuccessfulAuth(handler, result)
                 if (profileResolveError != null) {
                     val failedResult = YggdrasilAuthResult.Failed(profileResolveError)
                     publishAuthFailure(player, username, failedResult)
@@ -212,7 +215,16 @@ class YggdrasilAuthModule(
                 info { "玩家 $username 通过 Yggdrasil 验证，Entry: ${result.entryId}" }
                 fireProfileSkinPreprocessEvent(handler, result)
                 if (handler.isInWaitingArea()) {
-                    handler.overVerify()
+                    runCatching {
+                        handler.overVerify()
+                    }.onFailure { throwable ->
+                        val message = throwable.message ?: "认证成功，但 Profile 绑定失败"
+                        val failedResult = YggdrasilAuthResult.Failed(message)
+                        publishAuthFailure(player, username, failedResult)
+                        handler.sendMessage(Component.text(message))
+                        info { "玩家 $username Yggdrasil 验证成功，但完成验证失败：$message" }
+                        return
+                    }
                     debug { "玩家 $username 调用验证完成接口成功，Entry: ${result.entryId}"  }
                 }
                 return
@@ -232,25 +244,22 @@ class YggdrasilAuthModule(
         }
     }
 
-    private fun ensureProfileForSuccessfulAuth(
+    private fun ensureCredentialForSuccessfulAuth(
         handler: HyperZonePlayer,
         result: YggdrasilAuthResult.Success
     ): String? {
-        if (handler.getDBProfile() != null) {
+        if (profileService.getAttachedProfile(handler) != null) {
             return null
         }
 
         val profileId = findBoundProfileIdByAuthenticatedEntry(result)
             ?: return "认证成功，但未找到可信 Entry 绑定"
 
-        val attached = handler.attachProfile(profileId)
-            ?: return "认证成功，但绑定 Profile 失败: $profileId"
+        val profile = profileService.getProfile(profileId)
+            ?: return "认证成功，但绑定 Profile 不存在: $profileId"
 
-        return if (attached.id == profileId) {
-            null
-        } else {
-            "认证成功，但玩家 Profile 绑定结果异常"
-        }
+        handler.submitCredential(yggdrasilCredential(result.entryId, result.profile.id, profile.id))
+        return null
     }
 
     private fun clearTransientStateAfterDispatch(player: Player) {
@@ -278,14 +287,14 @@ class YggdrasilAuthModule(
         event.source = extractSkinSource(event.textures)
 
         debug {
-            "[ProfileSkinFlow] preprocess dispatch start: player=${handler.userName}, entry=${result.entryId}, server=${result.serverUrl}, authenticatedProfile=${describeProfile(result.profile)}, eventTextures=${describeTextures(event.textures)}, eventSource=${describeSource(event.source)}"
+            "[ProfileSkinFlow] preprocess dispatch start: clientOriginal=${handler.clientOriginalName}, entry=${result.entryId}, server=${result.serverUrl}, authenticatedProfile=${describeProfile(result.profile)}, eventTextures=${describeTextures(event.textures)}, eventSource=${describeSource(event.source)}"
         }
 
         runCatching {
             proxy.eventManager.fire(event).join()
         }.onSuccess {
             debug {
-                "[ProfileSkinFlow] preprocess dispatch completed: player=${handler.userName}, entry=${result.entryId}, resultingTextures=${describeTextures(event.textures)}, resultingSource=${describeSource(event.source)}"
+                "[ProfileSkinFlow] preprocess dispatch completed: clientOriginal=${handler.clientOriginalName}, entry=${result.entryId}, resultingTextures=${describeTextures(event.textures)}, resultingSource=${describeSource(event.source)}"
             }
         }.onFailure { throwable ->
             error(throwable) { "Profile skin preprocess event failed: ${throwable.message}" }
@@ -373,7 +382,7 @@ class YggdrasilAuthModule(
                 )
 
                 if (firstBatchResult.isSuccess) {
-                    val firstBatchValidation = validateFirstBatchProfile(player, username, uuid, firstBatchResult)
+                    val firstBatchValidation = validateFirstBatchProfile(username, uuid, firstBatchResult)
                     if (firstBatchValidation != null) {
                         return@runBlocking firstBatchValidation
                     }
@@ -392,27 +401,21 @@ class YggdrasilAuthModule(
     }
 
     private fun validateFirstBatchProfile(
-        player: Player,
         username: String,
         uuid: UUID,
         result: YggdrasilAuthResult
     ): YggdrasilAuthResult? {
         val success = result as? YggdrasilAuthResult.Success ?: return null
 
-        val hyperZonePlayer = playerAccessor.getByPlayer(player)
-
         val entryProfileId = findBoundProfileIdByAuthenticatedEntry(success)
             ?: return YggdrasilAuthResult.Failed("第一批次验证失败：未获取到 Entry Profile")
 
-        val playerProfile = hyperZonePlayer.attachProfile(entryProfileId)
-            ?: return YggdrasilAuthResult.Failed("第一批次验证失败：无法绑定玩家 Profile")
-
-        if (playerProfile.id != entryProfileId) {
-            return YggdrasilAuthResult.Failed("第一批次验证失败：玩家 Profile 与 Entry Profile 不一致")
+        if (profileService.getProfile(entryProfileId) == null) {
+            return YggdrasilAuthResult.Failed("第一批次验证失败：无法找到玩家 Profile")
         }
 
         debug {
-            "[YggdrasilFlow] 第一批次已绑定 Profile: user=$username requestUuid=$uuid authenticatedName=${success.profile.name} authenticatedUuid=${success.profile.id} pid=$entryProfileId"
+            "[YggdrasilFlow] 第一批次已确认可信 Profile: user=$username requestUuid=$uuid authenticatedName=${success.profile.name} authenticatedUuid=${success.profile.id} pid=$entryProfileId"
         }
         return null
     }
@@ -438,7 +441,7 @@ class YggdrasilAuthModule(
     ): YggdrasilAuthResult {
         val handler = playerAccessor.getByPlayer(player)
 
-        if (!handler.canResolveOrCreateProfile()) {
+        if (!profileService.canResolveOrCreateProfile(handler)) {
             debug { "玩家 ${context.username} 不允许再解析/创建 Profile，终止第二批次验证" }
             return YggdrasilAuthResult.Failed("Player already registered")
         }
@@ -463,7 +466,7 @@ class YggdrasilAuthModule(
             val entryUuid = secondBatchResult.profile.id
 
             val registeredProfile = try {
-                handler.resolveOrCreateProfile(entryName, entryUuid)
+                profileService.resolveOrCreateProfile(handler, entryName, entryUuid)
             } catch (ex: IllegalStateException) {
                 return YggdrasilAuthResult.Failed(ex.message ?: "创建 Profile 失败")
             }
@@ -661,6 +664,18 @@ class YggdrasilAuthModule(
         } else {
             hostAddress.substring(0, ipv6ScopeIdx)
         }
+    }
+
+    private fun yggdrasilCredential(entryId: String, authenticatedUuid: UUID, profileId: UUID): HyperZoneCredential {
+        return HyperZoneCredential(
+            channelId = YGGDRASIL_CHANNEL_ID,
+            credentialId = "$entryId:$authenticatedUuid",
+            profileId = profileId
+        )
+    }
+
+    companion object {
+        private const val YGGDRASIL_CHANNEL_ID = "yggdrasil"
     }
 }
 

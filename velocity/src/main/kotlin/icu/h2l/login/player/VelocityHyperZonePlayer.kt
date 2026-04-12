@@ -23,13 +23,12 @@ package icu.h2l.login.player
 
 import com.velocitypowered.api.proxy.Player
 import com.velocitypowered.api.util.GameProfile
-import icu.h2l.api.db.Profile
-import icu.h2l.api.event.profile.ProfileResolveEvent
 import icu.h2l.api.player.HyperZonePlayer
-import icu.h2l.api.util.RemapUtils
+import icu.h2l.api.profile.HyperZoneCredential
 import icu.h2l.login.HyperZoneLoginMain
 import net.kyori.adventure.text.Component
 import java.util.*
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -39,56 +38,29 @@ import java.util.concurrent.atomic.AtomicBoolean
  * 这里维护三组彼此独立但互相关联的状态：
  * 1. 连接/等待区状态：玩家是否仍在 Limbo 或后端认证等待服；
  * 2. 认证状态：子模块是否已经认可本次登录；
- * 3. Profile 状态：是否已经 attach 到正式游戏档案。
+ * 3. 凭证状态：子模块已经向当前会话提交了哪些可信凭证。
  *
+ * 核心会在 overVerify() 时统一根据凭证 attach 正式 Profile。
  * 只有“认证通过 + 已 attach Profile”两个条件都满足时，
  * 玩家才允许离开等待区并使用正式游戏身份进入游戏区。
  */
 class VelocityHyperZonePlayer(
-//    最开始客户端传入的，不可信
-    override var userName: String,
-    override var uuid: UUID,
-    isOnline: Boolean,
+//    最开始客户端传入的，不可信；仅用于调试、客户端回放与第一次拟定默认生成名
+    override val clientOriginalName: String,
+    override val clientOriginalUUID: UUID,
+    override val isOnlinePlayer: Boolean,
 ) : HyperZonePlayer {
 
-    /**
-     * 仅用于客户端自皮肤修复链路的“回传给客户端的名称”。
-     *
-     * 该值必须固定为 OpenPreLoginEvent 阶段客户端最初带入的用户名；
-     * 后续即使 attach / resolve 到正式 Profile，也绝不能被重写。
-     *
-     * 警告：严禁将该字段作为通用身份字段或对外 API 使用。
-     * 如有其他需求想读取它，请先重新审视设计，而不是直接复用。
-     */
-    private val clientOriginalName: String = userName
-
-    /**
-     * 仅用于客户端自皮肤修复链路的“回传给客户端的 UUID”。
-     *
-     * 该值必须固定为 OpenPreLoginEvent 阶段客户端最初带入的 UUID；
-     * 后续即使 attach / resolve 到正式 Profile，也绝不能被重写。
-     *
-     * 警告：严禁将该字段作为通用身份字段或对外 API 使用。
-     * 如有其他需求想读取它，请先重新审视设计，而不是直接复用。
-     */
-    private val clientOriginalUUID: UUID = uuid
 
     private var proxyPlayer: Player? = null
 
     /**
-     * 当前玩家 attach 到的游戏档案ID。
-     *
-     * null 表示 profile 链路尚未完成，玩家仍必须停留在等待区。
-     */
-    @Volatile
-    var profileId: UUID? = null
-
-    /**
      * 认证链路状态，仅表示子模块是否认可本次登录。
      *
-     * 该状态不代表一定能进入游戏区；还需要 profileId 已 attach。
+     * 该状态不代表一定能进入游戏区；还需要核心层已根据凭证 attach Profile。
      */
     private val isVerifiedState = AtomicBoolean(false)
+    private val submittedCredentials = CopyOnWriteArrayList<HyperZoneCredential>()
 
     /**
      * 玩家是否已经生成过可直接发送消息的实体。
@@ -99,7 +71,6 @@ class VelocityHyperZonePlayer(
      * 玩家进入可收消息阶段前缓存的提示消息。
      */
     private val messageQueue = ConcurrentLinkedQueue<Component>()
-    private val onlineState = AtomicBoolean(isOnline)
 
     /**
      * 等待区转发用的临时档案。
@@ -108,8 +79,6 @@ class VelocityHyperZonePlayer(
      */
     @Volatile
     private var temporaryGameProfile: GameProfile? = null
-
-    private val databaseHelper = HyperZoneLoginMain.getInstance().databaseHelper
 
     fun update(player: Player) {
         proxyPlayer = player
@@ -122,67 +91,18 @@ class VelocityHyperZonePlayer(
     }
 
     override fun hasAttachedProfile(): Boolean {
-        return profileId != null
+        return HyperZoneLoginMain.getInstance().profileService.hasAttachedProfile(this)
     }
 
-    override fun canResolveOrCreateProfile(): Boolean {
-        return profileId == null
-    }
-
-    override fun resolveOrCreateProfile(userName: String?, uuid: UUID?): Profile {
-        val existingProfile = getDBProfile()
-        if (existingProfile != null) {
-            return existingProfile
+    override fun submitCredential(credential: HyperZoneCredential) {
+        submittedCredentials.removeIf {
+            it.channelId == credential.channelId && it.credentialId == credential.credentialId
         }
-
-        val resolvedName = userName ?: this.userName
-        val remapPrefix = HyperZoneLoginMain.getRemapConfig().prefix
-        val resolvedUuid = uuid ?: RemapUtils.genUUID(resolvedName, remapPrefix)
-//        测试用的
-//        val resolvedUuid = RemapUtils.genUUID(resolvedName, remapPrefix)
-
-        val event = ProfileResolveEvent(
-            hyperZonePlayer = this,
-            trustedName = resolvedName,
-            trustedUuid = resolvedUuid,
-            allowCreate = true
-        )
-        HyperZoneLoginMain.getInstance().proxy.eventManager.fire(event).join()
-
-        val profile = event.profile
-            ?: throw IllegalStateException(event.deniedReason ?: "玩家 $resolvedName 注册失败，未能解析 Profile")
-
-        if (!event.isResolved) {
-            throw IllegalStateException(event.deniedReason ?: "玩家 $resolvedName 注册失败，Profile 解析未完成")
-        }
-
-        profileId = profile.id
-        this.userName = profile.name
-        this.uuid = profile.uuid
-        return profile
+        submittedCredentials += credential
     }
 
-    override fun attachProfile(profileId: UUID): Profile? {
-        val event = ProfileResolveEvent(
-            hyperZonePlayer = this,
-            profileIdHint = profileId
-        )
-        HyperZoneLoginMain.getInstance().proxy.eventManager.fire(event).join()
-
-        if (!event.isResolved) {
-            return null
-        }
-
-        val profile = event.profile ?: return null
-        this.profileId = profile.id
-        this.userName = profile.name
-        this.uuid = profile.uuid
-        return profile
-    }
-
-    override fun getDBProfile(): Profile? {
-        val currentProfileId = profileId ?: return null
-        return databaseHelper.getProfile(currentProfileId)
+    override fun getSubmittedCredentials(): List<HyperZoneCredential> {
+        return submittedCredentials.toList()
     }
 
     override fun isVerified(): Boolean {
@@ -194,6 +114,7 @@ class VelocityHyperZonePlayer(
     }
 
     override fun overVerify() {
+        HyperZoneLoginMain.getInstance().profileService.attachVerifiedCredentialProfile(this)
         if (isVerifiedState.compareAndSet(false, true)) {
             proxyPlayer?.let { player ->
                 HyperZoneLoginMain.getInstance().serverAdapter?.onVerified(player)
@@ -203,6 +124,7 @@ class VelocityHyperZonePlayer(
 
     override fun resetVerify() {
         isVerifiedState.set(false)
+        submittedCredentials.clear()
     }
 
     override fun sendMessage(message: Component) {
@@ -218,17 +140,9 @@ class VelocityHyperZonePlayer(
         return proxyPlayer
     }
 
-    override fun getClientOriginalName(): String {
-        return clientOriginalName
-    }
-
-    override fun getClientOriginalUUID(): UUID {
-        return clientOriginalUUID
-    }
-
     override fun getTemporaryGameProfile(): GameProfile {
         return temporaryGameProfile
-            ?: throw IllegalStateException("玩家 $userName 尚未生成临时档案，无法在等待区使用可信身份")
+            ?: throw IllegalStateException("玩家 $clientOriginalName 尚未生成临时档案，无法在等待区使用可信身份")
     }
 
     override fun getAttachedGameProfile(): GameProfile {
@@ -237,8 +151,8 @@ class VelocityHyperZonePlayer(
             return proxyPlayer!!.gameProfile
         }
 
-        val resolvedProfile = getDBProfile()
-            ?: throw IllegalStateException("玩家 $userName 尚未 attach Profile，无法获取正式游戏档案")
+        val resolvedProfile = HyperZoneLoginMain.getInstance().profileService.getAttachedProfile(this)
+            ?: throw IllegalStateException("玩家 $clientOriginalName 尚未 attach Profile，无法获取正式游戏档案")
         return GameProfile(
             resolvedProfile.uuid,
             resolvedProfile.name,
@@ -249,14 +163,6 @@ class VelocityHyperZonePlayer(
 
     override fun setTemporaryGameProfile(profile: GameProfile?) {
         temporaryGameProfile = profile
-    }
-
-    fun isOnlinePlayer(): Boolean {
-        return onlineState.get()
-    }
-
-    fun setOnlinePlayer(isOnline: Boolean) {
-        onlineState.set(isOnline)
     }
 }
 

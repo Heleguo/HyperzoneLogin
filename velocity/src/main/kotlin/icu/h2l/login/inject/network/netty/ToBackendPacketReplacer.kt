@@ -73,7 +73,7 @@ class ToBackendPacketReplacer(
     private fun replaceMessage(
         msg: Any?
     ): Any? {
-        val offlinePlayer = (hyperPlayer as? VelocityHyperZonePlayer)?.isOnlinePlayer() == false
+        val offlinePlayer = !hyperPlayer.isOnlinePlayer
 
 //        离线没有这部分逻辑
 //        偷吃点东西 chat_session_update "AdaptivePoolingAllocator$AdaptiveByteBuf(ridx: 0, widx: 323, cap: 323)"，
@@ -256,7 +256,7 @@ class ToBackendPacketReplacer(
         }
 
         return requireNotNull(ProfileSkinApplySupport.apply(hyperPlayer)) {
-            "Formal profile is unavailable while resolving forwarding game profile for player=${hyperPlayer.userName}"
+            "Formal profile is unavailable while resolving forwarding game profile for clientOriginal=${hyperPlayer.clientOriginalName}"
         }
     }
 

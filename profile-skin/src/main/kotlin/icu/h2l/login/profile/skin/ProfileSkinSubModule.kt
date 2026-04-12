@@ -26,6 +26,7 @@ import icu.h2l.api.db.HyperZoneDatabaseManager
 import icu.h2l.api.db.table.ProfileTable
 import icu.h2l.api.log.info
 import icu.h2l.api.module.HyperSubModule
+import icu.h2l.api.profile.HyperZoneProfileServiceProvider
 import icu.h2l.login.profile.skin.config.ProfileSkinConfigLoader
 import icu.h2l.login.profile.skin.db.ProfileSkinCacheRepository
 import icu.h2l.login.profile.skin.db.ProfileSkinCacheTable
@@ -50,8 +51,8 @@ class ProfileSkinSubModule : HyperSubModule {
 
         tableManager = ProfileSkinCacheTableManager(databaseManager, table)
         repository = ProfileSkinCacheRepository(databaseManager, table)
-        service = ProfileSkinService(config, repository)
-        selfReplayService = ProfileSkinSelfReplayService(api, config, repository)
+        service = ProfileSkinService(config, repository, HyperZoneProfileServiceProvider.get())
+        selfReplayService = ProfileSkinSelfReplayService(api, config, repository, HyperZoneProfileServiceProvider.get())
 
         tableManager.createTable()
         proxy.eventManager.register(api, tableManager)
