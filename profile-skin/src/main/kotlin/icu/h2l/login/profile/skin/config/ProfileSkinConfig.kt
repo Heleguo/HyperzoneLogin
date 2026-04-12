@@ -48,6 +48,9 @@ class MineSkinConfig {
     @Comment("生成方式：URL 或 UPLOAD")
     var method: String = "URL"
 
+    @Comment("当 URL 模式返回 remote fetch 类错误（例如 invalid_image / file size undefined）时，是否自动改用上传模式重试")
+    var retryUploadOnUrlReadFailure: Boolean = true
+
     @Comment("URL 模式接口地址")
     var urlEndpoint: String = "https://api.mineskin.org/generate/url"
 

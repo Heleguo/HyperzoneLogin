@@ -8,6 +8,7 @@
 - 从上游 `GameProfile` 提取 `textures` / 皮肤源 URL / 模型
 - 优先缓存上游已签名的皮肤数据
 - 当上游只有未签名 `textures` 且可解析出 `skinUrl` 时，按 `ref/skin/skinrestorer/SkinRestorerFlows.java` 的思路调用 MineSkin 修复
+- 当 MineSkin 的 URL 模式无法直接读取源图（例如返回 `invalid_image` / `Invalid image file size: undefined`）时，可自动退回上传模式重试
 - 将结果缓存到数据库表 `profile_skin_cache`
 - 在 `ToBackendPacketReplacer` 与 `GameProfileRequestEvent` 的最终替换阶段，通过 `ProfileSkinApplyEvent` 将缓存后的 `textures` 注入最终档案
 
@@ -24,6 +25,7 @@
 - `restoreUnsignedTextures`：遇到未签名 `textures` 时是否尝试修复
 - `allowInitialProfileFallback`：应用阶段数据库未命中时，是否回退到初始 `GameProfile`
 - `mineSkin.method`：`URL` 或 `UPLOAD`
+- `mineSkin.retryUploadOnUrlReadFailure`：URL 模式遇到 MineSkin 远端读图失败时，是否自动改走上传模式
 
 ## API 事件
 
@@ -60,6 +62,8 @@
 - `texture_value`
 - `texture_signature`
 - `updated_at`
+
+说明：当前没有单独的“镜像 URL 映射表”。原因是 `profile_skin_cache` 已经通过 `source_hash = SHA-256(originalSkinUrl|model)` 缓存恢复后的 `textures`，因此同一原始源图 URL 在后续玩家命中时，会直接复用恢复结果，而不需要再次让 MineSkin 访问原地址。
 
 ## 接入链路
 

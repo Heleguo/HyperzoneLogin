@@ -52,6 +52,27 @@ import java.util.UUID
 import javax.imageio.ImageIO
 import net.kyori.adventure.text.Component
 
+private class MineSkinRequestFailedException(
+    val method: MineSkinMethod,
+    val statusCode: Int,
+    val body: String
+) : IllegalStateException("MineSkin ${method.name} restore failed: HTTP $statusCode, body=$body")
+
+internal fun shouldRetryUploadAfterUrlReadFailure(statusCode: Int, body: String): Boolean {
+    if (statusCode != 400) {
+        return false
+    }
+
+    val root = runCatching {
+        JsonParser.parseString(body).asJsonObject
+    }.getOrNull() ?: return body.contains("Invalid image file size: undefined", ignoreCase = true)
+
+    val errorCode = root.getAsJsonPrimitive("errorCode")?.asString
+    val error = root.getAsJsonPrimitive("error")?.asString
+    return errorCode.equals("invalid_image", ignoreCase = true)
+            && error?.contains("Invalid image file size: undefined", ignoreCase = true) == true
+}
+
 internal fun shouldUseSourceCache(shouldForceRestoreSignedTextures: Boolean): Boolean {
     return !shouldForceRestoreSignedTextures
 }
@@ -198,10 +219,29 @@ class ProfileSkinService(
 
     private fun restoreTextures(source: ProfileSkinSource): ProfileSkinTextures {
         val body = when (MineSkinMethod.from(config.mineSkin.method)) {
-            MineSkinMethod.URL -> restoreByUrl(source)
+            MineSkinMethod.URL -> restoreByUrlWithUploadRetry(source)
             MineSkinMethod.UPLOAD -> restoreByUpload(source)
         }
         return parseMineSkinResponse(body)
+    }
+
+    private fun restoreByUrlWithUploadRetry(source: ProfileSkinSource): String {
+        return runCatching {
+            restoreByUrl(source)
+        }.recoverCatching { throwable ->
+            val failure = throwable as? MineSkinRequestFailedException
+            if (failure?.method != MineSkinMethod.URL
+                || !config.mineSkin.retryUploadOnUrlReadFailure
+                || !shouldRetryUploadAfterUrlReadFailure(failure.statusCode, failure.body)
+            ) {
+                throw throwable
+            }
+
+            warn {
+                "[ProfileSkinFlow] MineSkin URL restore hit remote-read failure, retrying with upload: source=${describeSource(source)}, status=${failure.statusCode}, errorBody=${failure.body}"
+            }
+            restoreByUpload(source)
+        }.getOrThrow()
     }
 
     private fun restoreByUrl(source: ProfileSkinSource): String {
@@ -222,7 +262,7 @@ class ProfileSkinService(
 
         val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString())
         if (response.statusCode() !in 200..299) {
-            throw IllegalStateException("MineSkin URL restore failed: HTTP ${response.statusCode()}, body=${response.body()}")
+            throw MineSkinRequestFailedException(MineSkinMethod.URL, response.statusCode(), response.body())
         }
         return response.body()
     }
@@ -265,7 +305,7 @@ class ProfileSkinService(
 
         val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString())
         if (response.statusCode() !in 200..299) {
-            throw IllegalStateException("MineSkin upload restore failed: HTTP ${response.statusCode()}, body=${response.body()}")
+            throw MineSkinRequestFailedException(MineSkinMethod.UPLOAD, response.statusCode(), response.body())
         }
         return response.body()
     }
