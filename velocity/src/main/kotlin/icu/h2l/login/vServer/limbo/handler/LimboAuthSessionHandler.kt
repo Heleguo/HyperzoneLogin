@@ -25,18 +25,18 @@ import com.velocitypowered.api.proxy.Player
 import icu.h2l.api.event.vServer.VServerJoinEvent
 import icu.h2l.api.player.HyperZonePlayer
 import icu.h2l.login.HyperZoneLoginMain
-import icu.h2l.login.player.VelocityHyperZonePlayer
 import net.elytrium.limboapi.api.Limbo
 import net.elytrium.limboapi.api.LimboSessionHandler
 import net.elytrium.limboapi.api.player.LimboPlayer
 
 class LimboAuthSessionHandler(
     private val proxyPlayer: Player,
-    private val hyperZonePlayer: HyperZonePlayer
+    private val hyperZonePlayer: HyperZonePlayer,
+    private val onSpawned: (Player, HyperZonePlayer, LimboPlayer) -> Unit
 ) : LimboSessionHandler {
 
     override fun onSpawn(server: Limbo, player: LimboPlayer) {
-        (hyperZonePlayer as VelocityHyperZonePlayer).onSpawn(player)
+        onSpawned(proxyPlayer, hyperZonePlayer, player)
         player.disableFalling()
 
         HyperZoneLoginMain.getInstance().proxy.eventManager.fire(

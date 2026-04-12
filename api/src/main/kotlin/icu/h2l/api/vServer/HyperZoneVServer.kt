@@ -22,21 +22,49 @@
 package icu.h2l.api.vServer
 
 import com.velocitypowered.api.command.CommandMeta
+import com.velocitypowered.api.proxy.Player
 import icu.h2l.api.command.HyperChatCommandRegistration
 
 /**
- * Adapter interface for Limbo functionality used by the project.
- * This keeps the API module free of a compile-time dependency on the
- * Limbo third-party API; implementations (in the main plugin) can bridge
- * to the real Limbo implementation when available.
+ * 登录等待区 / 认证虚拟服 的统一抽象。
+ *
+ * 这里不再把上层逻辑绑定到具体的 Limbo 或后端等待服实现；
+ * 只暴露“进入等待区、注册等待区命令、判断代理兜底命令是否可用、
+ * 完成认证后的收尾、主动退出等待区”等公共能力。
+ *
+ * 注意：实现特有的运行态必须由各实现自行私有维护，
+ * 不应再向上抽象成混合式共享状态仓。
  */
 interface HyperZoneVServerAdapter {
-    fun registerCommand(meta: CommandMeta, registration: HyperChatCommandRegistration)
+    fun isEnabled(): Boolean = true
+
+    fun authPlayer(player: Player)
+
+    fun registerCommand(meta: CommandMeta, registration: HyperChatCommandRegistration) {
+    }
+
+    fun supportsProxyFallbackCommands(): Boolean = false
+
+    fun canUseProxyFallbackCommand(player: Player): Boolean = false
+
+    /**
+     * 退出当前等待区。
+     *
+     * 注意：这里的“退出”语义由具体实现决定，但必须符合该实现的原生行为。
+     * - 对真实后端等待服实现，应尽量把玩家送回进入等待区前的目标服务器；
+     * - 对 Limbo 实现，断开 Limbo 会话本身就是退出等待区。
+     *
+     * @return 是否已接受本次退出请求
+     */
+    fun exitWaitingArea(player: Player): Boolean = false
+
+    fun onVerified(player: Player) {
+    }
 }
 
 interface HyperZoneVServerProvider {
     /**
-     * Returns the limbo adapter if available, or null when Limbo is not present.
+     * Returns the active waiting-area adapter if available.
      */
     val serverAdapter: HyperZoneVServerAdapter?
 }

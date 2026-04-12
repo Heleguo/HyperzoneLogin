@@ -32,7 +32,6 @@ import icu.h2l.api.player.HyperZonePlayer
 import icu.h2l.api.profile.skin.ProfileSkinTextures
 import icu.h2l.api.util.RemapUtils
 import icu.h2l.login.HyperZoneLoginMain
-import net.elytrium.limboapi.api.player.LimboPlayer
 import net.kyori.adventure.text.Component
 import java.util.*
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -105,18 +104,9 @@ class VelocityHyperZonePlayer(
      * 玩家进入可收消息阶段前缓存的提示消息。
      */
     private val messageQueue = ConcurrentLinkedQueue<Component>()
-    private val authJoinAnnounced = AtomicBoolean(false)
-    private val authHoldServerName = AtomicReference<String?>(null)
-    private val postAuthTargetServerName = AtomicReference<String?>(null)
     private val onlineState = AtomicBoolean(isOnline)
     private val selfSkinAddPlayerSent = AtomicBoolean(false)
     private val latestSelfSkinTextures = AtomicReference<ProfileSkinTextures?>(null)
-
-    /**
-     * Limbo / 等待区玩家实体，仅在等待区存在。
-     */
-    @Volatile
-    private var limboPlayer: LimboPlayer? = null
 
     /**
      * 等待区转发用的临时档案。
@@ -135,17 +125,6 @@ class VelocityHyperZonePlayer(
                 val message = messageQueue.poll() ?: continue
                 proxyPlayer?.sendMessage(message)
             }
-        }
-    }
-
-    fun onSpawn(player: LimboPlayer) {
-        limboPlayer = player
-        update(player.proxyPlayer)
-        hasSpawned.set(true)
-
-        while (messageQueue.isNotEmpty()) {
-            val message = messageQueue.poll() ?: continue
-            proxyPlayer?.sendMessage(message)
         }
     }
 
@@ -223,42 +202,14 @@ class VelocityHyperZonePlayer(
 
     override fun overVerify() {
         if (isVerifiedState.compareAndSet(false, true)) {
-            val player = proxyPlayer
-            val authServer = authHoldServerName.getAndSet(null)
-            val targetServer = postAuthTargetServerName.getAndSet(null)
-            authJoinAnnounced.set(false)
-            limboPlayer?.disconnect()
-
-            if (player != null && !targetServer.isNullOrBlank() && !targetServer.equals(authServer, ignoreCase = true)) {
-                val target = HyperZoneLoginMain.getInstance().proxy.getServer(targetServer).orElse(null)
-                if (target != null) {
-                    player.createConnectionRequest(target).connect().whenComplete { result, throwable ->
-                        if (throwable != null) {
-                            player.sendPlainMessage("§c认证完成后自动连接到目标服务器失败：${throwable.message ?: "未知错误"}")
-                            return@whenComplete
-                        }
-
-                        if (result == null || !result.isSuccessful) {
-                            val reason = result?.reasonComponent?.map { component ->
-                                component.toString()
-                            }?.orElse("未知原因") ?: "未知原因"
-                            player.sendPlainMessage("§c认证完成，但自动连接到目标服务器失败：$reason")
-                        }
-                    }
-                } else {
-                    player.sendPlainMessage("§c认证完成，但目标服务器 $targetServer 不存在")
-                }
+            proxyPlayer?.let { player ->
+                HyperZoneLoginMain.getInstance().serverAdapter?.onVerified(player)
             }
         }
     }
 
     override fun resetVerify() {
         isVerifiedState.set(false)
-        authJoinAnnounced.set(false)
-    }
-
-    fun exitLimbo() {
-        limboPlayer?.disconnect()
     }
 
     override fun sendMessage(message: Component) {
@@ -303,67 +254,6 @@ class VelocityHyperZonePlayer(
         onlineState.set(isOnline)
     }
 
-    fun beginBackendAuthHold(authServerName: String, targetServerName: String?) {
-        authHoldServerName.set(authServerName)
-        postAuthTargetServerName.set(targetServerName?.takeUnless { it.isBlank() })
-        authJoinAnnounced.set(false)
-    }
-
-    fun isInBackendAuthHold(): Boolean {
-        return isInWaitingArea() && !authHoldServerName.get().isNullOrBlank()
-    }
-
-    /**
-     * 判断玩家当前是否真的位于“后端等待区服务器”上。
-     *
-     * 注意：这里故意不能复用 `isInBackendAuthHold()`，也不能依赖 `isInWaitingArea()`。
-     * 原因是玩家在等待区服务器完成登录后，`overVerify()` 会清掉 hold 状态，
-     * 同时 `isInWaitingArea()` 也可能变为 false；但这类玩家之后仍然可能主动重新进入该服务器，
-     * 用于登出、改密、换绑等后续操作。
-     *
-     * 所以“命令是否允许在代理兜底层执行”的判定，必须基于玩家当前所在服务器，
-     * 而不是一次性的认证 hold 标记，否则未来很容易再次误收紧这里的逻辑。
-     */
-    fun isOnBackendAuthServer(): Boolean {
-        val authServerName = HyperZoneLoginMain.getBackendServerConfig().fallbackAuthServer.trim()
-        if (authServerName.isBlank()) {
-            return false
-        }
-
-        val currentServerName = proxyPlayer?.currentServer
-            ?.map { it.server.serverInfo.name }
-            ?.orElse(null)
-            ?: return false
-
-        return currentServerName.equals(authServerName, ignoreCase = true)
-    }
-
-    fun getBackendAuthHoldServerName(): String? {
-        return authHoldServerName.get()
-    }
-
-    fun getPostAuthTargetServerName(): String? {
-        return postAuthTargetServerName.get()
-    }
-
-    fun rememberPostAuthTarget(serverName: String?) {
-        val resolved = serverName?.takeUnless { it.isBlank() } ?: return
-        postAuthTargetServerName.set(resolved)
-    }
-
-    fun markBackendAuthJoinHandled(serverName: String): Boolean {
-        val holdServer = authHoldServerName.get() ?: return false
-        if (!holdServer.equals(serverName, ignoreCase = true)) {
-            return false
-        }
-        return authJoinAnnounced.compareAndSet(false, true)
-    }
-
-    fun clearBackendAuthHold() {
-        authHoldServerName.set(null)
-        postAuthTargetServerName.set(null)
-        authJoinAnnounced.set(false)
-    }
 
     /**
      * 仅供 `ProfileSkinPreprocessEvent` 监听器调用：

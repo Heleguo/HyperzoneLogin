@@ -42,7 +42,7 @@ import icu.h2l.login.database.DatabaseHelper
 import icu.h2l.login.inject.network.VelocityNetworkModule
 import icu.h2l.login.vServer.backend.BackendAuthHoldListener
 import icu.h2l.login.vServer.limbo.LimboVServerAuth
-import icu.h2l.login.vServer.limbo.command.ExitLimboCommand
+import icu.h2l.login.vServer.command.ExitVServerCommand
 import icu.h2l.login.listener.EventListener
 import icu.h2l.login.manager.HyperChatCommandManagerImpl
 import icu.h2l.login.manager.HyperZonePlayerManager
@@ -64,12 +64,11 @@ class HyperZoneLoginMain(
     val dataDirectory: Path,
     private val plugin: HyperZoneApi
 ) {
-    var limboServerManager: LimboVServerAuth? = null
-    var backendAuthHoldListener: BackendAuthHoldListener? = null
+    var activeVServerAdapter: HyperZoneVServerAdapter? = null
     lateinit var databaseManager: icu.h2l.login.manager.DatabaseManager
     lateinit var databaseHelper: DatabaseHelper
     val serverAdapter: HyperZoneVServerAdapter?
-        get() = limboServerManager
+        get() = activeVServerAdapter
     val hyperZonePlayers: HyperZonePlayerAccessor
         get() = HyperZonePlayerManager
     val chatCommandManager: HyperChatCommandManager
@@ -113,42 +112,50 @@ class HyperZoneLoginMain(
         // 创建基础表（Profile 表等）
         createBaseTables()
 
-        // Soft-dependency: only create/load Limbo adapter when the limboapi plugin is present
+        activeVServerAdapter = null
+
+        // Soft-dependency: prefer Limbo when available, otherwise fall back to a real backend waiting-area server.
         val limboPluginPresent = server.pluginManager.getPlugin("limboapi").isPresent
         if (limboPluginPresent) {
             try {
                 val limbo = LimboVServerAuth(server)
                 limbo.load()
-                limboServerManager = limbo
-                backendAuthHoldListener = null
-                // bind adapter (not the third-party Limbo type)
-                HyperChatCommandManagerImpl.bindLimbo(proxy, limbo)
-                HyperChatCommandManagerImpl.setProxyFallbackCommandsEnabled(false)
-                proxy.eventManager.register(plugin, limbo)
+                activeVServerAdapter = limbo
+                logger.info("Limbo plugin detected; using Limbo waiting-area adapter")
             } catch (t: Throwable) {
                 logger.warn("Limbo plugin detected but initialization failed: ${t.message}")
             }
-        } else {
-            // No limbo present; bind null adapter so command registration is a no-op
-            HyperChatCommandManagerImpl.bindLimbo(proxy, null)
+        }
+
+        if (activeVServerAdapter == null) {
             val configuredFallback = backendServerConfig.fallbackAuthServer.trim()
             if (configuredFallback.isNotBlank()) {
-                val backendHold = BackendAuthHoldListener(server)
-                backendAuthHoldListener = backendHold
-                HyperChatCommandManagerImpl.setProxyFallbackCommandsEnabled(true)
-                proxy.eventManager.register(plugin, backendHold)
-                logger.info("Limbo not present; using backend auth hold server '$configuredFallback'")
+                activeVServerAdapter = BackendAuthHoldListener(server)
+                logger.info(
+                    if (limboPluginPresent) {
+                        "Limbo unavailable; using backend auth hold server '$configuredFallback'"
+                    } else {
+                        "Limbo not present; using backend auth hold server '$configuredFallback'"
+                    }
+                )
             } else {
-                backendAuthHoldListener = null
-                HyperChatCommandManagerImpl.setProxyFallbackCommandsEnabled(false)
-                logger.info("Limbo not present; running without Limbo integration or backend auth hold")
+                logger.info(
+                    if (limboPluginPresent) {
+                        "Limbo unavailable; running without Limbo integration or backend auth hold"
+                    } else {
+                        "Limbo not present; running without Limbo integration or backend auth hold"
+                    }
+                )
             }
         }
+
+        HyperChatCommandManagerImpl.bindVServer(proxy, activeVServerAdapter)
+        activeVServerAdapter?.let { proxy.eventManager.register(plugin, it) }
 
         chatCommandManager.register(
             HyperChatCommandRegistration(
                 name = "exit",
-                executor = ExitLimboCommand()
+                executor = ExitVServerCommand()
             )
         )
 
@@ -164,7 +171,6 @@ class HyperZoneLoginMain(
         proxy.commandManager.register(hzlCommandMeta, hzlCommand)
         proxy.eventManager.register(plugin, EventListener())
         proxy.eventManager.register(plugin, HyperZonePlayerManager)
-        // If Limbo was present, we've already registered its event listener above
 
         logInternalTestWarning()
 
@@ -217,13 +223,16 @@ class HyperZoneLoginMain(
     }
 
     /**
-     * Trigger authentication flow in Limbo for a proxy player if Limbo is present.
-     * Safe no-op if Limbo integration is not available.
+     * Trigger authentication flow in the active waiting-area implementation.
      */
-    fun triggerLimboAuthForPlayer(player: com.velocitypowered.api.proxy.Player) {
-        limboServerManager?.authPlayer(player)
-            ?: backendAuthHoldListener?.authPlayer(player)
+    fun triggerVServerAuthForPlayer(player: com.velocitypowered.api.proxy.Player) {
+        serverAdapter?.authPlayer(player)
             ?: player.sendPlainMessage("§c当前未启用可用的认证等待流程")
+    }
+
+    @Deprecated("Use triggerVServerAuthForPlayer(player) instead")
+    fun triggerLimboAuthForPlayer(player: com.velocitypowered.api.proxy.Player) {
+        triggerVServerAuthForPlayer(player)
     }
 
     private fun logInternalTestWarning() {

@@ -24,30 +24,36 @@ package icu.h2l.login.vServer.limbo
 import com.velocitypowered.api.command.CommandMeta
 import com.velocitypowered.api.command.SimpleCommand
 import com.velocitypowered.api.event.Subscribe
+import com.velocitypowered.api.event.connection.DisconnectEvent
 import com.velocitypowered.api.plugin.PluginContainer
 import com.velocitypowered.api.proxy.Player
 import com.velocitypowered.api.proxy.ProxyServer
 import icu.h2l.api.command.HyperChatCommandInvocation
 import icu.h2l.api.command.HyperChatCommandRegistration
 import icu.h2l.api.event.vServer.VServerAuthStartEvent
+import icu.h2l.api.player.getChannel
 import icu.h2l.api.vServer.HyperZoneVServerAdapter
 import icu.h2l.login.vServer.limbo.handler.LimboAuthSessionHandler
 import icu.h2l.login.manager.HyperZonePlayerManager
 import icu.h2l.login.HyperZoneLoginMain
+import icu.h2l.login.player.VelocityHyperZonePlayer
 import net.elytrium.limboapi.api.Limbo
 import net.elytrium.limboapi.api.LimboFactory
 import net.elytrium.limboapi.api.chunk.Dimension
 import net.elytrium.limboapi.api.chunk.VirtualWorld
 import net.elytrium.limboapi.api.event.LoginLimboRegisterEvent
 import net.elytrium.limboapi.api.player.GameMode
+import net.elytrium.limboapi.api.player.LimboPlayer
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Adapter over the real Limbo API. This class bridges the third-party Limbo API
  * to our internal adapter interface. Only construct this when Limbo is present.
  */
-class LimboVServerAuth(private val server: ProxyServer) : HyperZoneVServerAdapter {
+class LimboVServerAuth(server: ProxyServer) : HyperZoneVServerAdapter {
     private val factory: LimboFactory
     private lateinit var limboAuthServer: Limbo
+    private val limboSessions = ConcurrentHashMap<io.netty.channel.Channel, LimboPlayer>()
 
     init {
         factory = server.pluginManager.getPlugin("limboapi")
@@ -74,7 +80,7 @@ class LimboVServerAuth(private val server: ProxyServer) : HyperZoneVServerAdapte
         event.addOnJoinCallback { authPlayer(event.player) }
     }
 
-    fun authPlayer(player: Player) {
+    override fun authPlayer(player: Player) {
         val hyperZonePlayer = HyperZonePlayerManager.getByPlayer(player)
 
         val VServerAuthStartEvent = VServerAuthStartEvent(player, hyperZonePlayer)
@@ -84,11 +90,32 @@ class LimboVServerAuth(private val server: ProxyServer) : HyperZoneVServerAdapte
             return
         }
 
-        val newHandler = LimboAuthSessionHandler(player, hyperZonePlayer)
+        val newHandler = LimboAuthSessionHandler(player, hyperZonePlayer) { proxyPlayer, zonePlayer, limboPlayer ->
+            bindSession(proxyPlayer, limboPlayer)
+            (zonePlayer as? VelocityHyperZonePlayer)?.update(limboPlayer.proxyPlayer)
+        }
         limboAuthServer.spawnPlayer(player, newHandler)
     }
 
-    // HyperZoneLimboAdapter implementation --------------------------------------------------
+    override fun exitWaitingArea(player: Player): Boolean {
+        /**
+         * Limbo 的退出语义和后端等待服不同：
+         * 对 Limbo 来说，断开当前 Limbo 会话本身就是“离开等待区”的原生实现。
+         */
+        val limboPlayer = limboSessions.remove(player.getChannel()) ?: return false
+        limboPlayer.disconnect()
+        return true
+    }
+
+    override fun onVerified(player: Player) {
+        limboSessions.remove(player.getChannel())?.disconnect()
+    }
+
+    @Subscribe
+    fun onDisconnect(event: DisconnectEvent) {
+        limboSessions.remove(event.player.getChannel())
+    }
+
     override fun registerCommand(meta: CommandMeta, registration: HyperChatCommandRegistration) {
         limboAuthServer.registerCommand(meta, object : SimpleCommand {
             override fun execute(invocation: SimpleCommand.Invocation) {
@@ -121,6 +148,10 @@ class LimboVServerAuth(private val server: ProxyServer) : HyperZoneVServerAdapte
         override fun source() = source
         override fun arguments(): Array<String> = arguments
         override fun alias(): String = alias
+    }
+
+    private fun bindSession(player: Player, limboPlayer: LimboPlayer) {
+        limboSessions[player.getChannel()] = limboPlayer
     }
 }
 

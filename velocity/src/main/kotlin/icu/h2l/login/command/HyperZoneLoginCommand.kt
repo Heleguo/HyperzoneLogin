@@ -81,7 +81,7 @@ class HyperZoneLoginCommand {
         }
 
         sender.sendPlainMessage("§e开始重新认证...")
-        HyperZoneLoginMain.getInstance().triggerLimboAuthForPlayer(sender)
+        HyperZoneLoginMain.getInstance().triggerVServerAuthForPlayer(sender)
         return Command.SINGLE_SUCCESS
     }
 

@@ -39,25 +39,16 @@ import java.util.concurrent.ConcurrentHashMap
 object HyperChatCommandManagerImpl : HyperChatCommandManager {
     private val commands = ConcurrentHashMap<String, HyperChatCommandRegistration>()
     @Volatile
-    private var limboAdapter: HyperZoneVServerAdapter? = null
+    private var vServerAdapter: HyperZoneVServerAdapter? = null
     @Volatile
     private var proxyServer: ProxyServer? = null
-    @Volatile
-    private var proxyFallbackCommandsEnabled: Boolean = false
     private val proxyRegisteredCommands = ConcurrentHashMap.newKeySet<String>()
 
-    fun bindLimbo(proxy: ProxyServer, adapter: HyperZoneVServerAdapter?) {
+    fun bindVServer(proxy: ProxyServer, adapter: HyperZoneVServerAdapter?) {
         proxyServer = proxy
-        limboAdapter = adapter
-        getRegisteredCommands().forEach { registerToLimbo(it) }
+        vServerAdapter = adapter
+        getRegisteredCommands().forEach { registerToVServer(it) }
         getRegisteredCommands().forEach { registerToProxyFallback(it) }
-    }
-
-    fun setProxyFallbackCommandsEnabled(enabled: Boolean) {
-        proxyFallbackCommandsEnabled = enabled
-        if (enabled) {
-            getRegisteredCommands().forEach { registerToProxyFallback(it) }
-        }
     }
 
     override fun register(registration: HyperChatCommandRegistration) {
@@ -65,7 +56,7 @@ object HyperChatCommandManagerImpl : HyperChatCommandManager {
         registration.aliases.forEach { alias ->
             commands[alias.lowercase()] = registration
         }
-        registerToLimbo(registration)
+        registerToVServer(registration)
         registerToProxyFallback(registration)
     }
 
@@ -117,9 +108,9 @@ object HyperChatCommandManagerImpl : HyperChatCommandManager {
         return commands.values.toSet()
     }
 
-    private fun registerToLimbo(registration: HyperChatCommandRegistration) {
+    private fun registerToVServer(registration: HyperChatCommandRegistration) {
         val proxy = proxyServer ?: return
-        val authServer = limboAdapter ?: return
+        val authServer = vServerAdapter ?: return
 
         val metaBuilder = proxy.commandManager.metaBuilder(registration.name)
         if (registration.aliases.isNotEmpty()) {
@@ -130,7 +121,8 @@ object HyperChatCommandManagerImpl : HyperChatCommandManager {
     }
 
     private fun registerToProxyFallback(registration: HyperChatCommandRegistration) {
-        if (!proxyFallbackCommandsEnabled) return
+        val adapter = vServerAdapter ?: return
+        if (!adapter.supportsProxyFallbackCommands()) return
 
         val proxy = proxyServer ?: return
         val canonicalName = registration.name.lowercase()
@@ -163,8 +155,8 @@ object HyperChatCommandManagerImpl : HyperChatCommandManager {
             return false
         }
 
-        val hyperPlayer = getVelocityPlayer(source) ?: return false
-        if (!hyperPlayer.isOnBackendAuthServer()) {
+        val adapter = vServerAdapter ?: return false
+        if (!adapter.canUseProxyFallbackCommand(source)) {
             return false
         }
 
@@ -192,8 +184,8 @@ object HyperChatCommandManagerImpl : HyperChatCommandManager {
             return Command.SINGLE_SUCCESS
         }
 
-        val hyperPlayer = getVelocityPlayer(source)
-        if (hyperPlayer == null || !hyperPlayer.isOnBackendAuthServer()) {
+        val adapter = vServerAdapter
+        if (adapter == null || !adapter.canUseProxyFallbackCommand(source)) {
             source.sendMessage(Component.text("§e该命令仅可在等待区服务器使用"))
             return Command.SINGLE_SUCCESS
         }
@@ -208,11 +200,6 @@ object HyperChatCommandManagerImpl : HyperChatCommandManager {
         return Command.SINGLE_SUCCESS
     }
 
-    private fun getVelocityPlayer(player: Player): VelocityHyperZonePlayer? {
-        return runCatching {
-            HyperZonePlayerManager.getByPlayer(player) as VelocityHyperZonePlayer
-        }.getOrNull()
-    }
 
     private class ChatInvocation(
         private val source: CommandSource,

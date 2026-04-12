@@ -19,16 +19,16 @@
  *
  */
 
-package icu.h2l.login.vServer.limbo.command
+package icu.h2l.login.vServer.command
 
 import com.velocitypowered.api.proxy.Player
 import icu.h2l.api.command.HyperChatCommandExecutor
 import icu.h2l.api.command.HyperChatCommandInvocation
+import icu.h2l.login.HyperZoneLoginMain
 import icu.h2l.login.manager.HyperZonePlayerManager
-import icu.h2l.login.player.VelocityHyperZonePlayer
 import net.kyori.adventure.text.Component
 
-class ExitLimboCommand : HyperChatCommandExecutor {
+class ExitVServerCommand : HyperChatCommandExecutor {
     override fun execute(invocation: HyperChatCommandInvocation) {
         val source = invocation.source()
         if (source !is Player) {
@@ -42,8 +42,13 @@ class ExitLimboCommand : HyperChatCommandExecutor {
             return
         }
 
-        (hyperZonePlayer as VelocityHyperZonePlayer).exitLimbo()
-        source.sendMessage(Component.text("§a已尝试退出认证服务器"))
+        val exited = HyperZoneLoginMain.getInstance().serverAdapter?.exitWaitingArea(source) == true
+        if (!exited) {
+            source.sendMessage(Component.text("§e当前不在可退出的认证等待区"))
+            return
+        }
+
+        source.sendMessage(Component.text("§a已尝试退出认证等待区"))
     }
 
     override fun hasPermission(invocation: HyperChatCommandInvocation): Boolean {
