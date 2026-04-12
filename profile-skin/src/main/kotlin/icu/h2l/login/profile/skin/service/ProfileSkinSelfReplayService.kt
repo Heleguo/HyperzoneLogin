@@ -37,6 +37,7 @@ import icu.h2l.api.log.warn
 import icu.h2l.api.player.HyperZonePlayer
 import icu.h2l.api.profile.skin.ProfileSkinTextures
 import icu.h2l.login.profile.skin.config.ProfileSkinConfig
+import icu.h2l.login.profile.skin.db.ProfileSkinCacheRepository
 import java.util.EnumSet
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
@@ -49,21 +50,38 @@ private class SelfSkinReplayState {
 
 class ProfileSkinSelfReplayService(
     private val api: HyperZoneApi,
-    private val config: ProfileSkinConfig
+    private val config: ProfileSkinConfig,
+    private val repository: ProfileSkinCacheRepository
 ) {
     private val replayStates = ConcurrentHashMap<HyperZonePlayer, SelfSkinReplayState>()
 
-    @Subscribe(priority = Short.MIN_VALUE)
+    @Subscribe(priority = (Short.MIN_VALUE + 1).toShort())
     fun onProfileSkinPreprocess(event: ProfileSkinPreprocessEvent) {
         if (!shouldHandleSelfReplay()) return
 
+        /**
+         * 这里的职责仅限于“保存第一次拿到的上游材质”。
+         *
+         * 注意：
+         * 1. 不在这里改写 `ProfileSkinPreprocessEvent.textures`；
+         * 2. 不在这里做 profile 缓存回退；
+         * 3. 不把这里当成通用皮肤决策入口，只把最初拿到的材质快照下来，供后续 self replay 使用。
+         */
         val textures = event.textures ?: return
         if (textures.value.isBlank()) {
             return
         }
 
         val state = stateFor(event.hyperZonePlayer)
-        state.latestTextures.set(textures)
+        state.latestTextures.compareAndSet(null, textures)
+    }
+
+    @Subscribe(priority = Short.MIN_VALUE)
+    fun onProfileSkinPreprocessInitialSend(event: ProfileSkinPreprocessEvent) {
+        if (!shouldHandleSelfReplay()) return
+
+        val state = replayStates[event.hyperZonePlayer] ?: return
+        val textures = state.latestTextures.get()?.takeIf(::canReplayTextures) ?: return
         if (state.selfAddPlayerSent.get()) {
             return
         }
@@ -86,11 +104,12 @@ class ProfileSkinSelfReplayService(
         val hyperZonePlayer = runCatching {
             api.hyperZonePlayers.getByPlayer(event.player())
         }.getOrNull() ?: return
-        val state = replayStates[hyperZonePlayer] ?: return
-        val textures = state.latestTextures.get() ?: return
-        if (textures.value.isBlank()) {
-            return
-        }
+        val state = stateFor(hyperZonePlayer)
+        val textures = resolveReplayTextures(
+            hyperZonePlayer,
+            preferredTextures = state.latestTextures.get()
+        ) ?: return
+        state.latestTextures.set(textures)
 
         val connectedPlayer = event.player() as? ConnectedPlayer ?: return
         sendSelfAddPlayer(
@@ -123,6 +142,27 @@ class ProfileSkinSelfReplayService(
 
     private fun stateFor(hyperZonePlayer: HyperZonePlayer): SelfSkinReplayState {
         return replayStates.computeIfAbsent(hyperZonePlayer) { SelfSkinReplayState() }
+    }
+
+    private fun resolveReplayTextures(
+        hyperZonePlayer: HyperZonePlayer,
+        preferredTextures: ProfileSkinTextures?
+    ): ProfileSkinTextures? {
+        val preferred = preferredTextures?.takeIf(::canReplayTextures)
+        if (preferred != null) {
+            return preferred
+        }
+
+        val profileId = hyperZonePlayer.getDBProfile()?.id ?: return null
+        val cached = repository.findByProfileId(profileId)?.textures?.takeIf(::canReplayTextures) ?: return null
+        debug {
+            "[ProfileSkinFlow] self replay fallback to cached profile textures: player=${hyperZonePlayer.userName}, profile=$profileId, valueLength=${cached.value.length}, signed=${cached.isSigned}"
+        }
+        return cached
+    }
+
+    private fun canReplayTextures(textures: ProfileSkinTextures): Boolean {
+        return textures.value.isNotBlank() && textures.toPropertyOrNull() != null
     }
 
     private fun sendSelfAddPlayer(

@@ -51,7 +51,7 @@ class ProfileSkinSubModule : HyperSubModule {
         tableManager = ProfileSkinCacheTableManager(databaseManager, table)
         repository = ProfileSkinCacheRepository(databaseManager, table)
         service = ProfileSkinService(config, repository)
-        selfReplayService = ProfileSkinSelfReplayService(api, config)
+        selfReplayService = ProfileSkinSelfReplayService(api, config, repository)
 
         tableManager.createTable()
         proxy.eventManager.register(api, tableManager)

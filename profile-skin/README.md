@@ -11,6 +11,7 @@
 - 当 MineSkin 的 URL 模式无法直接读取源图（例如返回 `invalid_image` / `Invalid image file size: undefined`）时，可自动退回上传模式重试
 - 将结果缓存到数据库表 `profile_skin_cache`
 - 在 `ProfileSkinPreprocessEvent` 阶段记录最近一次可用的 self `textures`，并在连接可写时直接补发一次 self `ADD_PLAYER`
+- 当上游初始 `textures` 缺失或不可用于补发时，若玩家已经绑定 `profile`，则回退到该 `profile` 的缓存皮肤继续补发 self `ADD_PLAYER`
 - 在 `PlayerFinishConfigurationEvent` 后根据最近缓存的 self `textures` 再 replay 一次 self `ADD_PLAYER`，避免 vanilla 客户端切换 configuration 生命周期后丢失自己的皮肤资料
 - 在 `ToBackendPacketReplacer` 与 `GameProfileRequestEvent` 的最终替换阶段，通过 `ProfileSkinApplyEvent` 将缓存后的 `textures` 注入最终档案
 
