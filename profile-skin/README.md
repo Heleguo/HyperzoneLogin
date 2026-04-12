@@ -57,13 +57,14 @@
 
 - `profile_id`
 - `source_hash`
+- `source_cache_eligible`
 - `skin_url`
 - `skin_model`
 - `texture_value`
 - `texture_signature`
 - `updated_at`
 
-说明：当前没有单独的“镜像 URL 映射表”。原因是 `profile_skin_cache` 已经通过 `source_hash = SHA-256(originalSkinUrl|model)` 缓存恢复后的 `textures`，因此同一原始源图 URL 在后续玩家命中时，会直接复用恢复结果，而不需要再次让 MineSkin 访问原地址。
+说明：当前没有单独的“镜像 URL 映射表”。原因是 `profile_skin_cache` 已经通过 `source_hash = SHA-256(originalSkinUrl|model)` 缓存恢复后的 `textures`，并借助 `source_cache_eligible` 区分“可作为同源复用缓存的已恢复/可信结果”和“仅供当前 profile 回退使用的 fallback 结果”。因此同一原始源图 URL 在后续玩家命中时，会直接复用可复用缓存，而不需要再次让 MineSkin 访问原地址。
 
 ## 接入链路
 

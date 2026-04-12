@@ -32,9 +32,11 @@ class ProfileSkinCacheTableManager(
     private val databaseManager: HyperZoneDatabaseManager,
     val table: ProfileSkinCacheTable
 ) {
+    @Suppress("DEPRECATION")
     fun createTable() {
         databaseManager.executeTransaction {
-            SchemaUtils.create(table)
+            // 这里先用 Exposed 的补表补列能力平滑升级既有安装，后续如引入正式迁移框架再替换。
+            SchemaUtils.createMissingTablesAndColumns(table)
         }
     }
 

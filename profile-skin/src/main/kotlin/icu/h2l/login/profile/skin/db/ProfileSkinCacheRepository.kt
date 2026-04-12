@@ -33,11 +33,16 @@ import java.util.UUID
 data class ProfileSkinCacheRecord(
     val profileId: UUID,
     val sourceHash: String?,
+    val sourceCacheEligible: Boolean?,
     val skinUrl: String?,
     val skinModel: String?,
     val textures: ProfileSkinTextures,
     val updatedAt: Long
 )
+
+internal fun isEligibleForSourceCache(record: ProfileSkinCacheRecord): Boolean {
+    return record.sourceCacheEligible != false
+}
 
 internal fun hasSourceChanged(
     existing: ProfileSkinCacheRecord,
@@ -73,17 +78,26 @@ internal fun hasTexturesChanged(
     return existing.textures.value != textures.value || existing.textures.signature != textures.signature
 }
 
+internal fun hasSourceCacheEligibilityChanged(
+    existing: ProfileSkinCacheRecord,
+    sourceCacheEligible: Boolean
+): Boolean {
+    return existing.sourceCacheEligible != sourceCacheEligible
+}
+
 internal fun shouldSkipSave(
     existing: ProfileSkinCacheRecord?,
     source: ProfileSkinSource?,
     textures: ProfileSkinTextures,
-    sourceHash: String?
+    sourceHash: String?,
+    sourceCacheEligible: Boolean
 ): Boolean {
     if (existing == null) {
         return false
     }
     return !hasSourceChanged(existing, source, sourceHash)
             && !hasTexturesChanged(existing, textures)
+            && !hasSourceCacheEligibilityChanged(existing, sourceCacheEligible)
 }
 
 class ProfileSkinCacheRepository(
@@ -104,6 +118,7 @@ class ProfileSkinCacheRepository(
                     ProfileSkinCacheRecord(
                         profileId = row[table.profileId],
                         sourceHash = row[table.sourceHash],
+                        sourceCacheEligible = row[table.sourceCacheEligible],
                         skinUrl = row[table.skinUrl],
                         skinModel = row[table.skinModel],
                         textures = ProfileSkinTextures(
@@ -120,11 +135,11 @@ class ProfileSkinCacheRepository(
     fun findBySourceHash(sourceHash: String): ProfileSkinCacheRecord? {
         return databaseManager.executeTransaction {
             table.selectAll().where { table.sourceHash eq sourceHash }
-                .limit(1)
                 .map { row ->
                     ProfileSkinCacheRecord(
                         profileId = row[table.profileId],
                         sourceHash = row[table.sourceHash],
+                        sourceCacheEligible = row[table.sourceCacheEligible],
                         skinUrl = row[table.skinUrl],
                         skinModel = row[table.skinModel],
                         textures = ProfileSkinTextures(
@@ -134,13 +149,20 @@ class ProfileSkinCacheRepository(
                         updatedAt = row[table.updatedAt]
                     )
                 }
-                .firstOrNull()
+                .filter(::isEligibleForSourceCache)
+                .maxByOrNull(ProfileSkinCacheRecord::updatedAt)
         }
     }
 
-    fun save(profileId: UUID, source: ProfileSkinSource?, textures: ProfileSkinTextures, sourceHash: String?): SaveResult {
+    fun save(
+        profileId: UUID,
+        source: ProfileSkinSource?,
+        textures: ProfileSkinTextures,
+        sourceHash: String?,
+        sourceCacheEligible: Boolean
+    ): SaveResult {
         val existing = findByProfileId(profileId)
-        if (shouldSkipSave(existing, source, textures, sourceHash)) {
+        if (shouldSkipSave(existing, source, textures, sourceHash, sourceCacheEligible)) {
             return SaveResult.SKIPPED
         }
 
@@ -150,6 +172,7 @@ class ProfileSkinCacheRepository(
                     table.insert {
                         it[table.profileId] = profileId
                         it[table.sourceHash] = sourceHash
+                        it[table.sourceCacheEligible] = sourceCacheEligible
                         it[skinUrl] = source?.skinUrl
                         it[skinModel] = source?.model
                         it[textureValue] = textures.value
@@ -168,6 +191,7 @@ class ProfileSkinCacheRepository(
             databaseManager.executeTransaction {
                 table.update({ table.profileId eq profileId }) {
                     it[table.sourceHash] = sourceHash
+                        it[table.sourceCacheEligible] = sourceCacheEligible
                     it[skinUrl] = source?.skinUrl
                     it[skinModel] = source?.model
                     it[textureValue] = textures.value

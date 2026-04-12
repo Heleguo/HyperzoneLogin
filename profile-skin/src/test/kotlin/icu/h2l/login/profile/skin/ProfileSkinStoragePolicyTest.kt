@@ -24,6 +24,7 @@ package icu.h2l.login.profile.skin
 import icu.h2l.api.profile.skin.ProfileSkinSource
 import icu.h2l.api.profile.skin.ProfileSkinTextures
 import icu.h2l.login.profile.skin.db.ProfileSkinCacheRecord
+import icu.h2l.login.profile.skin.db.isEligibleForSourceCache
 import icu.h2l.login.profile.skin.db.shouldSkipSave
 import icu.h2l.login.profile.skin.service.sanitizeFallbackSourceHash
 import icu.h2l.login.profile.skin.service.sanitizeFallbackTextures
@@ -37,7 +38,7 @@ import org.junit.jupiter.api.Test
 
 class ProfileSkinStoragePolicyTest {
     @Test
-    fun `forced restore fallback preserves original signed textures and disables source cache`() {
+    fun `forced restore fallback preserves original signed textures but still allows source cache lookup`() {
         val upstream = ProfileSkinTextures(
             value = "base64-textures",
             signature = "bad-signature"
@@ -47,7 +48,7 @@ class ProfileSkinStoragePolicyTest {
 
         assertEquals(upstream, fallback)
         assertNull(sanitizeFallbackSourceHash("source-hash", shouldForceRestoreSignedTextures = true))
-        assertFalse(shouldUseSourceCache(shouldForceRestoreSignedTextures = true))
+        assertTrue(shouldUseSourceCache(shouldForceRestoreSignedTextures = true))
     }
 
     @Test
@@ -55,6 +56,7 @@ class ProfileSkinStoragePolicyTest {
         val existing = ProfileSkinCacheRecord(
             profileId = UUID.randomUUID(),
             sourceHash = "source-hash",
+            sourceCacheEligible = true,
             skinUrl = "https://textures.example/skin.png",
             skinModel = "classic",
             textures = ProfileSkinTextures(
@@ -72,7 +74,15 @@ class ProfileSkinStoragePolicyTest {
             signature = "bad-signature"
         )
 
-        assertFalse(shouldSkipSave(existing, source, fallback, sourceHash = null))
+        assertFalse(
+            shouldSkipSave(
+                existing = existing,
+                source = source,
+                textures = fallback,
+                sourceHash = null,
+                sourceCacheEligible = false
+            )
+        )
     }
 
     @Test
@@ -80,6 +90,7 @@ class ProfileSkinStoragePolicyTest {
         val existing = ProfileSkinCacheRecord(
             profileId = UUID.randomUUID(),
             sourceHash = "source-hash",
+            sourceCacheEligible = true,
             skinUrl = "https://textures.example/skin.png",
             skinModel = "classic",
             textures = ProfileSkinTextures(
@@ -98,9 +109,28 @@ class ProfileSkinStoragePolicyTest {
                 existing,
                 source,
                 ProfileSkinTextures(value = "base64-textures", signature = null),
-                sourceHash = "source-hash"
+                sourceHash = "source-hash",
+                sourceCacheEligible = true
             )
         )
+    }
+
+    @Test
+    fun `legacy source cache rows remain eligible for lookup`() {
+        val legacy = ProfileSkinCacheRecord(
+            profileId = UUID.randomUUID(),
+            sourceHash = "source-hash",
+            sourceCacheEligible = null,
+            skinUrl = "https://textures.example/skin.png",
+            skinModel = "classic",
+            textures = ProfileSkinTextures(
+                value = "base64-textures",
+                signature = "signed-value"
+            ),
+            updatedAt = 1L
+        )
+
+        assertTrue(isEligibleForSourceCache(legacy))
     }
 }
 

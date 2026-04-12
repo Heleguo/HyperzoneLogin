@@ -27,6 +27,7 @@ import org.jetbrains.exposed.sql.Table
 class ProfileSkinCacheTable(prefix: String, profileTable: ProfileTable) : Table("${prefix}profile_skin_cache") {
     val profileId = uuid("profile_id").references(profileTable.id).uniqueIndex()
     val sourceHash = varchar("source_hash", 64).nullable()
+    val sourceCacheEligible = bool("source_cache_eligible").nullable()
     val skinUrl = varchar("skin_url", 1024).nullable()
     val skinModel = varchar("skin_model", 16).nullable()
     val textureValue = text("texture_value")

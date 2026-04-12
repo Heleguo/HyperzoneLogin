@@ -73,8 +73,17 @@ internal fun shouldRetryUploadAfterUrlReadFailure(statusCode: Int, body: String)
             && error?.contains("Invalid image file size: undefined", ignoreCase = true) == true
 }
 
+@Suppress("UNUSED_PARAMETER")
 internal fun shouldUseSourceCache(shouldForceRestoreSignedTextures: Boolean): Boolean {
-    return !shouldForceRestoreSignedTextures
+    /**
+     * 现在 source cache 是否可复用由数据库中的 `source_cache_eligible` 明确控制，
+     * 因此即使是“上游 signed 但不可信，需要强制修复”的场景，也应该先尝试命中同源已恢复缓存，
+     * 避免对 MineSkin 重复请求并触发 429。
+     */
+    if (shouldForceRestoreSignedTextures) {
+        return true
+    }
+    return true
 }
 
 internal fun sanitizeFallbackTextures(
@@ -129,7 +138,13 @@ class ProfileSkinService(
 
         if (shouldTrustSignedTextures) {
             logSaveResult(
-                repository.save(profileId, source, upstreamTextures, sourceHash),
+                repository.save(
+                    profileId = profileId,
+                    source = source,
+                    textures = upstreamTextures,
+                    sourceHash = sourceHash,
+                    sourceCacheEligible = true
+                ),
                 profileId,
                 source,
                 sourceHash,
@@ -149,7 +164,13 @@ class ProfileSkinService(
             if (shouldUseSourceCache(shouldForceRestoreSignedTextures)) {
             repository.findBySourceHash(sourceHash!!)?.let { cached ->
                 logSaveResult(
-                    repository.save(profileId, source, cached.textures, sourceHash),
+                    repository.save(
+                        profileId = profileId,
+                        source = source,
+                        textures = cached.textures,
+                        sourceHash = sourceHash,
+                        sourceCacheEligible = true
+                    ),
                     profileId,
                     source,
                     sourceHash,
@@ -164,7 +185,13 @@ class ProfileSkinService(
                 restoreTextures(source)
             }.onSuccess { restored ->
                 logSaveResult(
-                    repository.save(profileId, source, restored, sourceHash),
+                    repository.save(
+                        profileId = profileId,
+                        source = source,
+                        textures = restored,
+                        sourceHash = sourceHash,
+                        sourceCacheEligible = true
+                    ),
                     profileId,
                     source,
                     sourceHash,
@@ -186,7 +213,13 @@ class ProfileSkinService(
                 }
             }
             logSaveResult(
-                repository.save(profileId, source, fallbackTextures, fallbackSourceHash),
+                repository.save(
+                    profileId = profileId,
+                    source = source,
+                    textures = fallbackTextures,
+                    sourceHash = fallbackSourceHash,
+                    sourceCacheEligible = false
+                ),
                 profileId,
                 source,
                 fallbackSourceHash,
