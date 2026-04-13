@@ -69,8 +69,6 @@ object OfflineAuthMessages {
         get() = render("register.bind-denied", "${PREFIX}§c检测到你已有档案，但当前未完成其他验证，暂时无法设置离线密码")
     val REGISTER_BIND_PROFILE_MISSING: Component
         get() = render("register.bind-profile-missing", "${PREFIX}§c未找到已关联档案，暂时无法设置离线密码")
-    val REGISTER_BIND_HINT: Component
-        get() = render("register.bind-hint", "${PREFIX}§e检测到你已有档案，可直接使用 /register <密码> <再次输入密码> 设置离线密码")
     val REGISTER_BIND_PENDING: Component
         get() = render("register.bind-pending", "§a注册成功，但当前名称无法直接分配档案。若要继续新建档案，请使用 /rename <新注册名>；若要绑定已有档案，请使用 /bindcode use <绑定码>")
     val REGISTER_BIND_PENDING_ERROR: Component

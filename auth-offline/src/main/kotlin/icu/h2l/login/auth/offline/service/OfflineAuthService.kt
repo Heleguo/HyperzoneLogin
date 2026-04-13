@@ -553,9 +553,6 @@ class OfflineAuthService(
             }
 
             prompts += OfflineAuthMessages.REGISTER_REQUEST
-            if (!profileService.canCreate(registrationName)) {
-                prompts += OfflineAuthMessages.REGISTER_BIND_HINT
-            }
             return prompts
         }
 

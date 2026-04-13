@@ -186,7 +186,7 @@ class OfflineAuthServiceRegisterTest {
     }
 
     @Test
-    fun `join prompts tell attached players to use register for automatic binding`() {
+    fun `join prompts no longer advertise direct register binding when creation is unavailable`() {
         insertProfile()
 
         every { hyperZonePlayer.isInWaitingArea() } returns true
@@ -197,7 +197,7 @@ class OfflineAuthServiceRegisterTest {
         val prompts = service.getJoinPrompts(player)
 
         assertTrue(prompts.contains(OfflineAuthMessages.REGISTER_REQUEST))
-        assertTrue(prompts.contains(OfflineAuthMessages.REGISTER_BIND_HINT))
+        assertEquals(1, prompts.size)
     }
 
     @Test
