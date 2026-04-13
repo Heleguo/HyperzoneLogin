@@ -23,7 +23,9 @@ import org.gradle.api.tasks.Sync
 import org.gradle.jvm.tasks.Jar
 import org.gradle.language.jvm.tasks.ProcessResources
 import java.io.File
+import java.time.LocalDate
 import java.time.YearMonth
+import java.time.temporal.WeekFields
 
 plugins {
     base
@@ -34,6 +36,7 @@ plugins {
 enum class ReleaseChannel(val suffix: String) {
     STABLE(""),
     RC("-RC"),
+    WEEKLY("-WEEKLY"),
     SNAPSHOT("-SNAPSHOT"),
 }
 
@@ -127,7 +130,24 @@ fun normalizeGitIdentifier(raw: String?): String? = raw
     ?.ifBlank { null }
     ?.let { value -> if (value.length > 8) value.take(8) else value }
 
+fun formatBaseVersion(
+    releaseChannel: ReleaseChannel,
+    versionPatch: Int,
+    monthlyClock: YearMonth,
+    weeklyClock: LocalDate,
+): String = when (releaseChannel) {
+    ReleaseChannel.WEEKLY -> {
+        val isoWeekFields = WeekFields.ISO
+        val weekBasedYear = weeklyClock.get(isoWeekFields.weekBasedYear()) % 100
+        val weekOfYear = weeklyClock.get(isoWeekFields.weekOfWeekBasedYear())
+        "%02d.W%02d.%d".format(weekBasedYear, weekOfYear, versionPatch)
+    }
+
+    else -> "${monthlyClock.year % 100}.${monthlyClock.monthValue}.$versionPatch"
+}
+
 val versionClock: YearMonth = YearMonth.now()
+val weeklyVersionClock: LocalDate = LocalDate.now()
 val versionPatch = requireStringProperty("versionPatch").toIntOrNull()
     ?.takeIf { it > 0 }
     ?: error("Property 'versionPatch' must be a positive integer.")
@@ -136,7 +156,7 @@ val releaseChannel = runCatching {
 }.getOrElse {
     error("Property 'releaseChannel' must be one of: ${ReleaseChannel.entries.joinToString()}.")
 }
-val baseVersion = "${versionClock.year % 100}.${versionClock.monthValue}.$versionPatch"
+val baseVersion = formatBaseVersion(releaseChannel, versionPatch, versionClock, weeklyVersionClock)
 val gitIdentifier = normalizeGitIdentifier(resolveGitCommitId())
 val computedVersion = buildString {
     append(baseVersion)

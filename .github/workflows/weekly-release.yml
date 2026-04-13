@@ -38,7 +38,7 @@ jobs:
           echo "name=HyperZoneLogin $TAG" >> "$GITHUB_OUTPUT"
 
       - name: Build plugin jars
-        run: ./gradlew clean build
+        run: ./gradlew clean build -PreleaseChannel=WEEKLY
 
       - name: Update weekly tag
         run: |
