@@ -29,6 +29,7 @@ dependencies {
     compileOnly(libs.velocityApi)
     compileOnly(libs.floodgateApi)
     compileOnly(libs.nettyAll)
+    compileOnly(libs.configurateHocon)
 
     testImplementation(platform(libs.junitBom))
     testImplementation(libs.junitJupiter)

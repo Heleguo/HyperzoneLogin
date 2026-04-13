@@ -24,6 +24,7 @@ package icu.h2l.login.auth.floodgate
 import icu.h2l.api.HyperZoneApi
 import icu.h2l.api.log.info
 import icu.h2l.api.module.HyperSubModule
+import icu.h2l.login.auth.floodgate.config.FloodgateAuthConfigLoader
 import icu.h2l.login.auth.floodgate.listener.FloodgateGameProfileListener
 import icu.h2l.login.auth.floodgate.listener.FloodgateVServerAuthListener
 import icu.h2l.login.auth.floodgate.service.FloodgateApiHolder
@@ -32,10 +33,13 @@ import icu.h2l.login.auth.floodgate.service.FloodgateSessionHolder
 
 class FloodgateSubModule : HyperSubModule {
     override fun register(api: HyperZoneApi) {
-        val authService = FloodgateAuthService(api, FloodgateApiHolder(), FloodgateSessionHolder())
+        val config = FloodgateAuthConfigLoader.load(api.dataDirectory)
+        val authService = FloodgateAuthService(api, FloodgateApiHolder(), FloodgateSessionHolder(), config = config)
         api.proxy.eventManager.register(api, FloodgateGameProfileListener(authService))
         api.proxy.eventManager.register(api, FloodgateVServerAuthListener(authService))
-        info { "FloodgateSubModule 已加载；该渠道会跳过 HZL 自订的 OpenPreLogin/OpenStartAuth，因此已注册初始档案接管与后置认证监听器" }
+        info {
+            "FloodgateSubModule 已加载；该渠道会跳过 HZL 自订的 OpenPreLogin/OpenStartAuth，因此已注册初始档案接管与后置认证监听器；自动去除 Floodgate API 玩家名前缀=${config.stripUsernamePrefix}；Profile 解析透传 Floodgate UUID=${config.passFloodgateUuidToProfileResolve}"
+        }
     }
 }
 

@@ -25,6 +25,7 @@ import icu.h2l.api.HyperZoneApi
 import icu.h2l.api.player.HyperZonePlayer
 import icu.h2l.api.profile.HyperZoneProfileService
 import icu.h2l.api.profile.HyperZoneProfileServiceProvider
+import icu.h2l.login.auth.floodgate.config.FloodgateAuthConfig
 import icu.h2l.login.auth.floodgate.credential.FloodgateHyperZoneCredential
 import io.netty.channel.Channel
 import java.util.UUID
@@ -33,6 +34,7 @@ class FloodgateAuthService(
     private val api: HyperZoneApi,
     private val floodgateApiHolder: FloodgateApiHolder,
     private val sessionHolder: FloodgateSessionHolder,
+    private val config: FloodgateAuthConfig = FloodgateAuthConfig(),
     private val profileService: HyperZoneProfileService = HyperZoneProfileServiceProvider.get()
 ) {
     private val logger = java.util.logging.Logger.getLogger("hzl-auth-floodgate")
@@ -58,14 +60,16 @@ class FloodgateAuthService(
             return VerifyResult.NotFloodgate
         }
 
-        sessionHolder.remember(channel, userName, userUUID)
+        val normalizedUserName = normalizeUserName(userName)
+
+        sessionHolder.remember(channel, normalizedUserName, userUUID)
 
         try {
-            api.hyperZonePlayers.create(channel, userName, userUUID, FLOODGATE_CHANNEL_PLACEHOLDER_MODE)
+            api.hyperZonePlayers.create(channel, normalizedUserName, userUUID, FLOODGATE_CHANNEL_PLACEHOLDER_MODE)
         } catch (throwable: Throwable) {
             val isDuplicateCreate = throwable.message?.contains("重复创建 HyperZonePlayer") == true
             if (!isDuplicateCreate) {
-                logger.warning("Floodgate 玩家 $userName($userUUID) 初始化登录对象失败: ${throwable.message}")
+                logger.warning("Floodgate 玩家 $normalizedUserName($userUUID) 初始化登录对象失败: ${throwable.message}")
                 sessionHolder.remove(channel)
                 return VerifyResult.Failed("Floodgate 登录失败：登录对象初始化失败。")
             }
@@ -83,7 +87,11 @@ class FloodgateAuthService(
         return try {
             if (session != null && findCredential(hyperZonePlayer, session.userUUID) == null) {
                 val knownProfileId = profileService.getAttachedProfile(hyperZonePlayer)?.id
-                    ?: profileService.resolveOrCreateProfile(hyperZonePlayer, session.userName, session.userUUID).id
+                    ?: profileService.resolveOrCreateProfile(
+                        hyperZonePlayer,
+                        session.userName,
+                        resolveProfileUuid(session.userUUID)
+                    ).id
                 hyperZonePlayer.submitCredential(
                     FloodgateHyperZoneCredential(
                         trustedName = session.userName,
@@ -118,6 +126,24 @@ class FloodgateAuthService(
 
     fun clear(channel: Channel) {
         sessionHolder.remove(channel)
+    }
+
+    private fun normalizeUserName(userName: String): String {
+        if (!config.stripUsernamePrefix) {
+            return userName
+        }
+
+        val playerPrefix = floodgateApiHolder.getPlayerPrefix()
+        if (playerPrefix.isBlank() || !userName.startsWith(playerPrefix)) {
+            return userName
+        }
+
+        val stripped = userName.removePrefix(playerPrefix)
+        return stripped.ifEmpty { userName }
+    }
+
+    private fun resolveProfileUuid(userUUID: UUID): UUID? {
+        return if (config.passFloodgateUuidToProfileResolve) userUUID else null
     }
 
     companion object {

@@ -19,20 +19,17 @@
  *
  */
 
-package icu.h2l.login.auth.floodgate.service
+package icu.h2l.login.auth.floodgate.config
 
-import org.geysermc.floodgate.api.FloodgateApi
-import java.util.UUID
+import org.spongepowered.configurate.objectmapping.ConfigSerializable
+import org.spongepowered.configurate.objectmapping.meta.Comment
 
-open class FloodgateApiHolder(
-    private val api: FloodgateApi = FloodgateApi.getInstance()
-) {
-    open fun isFloodgatePlayer(uuid: UUID): Boolean {
-        return api.isFloodgatePlayer(uuid)
-    }
+@ConfigSerializable
+class FloodgateAuthConfig {
+    @Comment("是否自动去除 Floodgate API 当前返回的玩家名前缀")
+    var stripUsernamePrefix: Boolean = true
 
-    open fun getPlayerPrefix(): String {
-        return api.playerPrefix
-    }
+    @Comment("是否在 resolveOrCreateProfile 时透传 Floodgate 原始 UUID；关闭后改传 null")
+    var passFloodgateUuidToProfileResolve: Boolean = true
 }
 

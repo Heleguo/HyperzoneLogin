@@ -27,8 +27,8 @@ import icu.h2l.api.player.HyperZonePlayer
 import icu.h2l.api.player.HyperZonePlayerAccessor
 import icu.h2l.api.profile.HyperZoneCredential
 import icu.h2l.api.profile.HyperZoneProfileService
+import icu.h2l.login.auth.floodgate.config.FloodgateAuthConfig
 import icu.h2l.login.auth.floodgate.credential.FloodgateHyperZoneCredential
-import org.geysermc.floodgate.api.FloodgateApi
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
@@ -48,8 +48,7 @@ import java.util.UUID
 class FloodgateAuthServiceTest {
     private lateinit var api: HyperZoneApi
     private lateinit var playerAccessor: HyperZonePlayerAccessor
-    private lateinit var floodgateApiHolder: FloodgateApiHolder
-    private lateinit var floodgatePlayers: MutableSet<UUID>
+    private lateinit var floodgateApiHolder: FakeFloodgateApiHolder
     private lateinit var profileService: HyperZoneProfileService
     private lateinit var sessionHolder: FloodgateSessionHolder
     private lateinit var service: FloodgateAuthService
@@ -59,12 +58,7 @@ class FloodgateAuthServiceTest {
     fun setUp() {
         api = mockk(relaxed = true)
         playerAccessor = mockk()
-        floodgatePlayers = mutableSetOf()
-        floodgateApiHolder = object : FloodgateApiHolder(mockk<FloodgateApi>(relaxed = true)) {
-            override fun isFloodgatePlayer(uuid: UUID): Boolean {
-                return uuid in floodgatePlayers
-            }
-        }
+        floodgateApiHolder = FakeFloodgateApiHolder()
         profileService = mockk()
         sessionHolder = FloodgateSessionHolder()
         channel = mockk()
@@ -91,13 +85,14 @@ class FloodgateAuthServiceTest {
     }
 
     @Test
-    fun `acceptInitialProfile creates login player and remembers floodgate session`() {
+    fun `acceptInitialProfile strips default floodgate prefix by default`() {
         val userUuid = UUID.fromString("22222222-2222-2222-2222-222222222222")
         val hyperPlayer = mockk<HyperZonePlayer>(relaxed = true)
-        floodgatePlayers += userUuid
+        floodgateApiHolder.configuredPlayerPrefix = "."
+        floodgateApiHolder.trustedUuids += userUuid
         every { playerAccessor.create(channel, "BedrockUser", userUuid, any()) } returns hyperPlayer
 
-        val result = service.acceptInitialProfile(channel, "BedrockUser", userUuid)
+        val result = service.acceptInitialProfile(channel, ".BedrockUser", userUuid)
 
         assertSame(FloodgateAuthService.VerifyResult.Accepted, result)
         val remembered = sessionHolder.get(channel)
@@ -108,14 +103,42 @@ class FloodgateAuthServiceTest {
     }
 
     @Test
-    fun `complete submits floodgate credential verifies player and clears session`() {
+    fun `acceptInitialProfile keeps prefix when strip config is disabled`() {
+        val userUuid = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+        val hyperPlayer = mockk<HyperZonePlayer>(relaxed = true)
+        val disabledSessionHolder = FloodgateSessionHolder()
+        val disabledConfig = FloodgateAuthConfig().apply { stripUsernamePrefix = false }
+        val disabledService = FloodgateAuthService(
+            api = api,
+            floodgateApiHolder = floodgateApiHolder,
+            sessionHolder = disabledSessionHolder,
+            config = disabledConfig,
+            profileService = profileService
+        )
+        floodgateApiHolder.configuredPlayerPrefix = "."
+        floodgateApiHolder.trustedUuids += userUuid
+        every { playerAccessor.create(channel, ".BedrockUser", userUuid, any()) } returns hyperPlayer
+
+        val result = disabledService.acceptInitialProfile(channel, ".BedrockUser", userUuid)
+
+        assertSame(FloodgateAuthService.VerifyResult.Accepted, result)
+        val remembered = disabledSessionHolder.get(channel)
+        assertNotNull(remembered)
+        assertEquals(".BedrockUser", remembered!!.userName)
+        verify(exactly = 1) { playerAccessor.create(channel, ".BedrockUser", userUuid, any()) }
+    }
+
+    @Test
+    fun `complete submits floodgate credential verifies player and clears normalized session`() {
         val userUuid = UUID.fromString("33333333-3333-3333-3333-333333333333")
         val profileId = UUID.fromString("44444444-4444-4444-4444-444444444444")
         val resolvedProfile = Profile(profileId, "BedrockUser", userUuid)
         val submittedCredentials = mutableListOf<HyperZoneCredential>()
         val hyperPlayer = mockk<HyperZonePlayer>()
 
-        sessionHolder.remember(channel, "BedrockUser", userUuid)
+        floodgateApiHolder.configuredPlayerPrefix = "."
+        floodgateApiHolder.trustedUuids += userUuid
+        every { playerAccessor.create(channel, "BedrockUser", userUuid, any()) } returns hyperPlayer
         every { hyperPlayer.clientOriginalName } returns "BedrockUser"
         every { hyperPlayer.getSubmittedCredentials() } answers { submittedCredentials.toList() }
         every { hyperPlayer.submitCredential(any()) } answers {
@@ -125,8 +148,11 @@ class FloodgateAuthServiceTest {
         every { profileService.getAttachedProfile(hyperPlayer) } returns null
         every { profileService.resolveOrCreateProfile(hyperPlayer, "BedrockUser", userUuid) } returns resolvedProfile
 
+        val acceptResult = service.acceptInitialProfile(channel, ".BedrockUser", userUuid)
+
         val result = service.complete(channel, hyperPlayer)
 
+        assertSame(FloodgateAuthService.VerifyResult.Accepted, acceptResult)
         assertTrue(result.handled)
         assertTrue(result.passed)
         assertNull(result.userMessage)
@@ -136,6 +162,76 @@ class FloodgateAuthServiceTest {
         assertEquals(profileId, credential.getBoundProfileId())
         assertTrue(credential.matches(userUuid))
         verify(exactly = 1) { hyperPlayer.overVerify() }
+        verify(exactly = 1) { profileService.resolveOrCreateProfile(hyperPlayer, "BedrockUser", userUuid) }
+    }
+
+    @Test
+    fun `complete passes null to profile resolve when floodgate uuid passthrough is disabled`() {
+        val userUuid = UUID.fromString("55555555-5555-5555-5555-555555555555")
+        val profileId = UUID.fromString("66666666-6666-6666-6666-666666666666")
+        val resolvedProfile = Profile(profileId, "BedrockUser", userUuid)
+        val submittedCredentials = mutableListOf<HyperZoneCredential>()
+        val hyperPlayer = mockk<HyperZonePlayer>()
+        val disabledConfig = FloodgateAuthConfig().apply { passFloodgateUuidToProfileResolve = false }
+        val disabledService = FloodgateAuthService(
+            api = api,
+            floodgateApiHolder = floodgateApiHolder,
+            sessionHolder = sessionHolder,
+            config = disabledConfig,
+            profileService = profileService
+        )
+
+        floodgateApiHolder.configuredPlayerPrefix = "."
+        floodgateApiHolder.trustedUuids += userUuid
+        every { playerAccessor.create(channel, "BedrockUser", userUuid, any()) } returns hyperPlayer
+        every { hyperPlayer.clientOriginalName } returns "BedrockUser"
+        every { hyperPlayer.getSubmittedCredentials() } answers { submittedCredentials.toList() }
+        every { hyperPlayer.submitCredential(any()) } answers {
+            submittedCredentials += firstArg<HyperZoneCredential>()
+        }
+        every { hyperPlayer.overVerify() } just runs
+        every { profileService.getAttachedProfile(hyperPlayer) } returns null
+        every { profileService.resolveOrCreateProfile(hyperPlayer, "BedrockUser", null) } returns resolvedProfile
+
+        val acceptResult = disabledService.acceptInitialProfile(channel, ".BedrockUser", userUuid)
+
+        val result = disabledService.complete(channel, hyperPlayer)
+
+        assertSame(FloodgateAuthService.VerifyResult.Accepted, acceptResult)
+        assertTrue(result.handled)
+        assertTrue(result.passed)
+        verify(exactly = 1) { profileService.resolveOrCreateProfile(hyperPlayer, "BedrockUser", null) }
+        verify(exactly = 0) { profileService.resolveOrCreateProfile(hyperPlayer, "BedrockUser", userUuid) }
+    }
+
+    @Test
+    fun `acceptInitialProfile strips custom floodgate prefix returned by api`() {
+        val userUuid = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
+        val hyperPlayer = mockk<HyperZonePlayer>(relaxed = true)
+        floodgateApiHolder.configuredPlayerPrefix = "fg_"
+        floodgateApiHolder.trustedUuids += userUuid
+        every { playerAccessor.create(channel, "BedrockUser", userUuid, any()) } returns hyperPlayer
+
+        val result = service.acceptInitialProfile(channel, "fg_BedrockUser", userUuid)
+
+        assertSame(FloodgateAuthService.VerifyResult.Accepted, result)
+        assertEquals("BedrockUser", sessionHolder.get(channel)?.userName)
+        verify(exactly = 1) { playerAccessor.create(channel, "BedrockUser", userUuid, any()) }
+    }
+
+    @Test
+    fun `acceptInitialProfile keeps username unchanged when floodgate api prefix is blank`() {
+        val userUuid = UUID.fromString("cccccccc-cccc-cccc-cccc-cccccccccccc")
+        val hyperPlayer = mockk<HyperZonePlayer>(relaxed = true)
+        floodgateApiHolder.configuredPlayerPrefix = ""
+        floodgateApiHolder.trustedUuids += userUuid
+        every { playerAccessor.create(channel, ".BedrockUser", userUuid, any()) } returns hyperPlayer
+
+        val result = service.acceptInitialProfile(channel, ".BedrockUser", userUuid)
+
+        assertSame(FloodgateAuthService.VerifyResult.Accepted, result)
+        assertEquals(".BedrockUser", sessionHolder.get(channel)?.userName)
+        verify(exactly = 1) { playerAccessor.create(channel, ".BedrockUser", userUuid, any()) }
     }
 
     @Test
@@ -147,6 +243,19 @@ class FloodgateAuthServiceTest {
 
         assertFalse(result.handled)
         assertFalse(result.passed)
+    }
+
+    private class FakeFloodgateApiHolder : FloodgateApiHolder(mockk(relaxed = true)) {
+        val trustedUuids = mutableSetOf<UUID>()
+        var configuredPlayerPrefix: String = "."
+
+        override fun isFloodgatePlayer(uuid: UUID): Boolean {
+            return uuid in trustedUuids
+        }
+
+        override fun getPlayerPrefix(): String {
+            return configuredPlayerPrefix
+        }
     }
 }
 
