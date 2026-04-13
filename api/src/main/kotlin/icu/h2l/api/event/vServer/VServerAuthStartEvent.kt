@@ -24,9 +24,18 @@ package icu.h2l.api.event.vServer
 import com.velocitypowered.api.proxy.Player
 import icu.h2l.api.player.HyperZonePlayer
 
+/**
+ * 玩家进入等待区实现并开始认证流程前触发的事件。
+ *
+ * @property proxyPlayer 当前代理层玩家对象
+ * @property hyperZonePlayer 当前登录态玩家对象
+ */
 class VServerAuthStartEvent(
     val proxyPlayer: Player,
     val hyperZonePlayer: HyperZonePlayer
 ) {
+    /**
+     * 监听器可设为 `true`，表示当前等待区实现已接受并开始认证流程。
+     */
     var pass: Boolean = false
 }

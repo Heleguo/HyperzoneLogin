@@ -41,10 +41,23 @@ public final class HyperDependencyManager {
     private final HyperDependencyPathProcessor pathProcessor;
     private final Map<HyperDependency, Path> loaded = new LinkedHashMap<>();
 
+    /**
+     * Creates a dependency manager using default repositories and no-op callbacks.
+     *
+     * @param cacheDirectory directory used to cache downloaded jars
+     * @param classPathAppender strategy used to append jars to the runtime classpath
+     */
     public HyperDependencyManager(Path cacheDirectory, HyperDependencyClassPathAppender classPathAppender) {
         this(cacheDirectory, classPathAppender, HyperDependencyRepository.DEFAULT_REPOSITORIES, HyperDependencyProgressListener.NONE, HyperDependencyPathProcessor.NONE);
     }
 
+    /**
+     * Creates a dependency manager with explicit repositories.
+     *
+     * @param cacheDirectory directory used to cache downloaded jars
+     * @param classPathAppender strategy used to append jars to the runtime classpath
+     * @param repositories repositories to query in order
+     */
     public HyperDependencyManager(
         Path cacheDirectory,
         HyperDependencyClassPathAppender classPathAppender,
@@ -53,6 +66,14 @@ public final class HyperDependencyManager {
         this(cacheDirectory, classPathAppender, repositories, HyperDependencyProgressListener.NONE, HyperDependencyPathProcessor.NONE);
     }
 
+    /**
+     * Creates a dependency manager with explicit repositories and progress listener.
+     *
+     * @param cacheDirectory directory used to cache downloaded jars
+     * @param classPathAppender strategy used to append jars to the runtime classpath
+     * @param repositories repositories to query in order
+     * @param progressListener callback sink for download progress
+     */
     public HyperDependencyManager(
         Path cacheDirectory,
         HyperDependencyClassPathAppender classPathAppender,
@@ -62,6 +83,15 @@ public final class HyperDependencyManager {
         this(cacheDirectory, classPathAppender, repositories, progressListener, HyperDependencyPathProcessor.NONE);
     }
 
+    /**
+     * Creates a fully customized dependency manager.
+     *
+     * @param cacheDirectory directory used to cache downloaded jars
+     * @param classPathAppender strategy used to append jars to the runtime classpath
+     * @param repositories repositories to query in order
+     * @param progressListener callback sink for download progress
+     * @param pathProcessor optional processor for rewriting downloaded jar paths before load
+     */
     public HyperDependencyManager(
         Path cacheDirectory,
         HyperDependencyClassPathAppender classPathAppender,
@@ -76,6 +106,12 @@ public final class HyperDependencyManager {
         this.pathProcessor = Objects.requireNonNull(pathProcessor, "pathProcessor");
     }
 
+    /**
+     * Ensures the given dependency collection is available locally and loaded into the classpath.
+     *
+     * @param dependencies dependencies to load
+     * @throws HyperDependencyDownloadException if download, verification, or file setup fails
+     */
     public synchronized void loadDependencies(Collection<HyperDependency> dependencies) throws HyperDependencyDownloadException {
         setupCacheDirectory();
         for (HyperDependency dependency : dependencies) {

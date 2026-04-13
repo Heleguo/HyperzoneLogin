@@ -26,11 +26,22 @@ import com.velocitypowered.api.util.GameProfile
 import icu.h2l.api.player.HyperZonePlayer
 import icu.h2l.api.profile.skin.ProfileSkinTextures
 
+/**
+ * 在最终构造要发送给后端的正式 [GameProfile] 前触发的皮肤应用事件。
+ *
+ * 监听器可基于 [baseProfile] 与当前玩家上下文写入最终要注入的 [textures]。
+ *
+ * @property hyperZonePlayer 当前登录态玩家对象
+ * @property baseProfile 当前皮肤注入流程的基础档案
+ */
 @AwaitingEvent
 class ProfileSkinApplyEvent(
     val hyperZonePlayer: HyperZonePlayer,
     val baseProfile: GameProfile
 ) {
+    /**
+     * 监听器可写入的最终皮肤纹理数据。
+     */
     var textures: ProfileSkinTextures? = null
 }
 

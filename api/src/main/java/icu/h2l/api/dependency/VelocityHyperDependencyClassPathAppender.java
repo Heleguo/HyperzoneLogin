@@ -34,11 +34,20 @@ public final class VelocityHyperDependencyClassPathAppender implements HyperDepe
     private final ProxyServer proxy;
     private final Object plugin;
 
+    /**
+     * Creates a Velocity-specific classpath appender.
+     *
+     * @param proxy active proxy instance
+     * @param plugin plugin instance requesting the classpath change
+     */
     public VelocityHyperDependencyClassPathAppender(ProxyServer proxy, Object plugin) {
         this.proxy = Objects.requireNonNull(proxy, "proxy");
         this.plugin = Objects.requireNonNull(plugin, "plugin");
     }
 
+    /**
+     * Adds a jar to the plugin classpath, preferring direct classloader access when available.
+     */
     @Override
     public void addJarToClasspath(Path file) {
         ClassLoader classLoader = this.plugin.getClass().getClassLoader();

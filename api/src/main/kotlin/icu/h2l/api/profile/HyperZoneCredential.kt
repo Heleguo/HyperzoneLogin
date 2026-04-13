@@ -60,6 +60,8 @@ interface HyperZoneCredential {
      *
      * 该回调只用于“尚未完成绑定的当前会话临时状态”；
      * 已落库的正式绑定关系不得因为 rename 被静默改写。
+     *
+     * @param newRegistrationName 当前会话更新后的注册名
      */
     fun onRegistrationNameChanged(newRegistrationName: String) {
     }
@@ -68,6 +70,8 @@ interface HyperZoneCredential {
      * 在真正写入绑定关系前做一次校验。
      *
      * 返回 null 表示允许绑定；否则返回拒绝原因。
+     *
+     * @param profileId 待绑定的正式档案标识
      */
     fun validateBind(profileId: UUID): String? {
         return null
@@ -77,6 +81,8 @@ interface HyperZoneCredential {
      * 将该凭证绑定到指定 Profile。
      *
      * 实现应把绑定关系写入模块自己的数据表。
+     *
+     * @param profileId 要绑定到的正式档案标识
      */
     fun bind(profileId: UUID): Boolean
 }

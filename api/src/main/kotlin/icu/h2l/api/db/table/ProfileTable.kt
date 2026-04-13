@@ -24,28 +24,30 @@ package icu.h2l.api.db.table
 import org.jetbrains.exposed.sql.Table
 
 /**
- * 游戏内档案表
- * 存储玩家的游戏内档案信息
- * name和UUID需要保持整个库中无重复
+ * 游戏内正式档案表定义。
+ *
+ * 该表保存 [icu.h2l.api.db.Profile] 的核心字段，且 `name` 与 `uuid` 都必须在整库范围内唯一。
  *
  * @param prefix 表名前缀，默认为空字符串
  */
 class ProfileTable(prefix: String = "") : Table("${prefix}profile") {
     /**
-     * 档案ID（主键）
-     * 用作和入口关联的映射
+     * 档案主键，用于和各认证入口建立映射。
      */
     val id = uuid("id")
 
     /**
-     * 游戏内名称
+     * 玩家正式游戏名。
      */
     val name = varchar("name", 32).uniqueIndex()
 
     /**
-     * 游戏内UUID
+     * 玩家正式游戏 UUID。
      */
     val uuid = uuid("uuid").uniqueIndex()
 
+    /**
+     * 表主键定义。
+     */
     override val primaryKey = PrimaryKey(id)
 }

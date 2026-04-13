@@ -29,28 +29,66 @@ import icu.h2l.api.player.HyperZonePlayerAccessorProvider
 import icu.h2l.api.vServer.HyperZoneVServerProvider
 import java.nio.file.Path
 
+/**
+ * HyperZoneLogin 主插件向子模块暴露的顶层 API 入口。
+ *
+ * 通过该接口可访问代理实例、数据目录、数据库能力，以及命令、玩家访问器、等待区适配器等
+ * 常用 provider 接口。
+ */
 interface HyperZoneApi :
     HyperChatCommandManagerProvider,
     HyperZonePlayerAccessorProvider,
     HyperZoneVServerProvider {
+    /**
+     * 当前运行中的 Velocity 代理实例。
+     */
     val proxy: ProxyServer
+
+    /**
+     * 主插件及子模块共享的数据目录根路径。
+     */
     val dataDirectory: Path
+
+    /**
+     * 供模块访问数据库事务与表前缀配置的统一入口。
+     */
     val databaseManager: HyperZoneDatabaseManager
+
+    /**
+     * 当前是否启用了正式 [com.velocitypowered.api.util.GameProfile] 替换链路。
+     */
     val isGameProfileReplacementEnabled: Boolean
 
+    /**
+     * 注册一个子模块到当前核心运行时。
+     */
     fun registerModule(module: HyperSubModule)
 }
 
+/**
+ * [HyperZoneApi] 的全局访问器。
+ *
+ * 适用于无法通过依赖注入直接拿到主插件实例的子模块初始化场景。
+ */
 object HyperZoneApiProvider {
     @Volatile
     private var api: HyperZoneApi? = null
 
+    /**
+     * 绑定当前运行时的 [HyperZoneApi] 实例。
+     */
     fun bind(api: HyperZoneApi) {
         this.api = api
     }
 
+    /**
+     * 获取已绑定的 [HyperZoneApi]，若主插件尚未初始化完成则抛错。
+     */
     fun get(): HyperZoneApi = api ?: error("HyperZoneLogin API is not available yet")
 
+    /**
+     * 获取已绑定的 [HyperZoneApi]，若当前尚未可用则返回 `null`。
+     */
     fun getOrNull(): HyperZoneApi? = api
 }
 

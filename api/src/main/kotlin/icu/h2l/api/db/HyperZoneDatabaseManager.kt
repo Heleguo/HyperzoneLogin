@@ -21,8 +21,17 @@
 
 package icu.h2l.api.db
 
+/**
+ * HyperZoneLogin 对数据库访问的最小统一抽象。
+ */
 interface HyperZoneDatabaseManager {
+    /**
+     * 当前运行时为业务表使用的统一前缀。
+     */
     val tablePrefix: String
 
+    /**
+     * 在核心数据库上下文中执行一个事务性代码块。
+     */
     fun <T> executeTransaction(statement: () -> T): T
 }

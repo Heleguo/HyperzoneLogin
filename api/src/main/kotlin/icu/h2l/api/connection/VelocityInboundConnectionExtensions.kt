@@ -41,6 +41,11 @@ private val delegateGetConnectionMethod by lazy {
     }
 }
 
+/**
+ * 向当前入站连接发送断开消息。
+ *
+ * 该扩展会兼容 Velocity 在不同登录阶段使用的不同连接实现。
+ */
 fun InboundConnection.disconnectWithMessage(userMessage: Component) {
 
     if (this is InitialInboundConnection) {
@@ -53,17 +58,26 @@ fun InboundConnection.disconnectWithMessage(userMessage: Component) {
     throw IllegalStateException("未知InboundConnection类型${this.javaClass}")
 }
 
+/**
+ * 读取 [LoginInboundConnection] 内部持有的 [InitialInboundConnection] 委托对象。
+ */
 fun LoginInboundConnection.getDelegate(): InitialInboundConnection = this.let { loginInboundConnection ->
     val delegate = initialInboundConnectionDelegateField.get(loginInboundConnection) as InitialInboundConnection
     delegate
 }
 
+/**
+ * 获取登录阶段连接所对应的 Netty [Channel]。
+ */
 fun LoginInboundConnection.getLoginInbondNettyChannel(): Channel = this.let { loginInboundConnection ->
     val delegate = initialInboundConnectionDelegateField.get(loginInboundConnection)
     val minecraftConnection = delegateGetConnectionMethod.invoke(delegate) as MinecraftConnection
     minecraftConnection.channel
 }
 
+/**
+ * 获取当前入站连接底层使用的 Netty [Channel]。
+ */
 fun InboundConnection.getNettyChannel(): Channel {
     if (this is InitialInboundConnection) {
         return this.connection.channel

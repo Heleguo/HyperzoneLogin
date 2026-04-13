@@ -27,6 +27,17 @@ import icu.h2l.api.player.HyperZonePlayer
 import icu.h2l.api.profile.skin.ProfileSkinSource
 import icu.h2l.api.profile.skin.ProfileSkinTextures
 
+/**
+ * 在认证模块完成外部鉴权后、正式档案 attach 完成前触发的皮肤预处理事件。
+ *
+ * 该阶段适合根据外部认证结果提前准备皮肤来源信息，并在后续 [ProfileAttachedEvent]
+ * 或 [ProfileSkinApplyEvent] 中继续消费。
+ *
+ * @property hyperZonePlayer 当前登录态玩家对象
+ * @property authenticatedProfile 外部认证返回的初始档案
+ * @property entryId 命中的认证入口标识
+ * @property serverUrl 本次认证使用的服务端地址
+ */
 @AwaitingEvent
 class ProfileSkinPreprocessEvent(
     val hyperZonePlayer: HyperZonePlayer,
@@ -34,7 +45,14 @@ class ProfileSkinPreprocessEvent(
     val entryId: String,
     val serverUrl: String
 ) {
+    /**
+     * 监听器可写入的皮肤来源定义。
+     */
     var source: ProfileSkinSource? = null
+
+    /**
+     * 监听器可直接写入的皮肤纹理数据。
+     */
     var textures: ProfileSkinTextures? = null
 }
 

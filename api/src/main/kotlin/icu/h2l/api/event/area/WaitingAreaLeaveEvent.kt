@@ -36,6 +36,10 @@ import icu.h2l.api.player.HyperZonePlayer
  * - 状态机切换
  * - 传送/踢出/放行逻辑
  * - 任何要求强一致性的业务流程
+ *
+ * @property proxyPlayer 当前代理层玩家对象
+ * @property hyperZonePlayer 当前登录态玩家对象
+ * @property reason 本次区域切换的提示性原因
  */
 class WaitingAreaLeaveEvent(
     val proxyPlayer: Player,

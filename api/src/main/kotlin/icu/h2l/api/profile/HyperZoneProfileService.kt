@@ -32,6 +32,9 @@ import java.util.UUID
  * 不应再把 Profile 生命周期控制逻辑直接写进 [HyperZonePlayer]。
  */
 interface HyperZoneProfileService {
+    /**
+     * 根据档案标识读取一个正式 [Profile]。
+     */
     fun getProfile(profileId: UUID): Profile?
 
     /**
@@ -42,15 +45,29 @@ interface HyperZoneProfileService {
         return getProfile(profileId) != null
     }
 
+    /**
+     * 按既有 [profileId] 解析一个已存在的 [Profile]。
+     *
+     * 若指定档案不存在则直接抛错，用于暴露调用方的流程问题。
+     */
     fun resolve(profileId: UUID): Profile {
         return getProfile(profileId)
             ?: throw IllegalStateException("未找到 Profile: $profileId")
     }
 
+    /**
+     * 读取当前登录态玩家已 attach 的正式档案。
+     */
     fun getAttachedProfile(player: HyperZonePlayer): Profile?
 
+    /**
+     * 将指定 [profileId] attach 到当前登录态玩家。
+     */
     fun attachProfile(player: HyperZonePlayer, profileId: UUID): Profile?
 
+    /**
+     * 判断当前登录态玩家是否已经 attach 正式档案。
+     */
     fun hasAttachedProfile(player: HyperZonePlayer): Boolean {
         return getAttachedProfile(player) != null
     }
@@ -61,23 +78,44 @@ interface HyperZoneProfileService {
      */
     fun canCreate(userName: String, uuid: UUID? = null): Boolean
 
+    /**
+     * 以指定注册名新建一个正式 [Profile]。
+     */
     fun create(userName: String, uuid: UUID? = null): Profile
 
+    /**
+     * 根据玩家当前已提交且已验证的凭证，自动解析并 attach 对应档案。
+     */
     fun attachVerifiedCredentialProfile(player: HyperZonePlayer): Profile?
 
+    /**
+     * 将玩家当前会话已提交的凭证绑定到指定 [profileId]。
+     */
     fun bindSubmittedCredentials(player: HyperZonePlayer, profileId: UUID): Profile
 }
 
+/**
+ * [HyperZoneProfileService] 的全局访问器。
+ */
 object HyperZoneProfileServiceProvider {
     @Volatile
     private var service: HyperZoneProfileService? = null
 
+    /**
+     * 绑定当前运行时的 [HyperZoneProfileService] 实例。
+     */
     fun bind(service: HyperZoneProfileService) {
         this.service = service
     }
 
+    /**
+     * 获取已绑定的 Profile 服务，若尚未初始化则抛错。
+     */
     fun get(): HyperZoneProfileService = service ?: error("HyperZone profile service is not available yet")
 
+    /**
+     * 获取已绑定的 Profile 服务，若当前不可用则返回 `null`。
+     */
     fun getOrNull(): HyperZoneProfileService? = service
 }
 

@@ -38,10 +38,18 @@ import java.util.concurrent.TimeUnit;
  * Adapted from LuckPerms' dependency repository logic.
  */
 public enum HyperDependencyRepository {
+    /** Aliyun mirror of Maven Central. */
     ALIYUN_CENTRAL("https://maven.aliyun.com/repository/central/"),
+
+    /** Tencent public Maven mirror. */
     TENCENT_MAVEN_PUBLIC("https://mirrors.cloud.tencent.com/nexus/repository/maven-public/"),
+
+    /** Official Maven Central repository. */
     MAVEN_CENTRAL("https://repo1.maven.org/maven2/");
 
+    /**
+     * Default repository order used by HyperZoneLogin.
+     */
     public static final List<HyperDependencyRepository> DEFAULT_REPOSITORIES = List.of(
         ALIYUN_CENTRAL,
         TENCENT_MAVEN_PUBLIC,
@@ -54,6 +62,11 @@ public enum HyperDependencyRepository {
         this.baseUrl = baseUrl;
     }
 
+    /**
+     * Returns the repository base URL.
+     *
+     * @return base Maven repository URL
+     */
     public String getBaseUrl() {
         return this.baseUrl;
     }
@@ -67,6 +80,13 @@ public enum HyperDependencyRepository {
         return connection.getInputStream();
     }
 
+    /**
+     * Downloads the raw jar bytes for the given dependency without checksum verification.
+     *
+     * @param dependency dependency to download
+     * @return downloaded jar bytes
+     * @throws HyperDependencyDownloadException if the request fails or returns invalid content
+     */
     public byte[] downloadRaw(HyperDependency dependency) throws HyperDependencyDownloadException {
         try (InputStream in = openStream(dependency)) {
             if (in == null) {
@@ -82,6 +102,13 @@ public enum HyperDependencyRepository {
         }
     }
 
+    /**
+     * Downloads the dependency and verifies its checksum.
+     *
+     * @param dependency dependency to download
+     * @return verified jar bytes
+     * @throws HyperDependencyDownloadException if download or checksum validation fails
+     */
     public byte[] download(HyperDependency dependency) throws HyperDependencyDownloadException {
         byte[] bytes = downloadRaw(dependency);
         byte[] hash = HyperDependency.createDigest().digest(bytes);
@@ -96,6 +123,13 @@ public enum HyperDependencyRepository {
         return bytes;
     }
 
+    /**
+     * Downloads the dependency to the given local file path.
+     *
+     * @param dependency dependency to download
+     * @param file target output file
+     * @throws HyperDependencyDownloadException if download, verification, or file writes fail
+     */
     public void download(HyperDependency dependency, Path file) throws HyperDependencyDownloadException {
         Path temporaryFile = file.resolveSibling(file.getFileName() + ".part");
         try {

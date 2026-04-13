@@ -21,23 +21,50 @@
 
 package icu.h2l.api.log
 
+/**
+ * HyperZoneLogin 对外暴露的最小日志接口。
+ */
 interface HyperZoneLogger {
+    /**
+     * 记录一条信息级日志。
+     */
     fun info(message: String)
+
+    /**
+     * 记录一条调试级日志。
+     */
     fun debug(message: String)
+
+    /**
+     * 记录一条警告级日志。
+     */
     fun warn(message: String)
+
+    /**
+     * 记录一条错误级日志。
+     */
     fun error(message: String, throwable: Throwable? = null)
 }
 
+/**
+ * 全局日志 API 门面。
+ */
 object HyperZoneLogApi {
     @Volatile
     private var logger: HyperZoneLogger = NoopHyperZoneLogger
 
     @JvmStatic
+    /**
+     * 注册当前运行时要使用的日志实现。
+     */
     fun registerLogger(newLogger: HyperZoneLogger) {
         logger = newLogger
     }
 
     @JvmStatic
+    /**
+     * 获取当前活动的日志实现。
+     */
     fun getLogger(): HyperZoneLogger = logger
 }
 
@@ -48,18 +75,30 @@ private object NoopHyperZoneLogger : HyperZoneLogger {
     override fun error(message: String, throwable: Throwable?) = Unit
 }
 
+/**
+ * 惰性输出一条信息级日志。
+ */
 inline fun info(block: () -> String) {
     HyperZoneLogApi.getLogger().info(block())
 }
 
+/**
+ * 惰性输出一条调试级日志。
+ */
 inline fun debug(block: () -> String) {
     HyperZoneLogApi.getLogger().debug(block())
 }
 
+/**
+ * 惰性输出一条警告级日志。
+ */
 inline fun warn(block: () -> String) {
     HyperZoneLogApi.getLogger().warn(block())
 }
 
+/**
+ * 惰性输出一条错误级日志。
+ */
 inline fun error(throwable: Throwable? = null, block: () -> String) {
     HyperZoneLogApi.getLogger().error(block(), throwable)
 }

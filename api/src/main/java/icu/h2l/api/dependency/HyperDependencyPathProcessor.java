@@ -23,10 +23,24 @@ package icu.h2l.api.dependency;
 
 import java.nio.file.Path;
 
+/**
+ * Post-download hook for rewriting or relocating dependency jar paths before classpath load.
+ */
 @FunctionalInterface
 public interface HyperDependencyPathProcessor {
+    /**
+     * No-op processor that returns the downloaded file unchanged.
+     */
     HyperDependencyPathProcessor NONE = (dependency, downloadedFile) -> downloadedFile;
 
+    /**
+     * Processes a downloaded jar before it is appended to the runtime classpath.
+     *
+     * @param dependency dependency being processed
+     * @param downloadedFile original downloaded jar path
+     * @return path that should be loaded into the classpath
+     * @throws HyperDependencyDownloadException if processing fails
+     */
     Path process(HyperDependency dependency, Path downloadedFile) throws HyperDependencyDownloadException;
 }
 

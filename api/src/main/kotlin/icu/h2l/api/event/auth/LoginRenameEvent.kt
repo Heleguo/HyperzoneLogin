@@ -28,6 +28,8 @@ import icu.h2l.api.player.HyperZonePlayer
  *
  * 事件只携带当前事件发起者本身；
  * 各监听器必须仅处理该玩家当前会话，不得影响其他等待区玩家。
+ *
+ * @property hyperZonePlayer 发起 rename 的当前登录态玩家
  */
 class LoginRenameEvent(
     val hyperZonePlayer: HyperZonePlayer

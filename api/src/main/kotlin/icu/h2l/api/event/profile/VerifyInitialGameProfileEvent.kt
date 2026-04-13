@@ -30,12 +30,18 @@ import com.velocitypowered.api.util.GameProfile
  *
  * 监听器可将 [pass] 设为 true，表示该初始档案已被外部模块确认可信，
  * 主插件随后将跳过自己的 remap 前缀/UUID 校验流程。
+ *
+ * @property connection 当前入站连接
+ * @property gameProfile 客户端上报的初始档案
  */
 @AwaitingEvent
 class VerifyInitialGameProfileEvent(
     val connection: InboundConnection,
     val gameProfile: GameProfile,
 ) {
+    /**
+     * 是否允许跳过核心对初始档案的 remap 校验。
+     */
     var pass: Boolean = false
 }
 

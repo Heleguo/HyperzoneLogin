@@ -28,12 +28,18 @@ import net.kyori.adventure.text.Component
 import java.util.*
 
 /**
- * 触发PreLogin后触发，用于鉴别是否为离线玩家以及进行离线的验证.
+ * 在代理层进入 PreLogin 阶段后触发，用于决定连接应走在线还是离线登录链路。
  *
  * Velocity typically fires this event asynchronously and does not wait for a response. However,
  * it will wait for all [DisconnectEvent]s for every player on the proxy to fire
  * successfully before the proxy shuts down. This event is the sole exception to the
  * [AwaitingEvent] contract.
+ *
+ * @property uuid 客户端上报的初始 UUID
+ * @property userName 客户端上报的初始用户名
+ * @property host 玩家连接时使用的目标主机名
+ * @property playerIp 玩家 IP 字符串
+ * @property channel 当前登录连接对应的 Netty channel
  */
 @AwaitingEvent
 class OpenPreLoginEvent(
@@ -43,7 +49,18 @@ class OpenPreLoginEvent(
     val playerIp: String,
     val channel: Channel
 ) {
+    /**
+     * 当前连接最终是否应视为在线模式玩家。
+     */
     var isOnline: Boolean = true
+
+    /**
+     * 当前事件链是否允许连接继续后续登录流程。
+     */
     var allow: Boolean = true
+
+    /**
+     * 当 [allow] 为 `false` 时展示给玩家的断开消息。
+     */
     var disconnectMessage: Component = Component.text("未知的登录前置拦截原因")
 }

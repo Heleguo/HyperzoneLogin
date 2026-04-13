@@ -26,22 +26,42 @@ import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import com.velocitypowered.api.command.BrigadierCommand
 import com.velocitypowered.api.command.CommandSource
 
+/**
+ * 为 [HyperChatCommandRegistration] 提供 Brigadier 命令树的工厂接口。
+ */
 fun interface HyperChatBrigadierRegistration {
+    /**
+     * 根据当前命令注册信息创建 Brigadier 根节点。
+     */
     fun create(context: HyperChatBrigadierContext): LiteralArgumentBuilder<CommandSource>
 }
 
+/**
+ * 构建 Brigadier 命令树时可复用的上下文工具。
+ *
+ * @property registration 当前正在构建的命令注册定义
+ */
 class HyperChatBrigadierContext(
     val registration: HyperChatCommandRegistration,
     private val visibility: (CommandSource) -> Boolean,
     private val executor: (CommandSource, String, Array<String>) -> Int
 ) {
+    /**
+     * 判断给定发送者是否可见当前命令。
+     */
     fun isVisibleTo(source: CommandSource): Boolean = visibility(source)
 
+    /**
+     * 创建一个 literal 根节点，默认使用 [registration] 的主命令名。
+     */
     fun literal(name: String = registration.name): LiteralArgumentBuilder<CommandSource> {
         return BrigadierCommand.literalArgumentBuilder(name)
             .requires(visibility)
     }
 
+    /**
+     * 直接调用底层命令执行器。
+     */
     fun execute(
         source: CommandSource,
         alias: String = registration.name,
@@ -50,6 +70,9 @@ class HyperChatBrigadierContext(
         return executor(source, alias, args)
     }
 
+    /**
+     * 用原始字符串参数执行命令，并自动按空白拆分参数。
+     */
     fun executeGreedy(
         source: CommandSource,
         rawArguments: String,
@@ -58,6 +81,9 @@ class HyperChatBrigadierContext(
         return execute(source, alias, splitArguments(rawArguments))
     }
 
+    /**
+     * 创建一个 greedy string 参数节点，并在执行时回调到 [executeGreedy]。
+     */
     fun greedyArguments(
         argumentName: String = "arguments",
         alias: String = registration.name
@@ -70,6 +96,9 @@ class HyperChatBrigadierContext(
             )
         }
 
+    /**
+     * 按连续空白拆分命令参数。
+     */
     fun splitArguments(rawArguments: String): Array<String> {
         return rawArguments.trim()
             .split(Regex("\\s+"))

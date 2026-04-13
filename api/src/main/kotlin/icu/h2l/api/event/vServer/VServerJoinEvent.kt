@@ -24,6 +24,12 @@ package icu.h2l.api.event.vServer
 import com.velocitypowered.api.proxy.Player
 import icu.h2l.api.player.HyperZonePlayer
 
+/**
+ * 玩家被观测为进入等待区实现本体时触发的事件。
+ *
+ * @property proxyPlayer 当前代理层玩家对象
+ * @property hyperZonePlayer 当前登录态玩家对象
+ */
 class VServerJoinEvent(
     val proxyPlayer: Player,
     val hyperZonePlayer: HyperZonePlayer

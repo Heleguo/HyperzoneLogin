@@ -25,26 +25,55 @@ import com.velocitypowered.api.command.CommandSource
 import icu.h2l.api.player.HyperZonePlayer
 import net.kyori.adventure.text.Component
 
+/**
+ * HyperZoneLogin 统一消息渲染服务。
+ *
+ * 子模块应通过该服务渲染本地化文案，而不是直接硬编码玩家可见文本。
+ */
 interface HyperZoneMessageService {
+    /**
+     * 重新加载全部消息资源。
+     */
     fun reload()
 
+    /**
+     * 使用默认上下文渲染指定消息键。
+     */
     fun render(key: String, vararg placeholders: HyperZoneMessagePlaceholder): Component
 
+    /**
+     * 按命令发送者的本地化环境渲染指定消息键。
+     */
     fun render(source: CommandSource?, key: String, vararg placeholders: HyperZoneMessagePlaceholder): Component
 
+    /**
+     * 按登录态玩家上下文渲染指定消息键。
+     */
     fun render(player: HyperZonePlayer, key: String, vararg placeholders: HyperZoneMessagePlaceholder): Component
 }
 
+/**
+ * [HyperZoneMessageService] 的全局访问入口。
+ */
 object HyperZoneMessageServiceProvider {
     @Volatile
     private var service: HyperZoneMessageService? = null
 
+    /**
+     * 绑定当前运行时消息服务。
+     */
     fun bind(service: HyperZoneMessageService) {
         this.service = service
     }
 
+    /**
+     * 获取已绑定的消息服务，若尚未初始化则抛错。
+     */
     fun get(): HyperZoneMessageService = service ?: error("HyperZone message service is not available yet")
 
+    /**
+     * 获取已绑定的消息服务，若当前不可用则返回 `null`。
+     */
     fun getOrNull(): HyperZoneMessageService? = service
 }
 

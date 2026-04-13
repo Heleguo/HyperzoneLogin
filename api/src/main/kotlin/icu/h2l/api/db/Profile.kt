@@ -24,7 +24,11 @@ package icu.h2l.api.db
 import java.util.*
 
 /**
- * ProfileTable 对应的数据对象。
+ * [icu.h2l.api.db.table.ProfileTable] 对应的数据对象。
+ *
+ * @property id 档案主键标识
+ * @property name 玩家正式游戏名
+ * @property uuid 玩家正式游戏 UUID
  */
 data class Profile(
     val id: UUID,

@@ -41,6 +41,14 @@ public final class HyperDependency {
     private final String version;
     private final byte[] checksum;
 
+    /**
+     * Creates a dependency descriptor.
+     *
+     * @param groupId Maven groupId
+     * @param artifactId Maven artifactId
+     * @param version artifact version
+     * @param checksum expected SHA-256 checksum in Base64 form
+     */
     public HyperDependency(String groupId, String artifactId, String version, String checksum) {
         this.groupId = Objects.requireNonNull(groupId, "groupId");
         this.artifactId = Objects.requireNonNull(artifactId, "artifactId");
@@ -48,38 +56,84 @@ public final class HyperDependency {
         this.checksum = Base64.getDecoder().decode(Objects.requireNonNull(checksum, "checksum"));
     }
 
+    /**
+     * Returns the Maven groupId.
+     *
+     * @return Maven groupId
+     */
     public String getGroupId() {
         return this.groupId;
     }
 
+    /**
+     * Returns the Maven artifactId.
+     *
+     * @return Maven artifactId
+     */
     public String getArtifactId() {
         return this.artifactId;
     }
 
+    /**
+     * Returns the resolved artifact version.
+     *
+     * @return artifact version
+     */
     public String getVersion() {
         return this.version;
     }
 
+    /**
+     * Returns a defensive copy of the expected checksum bytes.
+     *
+     * @return a defensive copy of the expected SHA-256 checksum bytes
+     */
     public byte[] getChecksum() {
         return this.checksum.clone();
     }
 
+    /**
+     * Compares the provided digest with this dependency's expected checksum.
+     *
+     * @param hash digest bytes to compare
+     * @return whether the digest matches
+     */
     public boolean checksumMatches(byte[] hash) {
         return Arrays.equals(this.checksum, hash);
     }
 
+    /**
+     * Returns the Maven repository-relative path for this artifact jar.
+     *
+     * @return repository-relative Maven path for the jar artifact
+     */
     public String getMavenRepoPath() {
         return this.groupId.replace('.', '/') + "/" + this.artifactId + "/" + this.version + "/" + getFileName();
     }
 
+    /**
+     * Returns the jar file name for this artifact.
+     *
+     * @return jar file name for this artifact
+     */
     public String getFileName() {
         return this.artifactId + "-" + this.version + ".jar";
     }
 
+    /**
+     * Returns the dependency coordinates string.
+     *
+     * @return human-readable dependency coordinates in {@code group:artifact:version} form
+     */
     public String id() {
         return this.groupId + ":" + this.artifactId + ":" + this.version;
     }
 
+    /**
+     * Returns the normalized cache file name used for this artifact.
+     *
+     * @return normalized cache file name used inside the local dependency cache
+     */
     public String cacheFileName() {
         return (this.groupId + "-" + this.artifactId + "-" + this.version + ".jar")
             .toLowerCase(Locale.ROOT)
@@ -87,6 +141,11 @@ public final class HyperDependency {
             .replace('.', '-');
     }
 
+    /**
+     * Creates the message digest implementation used for checksum validation.
+     *
+     * @return SHA-256 message digest
+     */
     public static MessageDigest createDigest() {
         try {
             return MessageDigest.getInstance("SHA-256");

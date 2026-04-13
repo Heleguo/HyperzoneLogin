@@ -85,6 +85,8 @@ interface HyperZonePlayer {
      *
      * 子模块应在“认证成功后、调用 overVerify() 前”提交凭证，
      * 由核心在完成验证时统一根据凭证 attach 正式 Profile。
+     *
+     * @param credential 要提交到当前会话的可信凭证
      */
     fun submitCredential(credential: HyperZoneCredential)
 
@@ -113,11 +115,15 @@ interface HyperZonePlayer {
 
     /**
      * 判断是否允许进行绑定流程。
+     *
+     * 该判断通常用于“当前会话已有可信凭证，但尚未 attach 正式档案”的场景。
      */
     fun canBind(): Boolean
 
     /**
      * 结束玩家验证流程。
+     *
+     * 实现通常应在该时刻推动从等待区进入正式游戏链路。
      */
     fun overVerify()
 
@@ -130,6 +136,8 @@ interface HyperZonePlayer {
 
     /**
      * 发送消息给玩家。
+     *
+     * @param message 要发送给玩家的 Adventure 组件消息
      */
     fun sendMessage(message: Component)
 
@@ -170,6 +178,8 @@ interface HyperZonePlayer {
      * 设置登录阶段生成的临时 GameProfile。
      *
      * 该档案用于等待区阶段的受控临时身份。
+     *
+     * @param profile 新的临时档案；传入 `null` 表示清空当前临时档案
      */
     fun setTemporaryGameProfile(profile: GameProfile?)
 

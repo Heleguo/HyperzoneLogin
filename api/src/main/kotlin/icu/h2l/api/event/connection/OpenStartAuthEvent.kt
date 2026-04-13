@@ -29,12 +29,19 @@ import net.kyori.adventure.text.Component
 import java.util.*
 
 /**
- * 进行正版验证类似操作时触发.
+ * 在开始执行在线认证或类似外部鉴权前触发。
  *
  * Velocity typically fires this event asynchronously and does not wait for a response. However,
  * it will wait for all [DisconnectEvent]s for every player on the proxy to fire
  * successfully before the proxy shuts down. This event is the sole exception to the
  * [AwaitingEvent] contract.
+ *
+ * @property userName 当前参与认证的用户名
+ * @property userUUID 当前参与认证的 UUID
+ * @property serverId 本次会话使用的认证 serverId
+ * @property playerIp 玩家 IP 字符串
+ * @property channel 当前登录连接对应的 Netty channel
+ * @property isOnline 进入该阶段前判定出的在线模式标记
  */
 @AwaitingEvent
 class OpenStartAuthEvent(
@@ -45,7 +52,18 @@ class OpenStartAuthEvent(
     val channel: Channel,
     val isOnline: Boolean
 ) {
+    /**
+     * 认证阶段产出的初始 [GameProfile]，可由监听器写入。
+     */
     var gameProfile: GameProfile? = null
-    var allow:Boolean = true
-    var disconnectMessage: Component= Component.text("未知下层不允许原因")
+
+    /**
+     * 当前事件链是否允许继续后续认证流程。
+     */
+    var allow: Boolean = true
+
+    /**
+     * 当 [allow] 为 `false` 时展示给玩家的断开消息。
+     */
+    var disconnectMessage: Component = Component.text("未知下层不允许原因")
 }

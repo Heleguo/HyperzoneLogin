@@ -24,4 +24,7 @@ package icu.h2l.api.player
 import com.velocitypowered.api.proxy.Player
 import com.velocitypowered.proxy.connection.client.ConnectedPlayer
 
+/**
+ * 获取当前代理层 [Player] 连接对应的 Netty channel。
+ */
 fun Player.getChannel() = (this as ConnectedPlayer).connection.channel

@@ -23,24 +23,48 @@ package icu.h2l.api.profile.skin
 
 import com.velocitypowered.api.util.GameProfile
 
+/**
+ * 支持的皮肤模型常量与归一化工具。
+ */
 object ProfileSkinModel {
+    /** 经典 Steve 模型。 */
     const val CLASSIC = "classic"
+
+    /** 细臂 Alex 模型。 */
     const val SLIM = "slim"
 
+    /**
+     * 将任意模型字符串归一化为 [CLASSIC] 或 [SLIM]。
+     */
     fun normalize(model: String?): String {
         return if (model.equals(SLIM, ignoreCase = true)) SLIM else CLASSIC
     }
 }
 
+/**
+ * 皮肤资源来源定义。
+ *
+ * @property skinUrl 皮肤图片地址
+ * @property model 皮肤模型类型
+ */
 data class ProfileSkinSource(
     val skinUrl: String,
     val model: String = ProfileSkinModel.CLASSIC
 ) {
+    /**
+     * 返回模型字段已归一化的新对象。
+     */
     fun normalized(): ProfileSkinSource {
         return copy(model = ProfileSkinModel.normalize(model))
     }
 }
 
+/**
+ * 可注入到 [GameProfile] 的皮肤纹理数据。
+ *
+ * @property value textures 属性值
+ * @property signature 可选签名；若为空则不能直接构造 Velocity property
+ */
 data class ProfileSkinTextures(
     val value: String,
     val signature: String? = null
@@ -60,12 +84,20 @@ data class ProfileSkinTextures(
         return GameProfile.Property("textures", value, signature)
     }
 
+    /**
+     * 将当前纹理数据强制转换为 [GameProfile.Property]。
+     *
+     * 若签名为空则直接抛错。
+     */
     fun toProperty(): GameProfile.Property {
         return requireNotNull(toPropertyOrNull()) {
             "ProfileSkinTextures cannot be converted to GameProfile.Property without a non-blank signature"
         }
     }
 
+    /**
+     * 当前纹理是否携带非空白签名。
+     */
     val isSigned: Boolean
         get() = !signature.isNullOrBlank()
 }

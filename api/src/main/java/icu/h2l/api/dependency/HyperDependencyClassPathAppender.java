@@ -28,6 +28,11 @@ import java.nio.file.Path;
  */
 @FunctionalInterface
 public interface HyperDependencyClassPathAppender {
+    /**
+     * Adds the provided jar file to the active runtime classpath.
+     *
+     * @param file jar file to append
+     */
     void addJarToClasspath(Path file);
 }
 

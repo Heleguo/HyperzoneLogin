@@ -21,11 +21,22 @@
 
 package icu.h2l.api.event.db
 
+/**
+ * 数据表结构维护动作类型。
+ */
 enum class TableSchemaAction {
+    /** 创建全部核心与模块表。 */
     CREATE_ALL,
+
+    /** 删除全部核心与模块表。 */
     DROP_ALL,
 }
 
+/**
+ * 在核心准备执行表结构维护动作时抛出的事件。
+ *
+ * @property action 即将执行的结构维护动作
+ */
 data class TableSchemaEvent(
     val action: TableSchemaAction,
 )

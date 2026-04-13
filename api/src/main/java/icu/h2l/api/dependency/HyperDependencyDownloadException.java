@@ -25,14 +25,30 @@ package icu.h2l.api.dependency;
  * Adapted from LuckPerms' dependency download exception.
  */
 public final class HyperDependencyDownloadException extends Exception {
+    /**
+     * Creates an exception with a message only.
+     *
+     * @param message failure summary
+     */
     public HyperDependencyDownloadException(String message) {
         super(message);
     }
 
+    /**
+     * Creates an exception with a cause only.
+     *
+     * @param cause underlying cause
+     */
     public HyperDependencyDownloadException(Throwable cause) {
         super(cause);
     }
 
+    /**
+     * Creates an exception with message and cause.
+     *
+     * @param message failure summary
+     * @param cause underlying cause
+     */
     public HyperDependencyDownloadException(String message, Throwable cause) {
         super(message, cause);
     }

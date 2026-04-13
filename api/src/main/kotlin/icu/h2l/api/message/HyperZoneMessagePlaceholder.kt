@@ -23,24 +23,46 @@ package icu.h2l.api.message
 
 import net.kyori.adventure.text.Component
 
+/**
+ * 消息模板渲染时可传入的占位符值。
+ */
 sealed interface HyperZoneMessagePlaceholder {
+    /**
+     * 模板中使用的占位符名称。
+     */
     val name: String
 
+    /**
+     * 以纯文本形式替换模板占位符的值。
+     *
+     * @property value 最终写入模板的字符串值
+     */
     data class Text(
         override val name: String,
         val value: String
     ) : HyperZoneMessagePlaceholder
 
+    /**
+     * 以 Adventure [Component] 形式替换模板占位符的值。
+     *
+     * @property value 最终写入模板的富文本值
+     */
     data class ComponentValue(
         override val name: String,
         val value: Component
     ) : HyperZoneMessagePlaceholder
 
     companion object {
+        /**
+         * 创建一个文本型占位符。
+         */
         fun text(name: String, value: Any?): HyperZoneMessagePlaceholder {
             return Text(name, value?.toString() ?: "")
         }
 
+        /**
+         * 创建一个组件型占位符。
+         */
         fun component(name: String, value: Component): HyperZoneMessagePlaceholder {
             return ComponentValue(name, value)
         }

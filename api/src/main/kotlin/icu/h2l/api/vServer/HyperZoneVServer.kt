@@ -36,6 +36,9 @@ import icu.h2l.api.command.HyperChatCommandRegistration
  * 不应再向上抽象成混合式共享状态仓。
  */
 interface HyperZoneVServerAdapter {
+    /**
+     * 当前等待区适配器是否已启用。
+     */
     fun isEnabled(): Boolean = true
 
     /**
@@ -69,11 +72,22 @@ interface HyperZoneVServerAdapter {
      */
     fun isPlayerInWaitingArea(player: Player): Boolean = false
 
+    /**
+     * 向等待区实现注册一条聊天命令。
+     *
+     * 当等待区实现本身接管命令输入时，可通过该入口注册只在等待区可用的命令。
+     */
     fun registerCommand(meta: CommandMeta, registration: HyperChatCommandRegistration) {
     }
 
+    /**
+     * 当前等待区实现是否支持由代理层兜底执行命令。
+     */
     fun supportsProxyFallbackCommands(): Boolean = false
 
+    /**
+     * 判断指定玩家当前是否允许使用代理层兜底命令。
+     */
     fun canUseProxyFallbackCommand(player: Player): Boolean = false
 
     /**
@@ -87,13 +101,16 @@ interface HyperZoneVServerAdapter {
      */
     fun exitWaitingArea(player: Player): Boolean = false
 
+    /**
+     * 在玩家完成验证后通知等待区实现做收尾处理。
+     */
     fun onVerified(player: Player) {
     }
 }
 
 interface HyperZoneVServerProvider {
     /**
-     * Returns the active waiting-area adapter if available.
+     * 当前活动中的等待区适配器；若核心未启用等待区实现则返回 `null`。
      */
     val serverAdapter: HyperZoneVServerAdapter?
 }

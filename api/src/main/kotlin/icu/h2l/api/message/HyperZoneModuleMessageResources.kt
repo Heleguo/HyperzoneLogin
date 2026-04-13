@@ -25,7 +25,15 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardCopyOption
 
+/**
+ * 帮助子模块把内置消息资源复制到数据目录中的工具入口。
+ */
 object HyperZoneModuleMessageResources {
+    /**
+     * 将模块 jar 内打包的 locale 文件复制到 `messages/<namespace>` 目录。
+     *
+     * 已存在的目标文件会被保留，不会覆盖用户自定义内容。
+     */
     fun copyBundledLocales(
         dataDirectory: Path,
         namespace: String,

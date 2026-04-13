@@ -25,6 +25,14 @@ import com.velocitypowered.api.event.annotation.AwaitingEvent
 import icu.h2l.api.db.Profile
 import icu.h2l.api.player.HyperZonePlayer
 
+/**
+ * 当前登录态玩家成功 attach 到正式 [Profile] 后触发的事件。
+ *
+ * 该事件用于把认证链路中拿到的临时状态正式落到已 attach 的档案上下文中。
+ *
+ * @property hyperZonePlayer 当前登录态玩家对象
+ * @property profile 刚刚 attach 成功的正式档案
+ */
 @AwaitingEvent
 class ProfileAttachedEvent(
     val hyperZonePlayer: HyperZonePlayer,

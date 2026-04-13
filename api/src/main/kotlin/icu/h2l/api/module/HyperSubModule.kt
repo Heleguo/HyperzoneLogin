@@ -23,6 +23,12 @@ package icu.h2l.api.module
 
 import icu.h2l.api.HyperZoneApi
 
+/**
+ * HyperZoneLogin 子模块的标准接入点。
+ */
 interface HyperSubModule {
+    /**
+     * 将当前子模块注册到指定的 [HyperZoneApi] 运行时中。
+     */
     fun register(api: HyperZoneApi)
 }

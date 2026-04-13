@@ -31,11 +31,21 @@ import java.util.Properties;
  * Reads build-generated runtime dependency metadata from plugin jars.
  */
 public final class HyperDependencyManifest {
+    /**
+     * Classpath resource path containing generated runtime dependency metadata.
+     */
     public static final String RESOURCE_PATH = "META-INF/hzl/runtime-dependencies.properties";
 
     private HyperDependencyManifest() {
     }
 
+    /**
+     * Reads runtime dependency descriptors from the given class loader.
+     *
+     * @param classLoader source class loader
+     * @return immutable dependency list, or an empty list if the metadata resource is absent
+     * @throws IOException if the resource exists but cannot be read
+     */
     public static List<HyperDependency> readFrom(ClassLoader classLoader) throws IOException {
         try (InputStream in = classLoader.getResourceAsStream(RESOURCE_PATH)) {
             if (in == null) {

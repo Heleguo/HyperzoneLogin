@@ -27,21 +27,57 @@ import java.nio.file.Path;
  * Reports runtime dependency download progress to the hosting platform logger.
  */
 public interface HyperDependencyProgressListener {
+    /**
+     * No-op listener implementation.
+     */
     HyperDependencyProgressListener NONE = new HyperDependencyProgressListener() {
     };
 
+    /**
+     * Called when an existing cached jar is reused.
+     *
+     * @param dependency dependency being reused
+     * @param path cached jar path
+     */
     default void onUsingCache(HyperDependency dependency, Path path) {
     }
 
+    /**
+     * Called before a repository download attempt starts.
+     *
+     * @param dependency dependency being downloaded
+     * @param repository repository being queried
+     * @param targetPath target local file path
+     */
     default void onDownloadStart(HyperDependency dependency, HyperDependencyRepository repository, Path targetPath) {
     }
 
+    /**
+     * Called after a repository download attempt succeeds.
+     *
+     * @param dependency dependency that was downloaded
+     * @param repository repository that provided the artifact
+     * @param targetPath target local file path
+     */
     default void onDownloadSuccess(HyperDependency dependency, HyperDependencyRepository repository, Path targetPath) {
     }
 
+    /**
+     * Called after a repository download attempt fails.
+     *
+     * @param dependency dependency that failed to download
+     * @param repository repository that was queried
+     * @param exception failure cause
+     */
     default void onDownloadFailure(HyperDependency dependency, HyperDependencyRepository repository, Exception exception) {
     }
 
+    /**
+     * Called after a dependency has been fully loaded into the classpath.
+     *
+     * @param dependency dependency that was loaded
+     * @param path final jar path that was loaded
+     */
     default void onDependencyLoaded(HyperDependency dependency, Path path) {
     }
 }

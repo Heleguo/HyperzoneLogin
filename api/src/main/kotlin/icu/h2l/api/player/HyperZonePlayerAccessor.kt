@@ -25,6 +25,9 @@ import com.velocitypowered.api.proxy.Player
 import io.netty.channel.Channel
 import java.util.*
 
+/**
+ * 负责维护底层连接与 [HyperZonePlayer] 之间映射关系的访问器。
+ */
 interface HyperZonePlayerAccessor {
     /**
      * 为一个新的连接创建登录期玩家对象。
@@ -50,6 +53,12 @@ interface HyperZonePlayerAccessor {
 
 }
 
+/**
+ * 为其他 API 暴露 [HyperZonePlayerAccessor] 的 provider 接口。
+ */
 interface HyperZonePlayerAccessorProvider {
+    /**
+     * 当前运行时的登录态玩家访问器。
+     */
     val hyperZonePlayers: HyperZonePlayerAccessor
 }
