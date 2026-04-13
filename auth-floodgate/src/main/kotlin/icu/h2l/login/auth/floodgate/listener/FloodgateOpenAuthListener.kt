@@ -22,36 +22,32 @@
 package icu.h2l.login.auth.floodgate.listener
 
 import com.velocitypowered.api.event.Subscribe
-import icu.h2l.api.connection.disconnectWithMessage
-import icu.h2l.api.connection.getNettyChannel
-import icu.h2l.api.event.profile.VerifyInitialGameProfileEvent
+import com.velocitypowered.api.event.connection.DisconnectEvent
+import icu.h2l.api.event.vServer.VServerAuthStartEvent
+import icu.h2l.api.player.getChannel
 import icu.h2l.login.auth.floodgate.service.FloodgateAuthService
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
 
-class FloodgateGameProfileListener(
+class FloodgateOpenAuthListener(
     private val authService: FloodgateAuthService
 ) {
-    @Subscribe
-    fun onVerifyInitialGameProfile(event: VerifyInitialGameProfileEvent) {
-        // Floodgate 会跳过 HZL 自订的 OpenPreLogin/OpenStartAuth，
-        // 所以必须在这里提前创建登录期 HyperZonePlayer 并记录渠道会话。
-        when (
-            val result = authService.acceptInitialProfile(
-                channel = event.connection.getNettyChannel(),
-                userName = event.gameProfile.name,
-                userUUID = event.gameProfile.id
-            )
-        ) {
-            FloodgateAuthService.VerifyResult.NotFloodgate -> return
-            is FloodgateAuthService.VerifyResult.Failed -> {
-                event.connection.disconnectWithMessage(Component.text(result.userMessage, NamedTextColor.RED))
-                return
-            }
-            FloodgateAuthService.VerifyResult.Accepted -> {
-                event.pass = true
-            }
+    @Subscribe(priority = Short.MAX_VALUE)
+    fun onVServerAuthStart(event: VServerAuthStartEvent) {
+        val result = authService.complete(event.proxyPlayer.getChannel(), event.hyperZonePlayer)
+        if (!result.handled) {
+            return
         }
+        if (!result.passed) {
+            event.proxyPlayer.disconnect(Component.text(result.userMessage ?: "Floodgate 登录失败。", NamedTextColor.RED))
+            return
+        }
+        event.pass = true
+    }
+
+    @Subscribe
+    fun onDisconnect(event: DisconnectEvent) {
+        authService.clear(event.player.getChannel())
     }
 }
 

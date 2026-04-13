@@ -25,11 +25,17 @@ import icu.h2l.api.HyperZoneApi
 import icu.h2l.api.log.info
 import icu.h2l.api.module.HyperSubModule
 import icu.h2l.login.auth.floodgate.listener.FloodgateGameProfileListener
+import icu.h2l.login.auth.floodgate.listener.FloodgateVServerAuthListener
+import icu.h2l.login.auth.floodgate.service.FloodgateApiHolder
+import icu.h2l.login.auth.floodgate.service.FloodgateAuthService
+import icu.h2l.login.auth.floodgate.service.FloodgateSessionHolder
 
 class FloodgateSubModule : HyperSubModule {
     override fun register(api: HyperZoneApi) {
-        api.proxy.eventManager.register(api, FloodgateGameProfileListener())
-        info { "FloodgateSubModule 已加载，初始 GameProfile 放行监听器已注册" }
+        val authService = FloodgateAuthService(api, FloodgateApiHolder(), FloodgateSessionHolder())
+        api.proxy.eventManager.register(api, FloodgateGameProfileListener(authService))
+        api.proxy.eventManager.register(api, FloodgateVServerAuthListener(authService))
+        info { "FloodgateSubModule 已加载；该渠道会跳过 HZL 自订的 OpenPreLogin/OpenStartAuth，因此已注册初始档案接管与后置认证监听器" }
     }
 }
 

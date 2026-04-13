@@ -47,6 +47,7 @@ interface HyperZonePlayerAccessor {
      * 根据底层连接 channel 获取当前登录期 `HyperZonePlayer`。
      */
     fun getByChannel(channel: Channel): HyperZonePlayer
+
 }
 
 interface HyperZonePlayerAccessorProvider {

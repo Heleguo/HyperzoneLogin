@@ -19,28 +19,16 @@
  *
  */
 
-plugins {
-    alias(libs.plugins.kotlin)
-}
+package icu.h2l.login.auth.floodgate.service
 
-dependencies {
-    // Build as standalone plugin; api is provided at runtime by the main plugin
-    compileOnly(project(":api"))
-    compileOnly(libs.velocityApi)
-    compileOnly(libs.floodgateApi)
-    compileOnly(libs.nettyAll)
+import org.geysermc.floodgate.api.FloodgateApi
+import java.util.UUID
 
-    testImplementation(platform(libs.junitBom))
-    testImplementation(libs.junitJupiter)
-    testImplementation(project(":api"))
-    testImplementation(libs.velocityApi)
-    testImplementation(libs.floodgateApi)
-    testImplementation(libs.nettyAll)
-    testImplementation("io.mockk:mockk:1.13.17")
-    testRuntimeOnly(libs.junitPlatformLauncher)
-}
-
-tasks.test {
-    useJUnitPlatform()
+open class FloodgateApiHolder(
+    private val api: FloodgateApi = FloodgateApi.getInstance()
+) {
+    open fun isFloodgatePlayer(uuid: UUID): Boolean {
+        return api.isFloodgatePlayer(uuid)
+    }
 }
 

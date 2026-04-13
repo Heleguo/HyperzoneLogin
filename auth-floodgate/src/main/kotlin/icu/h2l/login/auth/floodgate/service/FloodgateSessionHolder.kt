@@ -19,28 +19,32 @@
  *
  */
 
-plugins {
-    alias(libs.plugins.kotlin)
-}
+package icu.h2l.login.auth.floodgate.service
 
-dependencies {
-    // Build as standalone plugin; api is provided at runtime by the main plugin
-    compileOnly(project(":api"))
-    compileOnly(libs.velocityApi)
-    compileOnly(libs.floodgateApi)
-    compileOnly(libs.nettyAll)
+import io.netty.channel.Channel
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
-    testImplementation(platform(libs.junitBom))
-    testImplementation(libs.junitJupiter)
-    testImplementation(project(":api"))
-    testImplementation(libs.velocityApi)
-    testImplementation(libs.floodgateApi)
-    testImplementation(libs.nettyAll)
-    testImplementation("io.mockk:mockk:1.13.17")
-    testRuntimeOnly(libs.junitPlatformLauncher)
-}
+class FloodgateSessionHolder {
+    private val sessions = ConcurrentHashMap<Channel, FloodgateSession>()
 
-tasks.test {
-    useJUnitPlatform()
+    data class FloodgateSession(
+        val userName: String,
+        val userUUID: UUID
+    )
+
+    fun remember(channel: Channel, userName: String, userUUID: UUID): FloodgateSession {
+        return sessions.computeIfAbsent(channel) {
+            FloodgateSession(userName, userUUID)
+        }
+    }
+
+    fun get(channel: Channel): FloodgateSession? {
+        return sessions[channel]
+    }
+
+    fun remove(channel: Channel): FloodgateSession? {
+        return sessions.remove(channel)
+    }
 }
 
