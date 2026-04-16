@@ -107,8 +107,10 @@ dependencies {
     testImplementation(platform(libs.junitBom))
     testImplementation(libs.junitJupiter)
     testImplementation(libs.velocityApi)
+    testImplementation(libs.velocityProxy)
     testImplementation(libs.adventureTextLoggerSlf4j)
     testImplementation(libs.adventureTextMinimessage)
+    testImplementation("io.mockk:mockk:1.13.17")
     testRuntimeOnly(libs.junitPlatformLauncher)
 }
 

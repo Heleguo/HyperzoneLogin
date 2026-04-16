@@ -22,11 +22,14 @@
 package icu.h2l.login.manager
 
 import com.mojang.brigadier.Command
+import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
 import com.velocitypowered.api.command.BrigadierCommand
 import com.velocitypowered.api.command.CommandSource
 import com.velocitypowered.api.proxy.Player
 import com.velocitypowered.api.proxy.ProxyServer
+import com.velocitypowered.proxy.command.VelocityCommands
+import com.velocitypowered.proxy.command.brigadier.VelocityArgumentBuilder
 import icu.h2l.api.command.HyperChatBrigadierContext
 import icu.h2l.api.command.HyperChatCommandInvocation
 import icu.h2l.api.command.HyperChatCommandManager
@@ -136,8 +139,7 @@ object HyperChatCommandManagerImpl : HyperChatCommandManager {
             visibility = { source -> canUseProxyFallbackCommand(registration, source) },
             executor = { source, alias, args -> executeProxyFallback(registration, source, alias, args) }
         )
-        val rootBuilder = registration.brigadier?.create(brigadierContext)
-            ?: createDefaultProxyFallbackCommand(brigadierContext)
+        val rootBuilder = createProxyFallbackCommandTree(registration, brigadierContext)
         val brigadierCommand = BrigadierCommand(rootBuilder)
 
         val metaBuilder = proxy.commandManager.metaBuilder(brigadierCommand)
@@ -171,7 +173,33 @@ object HyperChatCommandManagerImpl : HyperChatCommandManager {
             .executes { commandContext ->
                 context.execute(commandContext.source)
             }
-            .then(context.greedyArguments())
+    }
+
+    internal fun createProxyFallbackCommandTree(
+        registration: HyperChatCommandRegistration,
+        context: HyperChatBrigadierContext
+    ): LiteralArgumentBuilder<CommandSource> {
+        val rootBuilder = registration.brigadier?.create(context)
+            ?: createDefaultProxyFallbackCommand(context)
+
+        val rootNode = rootBuilder.build()
+        if (rootNode.getChild(VelocityCommands.ARGS_NODE_NAME) == null) {
+            rootBuilder.then(
+                VelocityArgumentBuilder.velocityArgument<CommandSource, String>(
+                    VelocityCommands.ARGS_NODE_NAME,
+                    StringArgumentType.greedyString()
+                )
+                    .executes { commandContext ->
+                        context.executeGreedy(
+                            commandContext.source,
+                            StringArgumentType.getString(commandContext, VelocityCommands.ARGS_NODE_NAME)
+                        )
+                    }
+                    .build()
+            )
+        }
+
+        return rootBuilder
     }
 
     private fun executeProxyFallback(

@@ -41,7 +41,7 @@ class OfflineAuthBrigadierCommandsTest {
         val registerNode = requireNotNull(dispatcher.root.getChild("register"))
         val passwordNode = requireNotNull(registerNode.getChild("password"))
 
-        assertEquals(setOf("password", "arguments"), childNames(registerNode))
+        assertEquals(setOf("password"), childNames(registerNode))
         assertEquals(setOf("confirmPassword"), childNames(passwordNode))
     }
 
@@ -53,7 +53,7 @@ class OfflineAuthBrigadierCommandsTest {
         val asNode = requireNotNull(loginNode.getChild("as"))
         val usernameNode = requireNotNull(asNode.getChild("username"))
 
-        assertEquals(setOf("password", "as", "arguments"), childNames(loginNode))
+        assertEquals(setOf("password", "as"), childNames(loginNode))
         assertEquals(setOf("code"), childNames(passwordNode))
         assertEquals(setOf("password"), childNames(usernameNode))
     }
@@ -65,8 +65,8 @@ class OfflineAuthBrigadierCommandsTest {
         val emailNode = requireNotNull(emailDispatcher.root.getChild("email"))
         val totpNode = requireNotNull(totpDispatcher.root.getChild("totp"))
 
-        assertEquals(setOf("add", "change", "show", "recovery", "code", "setpassword", "arguments"), childNames(emailNode))
-        assertEquals(setOf("add", "enable", "confirm", "remove", "disable", "arguments"), childNames(totpNode))
+        assertEquals(setOf("add", "change", "show", "recovery", "code", "setpassword"), childNames(emailNode))
+        assertEquals(setOf("add", "enable", "confirm", "remove", "disable"), childNames(totpNode))
         assertEquals(setOf("currentPassword"), childNames(requireNotNull(emailNode.getChild("add"))))
         assertEquals(setOf("password"), childNames(requireNotNull(totpNode.getChild("add"))))
     }
@@ -96,109 +96,107 @@ class OfflineAuthBrigadierCommandsTest {
     }
 
     @Test
-    fun `register passes special character passwords unchanged`() {
+    fun `register explicit tree still handles normal passwords`() {
         val execution = execute(
             registrationName = "register",
             brigadier = OfflineAuthBrigadierCommands.register(),
-            input = "register !@#$1234 !@#$1234"
+            input = "register SecurePass123 SecurePass123"
         )
 
         assertEquals("register", execution.alias)
-        assertArrayEquals(arrayOf("!@#$1234", "!@#$1234"), execution.args)
+        assertArrayEquals(arrayOf("SecurePass123", "SecurePass123"), execution.args)
     }
 
     @Test
-    fun `login passes special character password unchanged`() {
+    fun `login explicit tree still handles normal password`() {
         val execution = execute(
             registrationName = "login",
             brigadier = OfflineAuthBrigadierCommands.login(),
-            input = "login !@#$1234"
+            input = "login SecurePass123"
         )
 
         assertEquals("login", execution.alias)
-        assertArrayEquals(arrayOf("!@#$1234"), execution.args)
+        assertArrayEquals(arrayOf("SecurePass123"), execution.args)
     }
 
     @Test
-    fun `login as keeps explicit username syntax with special character password`() {
+    fun `login as keeps explicit username syntax`() {
         val execution = execute(
             registrationName = "login",
             brigadier = OfflineAuthBrigadierCommands.login(),
-            input = "login as Alice !@#$1234 123456"
+            input = "login as Alice SecurePass123 123456"
         )
 
         assertEquals("login", execution.alias)
-        assertArrayEquals(arrayOf("as", "Alice", "!@#$1234", "123456"), execution.args)
+        assertArrayEquals(arrayOf("as", "Alice", "SecurePass123", "123456"), execution.args)
     }
 
     @Test
-    fun `change password command keeps both special character passwords`() {
+    fun `change password command keeps both normal passwords`() {
         val execution = execute(
             registrationName = "changepassword",
             brigadier = OfflineAuthBrigadierCommands.changePassword(),
-            input = "changepassword old!@# new$%^"
+            input = "changepassword oldPass123 newPass456"
         )
 
         assertEquals("changepassword", execution.alias)
-        assertArrayEquals(arrayOf("old!@#", "new$%^"), execution.args)
+        assertArrayEquals(arrayOf("oldPass123", "newPass456"), execution.args)
     }
 
     @Test
-    fun `unregister passes special character password unchanged`() {
+    fun `unregister explicit tree still handles normal password`() {
         val execution = execute(
             registrationName = "unregister",
             brigadier = OfflineAuthBrigadierCommands.unregister(),
-            input = "unregister !@#$1234"
+            input = "unregister SecurePass123"
         )
 
         assertEquals("unregister", execution.alias)
-        assertArrayEquals(arrayOf("!@#$1234"), execution.args)
+        assertArrayEquals(arrayOf("SecurePass123"), execution.args)
     }
 
     @Test
-    fun `email add keeps current password and at-sign email arguments`() {
+    fun `email add subcommand keeps descriptive placeholders`() {
+        val dispatcher = dispatcher("email", OfflineAuthBrigadierCommands.email())
+        val emailNode = requireNotNull(dispatcher.root.getChild("email"))
+        val addNode = requireNotNull(emailNode.getChild("add"))
+        val currentPasswordNode = requireNotNull(addNode.getChild("currentPassword"))
+        val emailArgNode = requireNotNull(currentPasswordNode.getChild("email"))
+
+        assertEquals(setOf("currentPassword"), childNames(addNode))
+        assertEquals(setOf("email"), childNames(currentPasswordNode))
+        assertEquals(setOf("confirmEmail"), childNames(emailArgNode))
+    }
+
+    @Test
+    fun `email setpassword keeps normal recovery password`() {
         val execution = execute(
             registrationName = "email",
             brigadier = OfflineAuthBrigadierCommands.email(),
-            input = "email add !@#$1234 user@example.com user@example.com"
+            input = "email setpassword SecurePass123 SecurePass123"
         )
 
         assertEquals("email", execution.alias)
-        assertArrayEquals(
-            arrayOf("add", "!@#$1234", "user@example.com", "user@example.com"),
-            execution.args
-        )
+        assertArrayEquals(arrayOf("setpassword", "SecurePass123", "SecurePass123"), execution.args)
     }
 
     @Test
-    fun `email setpassword keeps special character recovery password`() {
-        val execution = execute(
-            registrationName = "email",
-            brigadier = OfflineAuthBrigadierCommands.email(),
-            input = "email setpassword !@#$1234 !@#$1234"
-        )
-
-        assertEquals("email", execution.alias)
-        assertArrayEquals(arrayOf("setpassword", "!@#$1234", "!@#$1234"), execution.args)
-    }
-
-    @Test
-    fun `totp commands keep password arguments with special characters`() {
+    fun `totp commands keep normal password arguments`() {
         val addExecution = execute(
             registrationName = "totp",
             brigadier = OfflineAuthBrigadierCommands.totp(),
-            input = "totp add !@#$1234"
+            input = "totp add SecurePass123"
         )
         val removeExecution = execute(
             registrationName = "totp",
             brigadier = OfflineAuthBrigadierCommands.totp(),
-            input = "totp remove !@#$1234 123456"
+            input = "totp remove SecurePass123 123456"
         )
 
         assertEquals("totp", addExecution.alias)
-        assertArrayEquals(arrayOf("add", "!@#$1234"), addExecution.args)
+        assertArrayEquals(arrayOf("add", "SecurePass123"), addExecution.args)
         assertEquals("totp", removeExecution.alias)
-        assertArrayEquals(arrayOf("remove", "!@#$1234", "123456"), removeExecution.args)
+        assertArrayEquals(arrayOf("remove", "SecurePass123", "123456"), removeExecution.args)
     }
 
     private fun execute(

@@ -37,7 +37,6 @@ object OfflineAuthBrigadierCommands {
                 }
                 .then(loginPassword(context))
                 .then(loginAs(context))
-                .then(context.greedyArguments())
         }
     }
 
@@ -122,7 +121,6 @@ object OfflineAuthBrigadierCommands {
                                 }
                         )
                 )
-                .then(context.greedyArguments())
         }
     }
 
@@ -147,7 +145,6 @@ object OfflineAuthBrigadierCommands {
                             )
                         }
                 )
-                .then(context.greedyArguments())
         }
     }
 
@@ -163,7 +160,6 @@ object OfflineAuthBrigadierCommands {
                 .then(emailRecovery(context))
                 .then(emailCode(context))
                 .then(emailSetPassword(context))
-                .then(context.greedyArguments())
         }
     }
 
@@ -178,7 +174,6 @@ object OfflineAuthBrigadierCommands {
                 .then(totpConfirm(context))
                 .then(totpRemove(context, "remove"))
                 .then(totpRemove(context, "disable"))
-                .then(context.greedyArguments())
         }
     }
 
@@ -366,7 +361,6 @@ object OfflineAuthBrigadierCommands {
                                 }
                         )
                 )
-                .then(context.greedyArguments())
         }
     }
 
