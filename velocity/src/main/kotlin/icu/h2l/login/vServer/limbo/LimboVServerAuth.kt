@@ -58,23 +58,44 @@ class LimboVServerAuth(server: ProxyServer) : HyperZoneVServerAdapter {
     private val limboSessions = ConcurrentHashMap<io.netty.channel.Channel, LimboPlayer>()
 
     init {
-        factory = server.pluginManager.getPlugin("limboapi")
-            .flatMap { obj: PluginContainer -> obj.instance }
-            .orElseThrow() as LimboFactory
+        factory = try {
+            server.pluginManager.getPlugin("limboapi")
+                .flatMap { obj: PluginContainer -> obj.instance }
+                .orElseThrow()
+                .let { pluginInstance ->
+                    pluginInstance as? LimboFactory
+                        ?: throw IllegalStateException(
+                            "Plugin 'limboapi' instance does not implement LimboFactory: ${pluginInstance.javaClass.name}"
+                        )
+                }
+        } catch (t: Throwable) {
+            throw IllegalStateException(
+                "Failed to resolve LimboFactory from plugin 'limboapi'. Check installed Limbo plugin compatibility.",
+                t
+            )
+        }
     }
 
     fun load() {
-        val authWorld: VirtualWorld = factory.createVirtualWorld(
-            Dimension.OVERWORLD,
-            0.0, 0.0, 0.0,
-            0f, 0f
-        )
+        val authWorld: VirtualWorld = try {
+            factory.createVirtualWorld(
+                Dimension.OVERWORLD,
+                0.0, 0.0, 0.0,
+                0f, 0f
+            )
+        } catch (t: Throwable) {
+            throw IllegalStateException("Failed to create Limbo virtual world for HyperZoneLogin", t)
+        }
 
-        limboAuthServer = factory
-            .createLimbo(authWorld)
-            .setName("HyperzoneLogin")
-            .setWorldTime(1000L)
-            .setGameMode(GameMode.ADVENTURE)
+        limboAuthServer = try {
+            factory
+                .createLimbo(authWorld)
+                .setName("HyperzoneLogin")
+                .setWorldTime(1000L)
+                .setGameMode(GameMode.ADVENTURE)
+        } catch (t: Throwable) {
+            throw IllegalStateException("Failed to create or configure Limbo auth server instance", t)
+        }
     }
 
     @Subscribe

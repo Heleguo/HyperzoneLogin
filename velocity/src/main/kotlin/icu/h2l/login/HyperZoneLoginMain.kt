@@ -172,7 +172,10 @@ class HyperZoneLoginMain(
                 activeVServerAdapter = limbo
                 logger.info("Limbo plugin detected; using Limbo waiting-area adapter")
             } catch (t: Throwable) {
-                logger.warn("Limbo plugin detected but initialization failed: ${t.message}")
+                logger.error(
+                    "Limbo plugin detected but initialization failed during adapter setup; falling back to backend waiting-area mode if configured",
+                    t
+                )
             }
         }
 
