@@ -27,15 +27,16 @@ import com.velocitypowered.api.util.GameProfile
 import com.velocitypowered.proxy.VelocityServer
 import com.velocitypowered.proxy.connection.client.ConnectedPlayer
 import com.velocitypowered.proxy.server.VelocityRegisteredServer
-import icu.h2l.api.db.Profile
 import icu.h2l.api.event.profile.ProfileAttachedEvent
 import icu.h2l.login.HyperZoneLoginMain
 import icu.h2l.login.profile.VelocityHyperZoneProfileService
+import icu.h2l.login.util.VelocityGameProfileReflection
+import icu.h2l.login.util.buildDeliveredGameProfile
+import icu.h2l.login.util.executeOnPlayerEventLoop
+import icu.h2l.login.util.setConnectedPlayerGameProfile
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger
-import java.lang.reflect.Field
 import java.util.Locale
 import java.util.UUID
-import java.util.concurrent.CompletableFuture
 
 class BackendRuntimeProfileCompensator(
     private val profileService: VelocityHyperZoneProfileService,
@@ -73,8 +74,8 @@ class BackendRuntimeProfileCompensator(
                 return
             }
 
-        val isRegisteredInProxy = BackendRuntimeProfileCompensationReflection.connectionsByUuid(proxyServer).values.any { it === connectedPlayer }
-            || BackendRuntimeProfileCompensationReflection.connectionsByName(proxyServer).values.any { it === connectedPlayer }
+        val isRegisteredInProxy = VelocityGameProfileReflection.connectionsByUuid(proxyServer).values.any { it === connectedPlayer }
+            || VelocityGameProfileReflection.connectionsByName(proxyServer).values.any { it === connectedPlayer }
         val currentGameProfile = connectedPlayer.gameProfile
         val targetGameProfile = buildDeliveredGameProfile(
             currentGameProfile = currentGameProfile,
@@ -126,13 +127,13 @@ class BackendRuntimeProfileCompensator(
                 newNameLower = newGameProfile.name.lowercase(Locale.US),
                 oldUuid = oldGameProfile.id,
                 newUuid = newGameProfile.id,
-                connectionsByName = BackendRuntimeProfileCompensationReflection.connectionsByName(proxyServer),
-                connectionsByUuid = BackendRuntimeProfileCompensationReflection.connectionsByUuid(proxyServer),
+                connectionsByName = VelocityGameProfileReflection.connectionsByName(proxyServer),
+                connectionsByUuid = VelocityGameProfileReflection.connectionsByUuid(proxyServer),
                 serverPlayers = proxyServer.allServers
                     .mapNotNull { it as? VelocityRegisteredServer }
-                    .map { BackendRuntimeProfileCompensationReflection.players(it) },
-                replaceProfile = { BackendRuntimeProfileCompensationReflection.profileField.set(player, newGameProfile) },
-                rollbackProfile = { BackendRuntimeProfileCompensationReflection.profileField.set(player, oldGameProfile) },
+                    .map { VelocityGameProfileReflection.players(it) },
+                replaceProfile = { setConnectedPlayerGameProfile(player, newGameProfile) },
+                rollbackProfile = { setConnectedPlayerGameProfile(player, oldGameProfile) },
             )
         }
     }
@@ -142,7 +143,7 @@ class BackendRuntimeProfileCompensator(
         newGameProfile: GameProfile,
     ) {
         executeOnPlayerEventLoop(player) {
-            BackendRuntimeProfileCompensationReflection.profileField.set(player, newGameProfile)
+            setConnectedPlayerGameProfile(player, newGameProfile)
         }
     }
 
@@ -162,31 +163,6 @@ class BackendRuntimeProfileCompensator(
         }
     }
 
-    private fun <T> executeOnPlayerEventLoop(player: ConnectedPlayer, action: () -> T): T {
-        val eventLoop = player.connection.eventLoop()
-        if (eventLoop.inEventLoop()) {
-            return action()
-        }
-
-        val future = CompletableFuture<T>()
-        eventLoop.execute {
-            runCatching(action)
-                .onSuccess(future::complete)
-                .onFailure(future::completeExceptionally)
-        }
-        return future.join()
-    }
-}
-
-internal fun buildDeliveredGameProfile(
-    currentGameProfile: GameProfile,
-    attachedProfile: Profile,
-    enableNameHotChange: Boolean,
-    enableUuidHotChange: Boolean,
-): GameProfile {
-    val resolvedName = if (enableNameHotChange) attachedProfile.name else currentGameProfile.name
-    val resolvedUuid = if (enableUuidHotChange) attachedProfile.uuid else currentGameProfile.id
-    return GameProfile(resolvedUuid, resolvedName, currentGameProfile.properties)
 }
 
 internal object BackendRuntimeProfileIndexCompensator {
@@ -279,33 +255,4 @@ internal object BackendRuntimeProfileIndexCompensator {
     }
 }
 
-internal object BackendRuntimeProfileCompensationReflection {
-    val profileField: Field = ConnectedPlayer::class.java.getDeclaredField("profile").apply {
-        isAccessible = true
-    }
-    private val connectionsByNameField: Field = VelocityServer::class.java.getDeclaredField("connectionsByName").apply {
-        isAccessible = true
-    }
-    private val connectionsByUuidField: Field = VelocityServer::class.java.getDeclaredField("connectionsByUuid").apply {
-        isAccessible = true
-    }
-    private val registeredServerPlayersField: Field = VelocityRegisteredServer::class.java.getDeclaredField("players").apply {
-        isAccessible = true
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    fun connectionsByName(server: VelocityServer): MutableMap<String, ConnectedPlayer> {
-        return connectionsByNameField.get(server) as MutableMap<String, ConnectedPlayer>
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    fun connectionsByUuid(server: VelocityServer): MutableMap<UUID, ConnectedPlayer> {
-        return connectionsByUuidField.get(server) as MutableMap<UUID, ConnectedPlayer>
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    fun players(server: VelocityRegisteredServer): MutableMap<UUID, ConnectedPlayer> {
-        return registeredServerPlayersField.get(server) as MutableMap<UUID, ConnectedPlayer>
-    }
-}
 

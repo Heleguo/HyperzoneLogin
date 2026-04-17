@@ -26,8 +26,8 @@ import org.spongepowered.configurate.objectmapping.meta.Comment
 
 @ConfigSerializable
 class BackendServerConfig {
-    @Comment("等待区实现模式：backend / outpre")
-    val vServerMode: String = "backend"
+    @Comment("等待区实现模式：backend / outpre，推荐outpre，backend后续可能会删除")
+    val vServerMode: String = "outpre"
 
     @Comment("backend 模式使用的真实认证等待服 Velocity 服务器名；留空表示禁用 backend 模式等待服")
     val fallbackAuthServer: String = "lobby"
@@ -38,10 +38,10 @@ class BackendServerConfig {
     @Comment("backend 模式下，在真实服务器认证等待区内，如果玩家尝试前往其他服务器，是否记住新的目标并在认证成功后自动连接")
     val rememberRequestedServerDuringAuth: Boolean = true
 
-    @Comment("backend 模式专用：是否启用等待区 UpsertPlayerInfo/TabList 兼容过滤补偿；outpre 不应依赖该补偿")
+    @Comment("backend 模式专用：是否启用等待区 UpsertPlayerInfo/TabList 兼容过滤补偿；outpre 不依赖该补偿")
     val enableWaitingAreaPlayerInfoCompensation: Boolean = true
 
-    @Comment("backend 模式专用：是否启用 attach 后的在线 GameProfile 补偿同步；outpre 应在交付给 Velocity 前自行完成最终 Profile 挂载")
+    @Comment("backend 模式专用：是否启用 attach 后的在线 GameProfile 补偿同步；outpre 在交付给 Velocity 前自行完成最终 Profile 挂载")
     val enableRuntimeProfileCompensation: Boolean = true
 }
 

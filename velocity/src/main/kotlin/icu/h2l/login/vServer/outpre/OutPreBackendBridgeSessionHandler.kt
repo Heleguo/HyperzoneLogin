@@ -45,6 +45,7 @@ import com.velocitypowered.proxy.protocol.packet.ResourcePackRequestPacket
 import com.velocitypowered.proxy.protocol.packet.ServerLoginSuccessPacket
 import com.velocitypowered.proxy.protocol.packet.SetCompressionPacket
 import com.velocitypowered.proxy.protocol.packet.TransferPacket
+import com.velocitypowered.proxy.protocol.packet.UpsertPlayerInfoPacket
 import com.velocitypowered.proxy.protocol.packet.config.ClientboundCustomReportDetailsPacket
 import com.velocitypowered.proxy.protocol.packet.config.ClientboundServerLinksPacket
 import com.velocitypowered.proxy.protocol.packet.config.CodeOfConductPacket
@@ -235,8 +236,12 @@ class OutPreBackendBridgeSessionHandler(
     }
 
     override fun handleGeneric(packet: MinecraftPacket) {
-        when (packet) {
-            is AvailableCommandsPacket -> {
+        when {
+            shouldDropOutPreBackendPacket(packet) -> {
+                ReferenceCountUtil.safeRelease(packet)
+            }
+
+            packet is AvailableCommandsPacket -> {
                 refreshWaitingAreaCommands(force = true)
             }
 
@@ -255,6 +260,10 @@ class OutPreBackendBridgeSessionHandler(
     override fun exception(throwable: Throwable) {
         bridge.onBackendDisconnected(throwable.message)
     }
+}
+
+internal fun shouldDropOutPreBackendPacket(packet: MinecraftPacket): Boolean {
+    return packet is UpsertPlayerInfoPacket
 }
 
 

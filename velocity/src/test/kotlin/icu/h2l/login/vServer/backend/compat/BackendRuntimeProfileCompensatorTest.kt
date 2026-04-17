@@ -23,6 +23,8 @@ package icu.h2l.login.vServer.backend.compat
 
 import com.velocitypowered.api.util.GameProfile
 import icu.h2l.api.db.Profile
+import icu.h2l.login.util.buildAttachedIdentityGameProfile
+import icu.h2l.login.util.buildDeliveredGameProfile
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertSame
@@ -63,6 +65,25 @@ class BackendRuntimeProfileCompensatorTest {
 
         assertEquals("FormalName", resolved.name)
         assertEquals(NEW_UUID, resolved.id)
+    }
+
+    @Test
+    fun `attached identity game profile always uses attached uuid and name while keeping properties`() {
+        val currentGameProfile = GameProfile(
+            OLD_UUID,
+            "TemporaryName",
+            listOf(GameProfile.Property("textures", "value", "signature"))
+        )
+        val attachedProfile = Profile(PROFILE_ID, "FormalName", NEW_UUID)
+
+        val resolved = buildAttachedIdentityGameProfile(
+            currentGameProfile = currentGameProfile,
+            attachedProfile = attachedProfile,
+        )
+
+        assertEquals("FormalName", resolved.name)
+        assertEquals(NEW_UUID, resolved.id)
+        assertEquals(currentGameProfile.properties, resolved.properties)
     }
 
     @Test

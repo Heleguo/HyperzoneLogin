@@ -53,7 +53,8 @@ import icu.h2l.login.inject.network.NettyReflectionHelper.reflectedDelegatedConn
 import icu.h2l.login.inject.network.NettyReflectionHelper.reflectedTeardown
 import icu.h2l.login.listener.ProfileLayerVerifyListener
 import icu.h2l.login.manager.HyperZonePlayerManager
-import icu.h2l.login.vServer.backend.compat.buildDeliveredGameProfile
+import icu.h2l.login.util.buildAttachedIdentityGameProfile
+import icu.h2l.login.util.setConnectedPlayerGameProfile
 import io.netty.buffer.ByteBuf
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
@@ -192,11 +193,9 @@ class OutPreAuthSessionHandler(
             return
         }
 
-        val finalCandidateProfile = buildDeliveredGameProfile(
+        val finalCandidateProfile = buildAttachedIdentityGameProfile(
             currentGameProfile = player.gameProfile,
             attachedProfile = attachedProfile,
-            enableNameHotChange = HyperZoneLoginMain.getMiscConfig().enableNameHotChange,
-            enableUuidHotChange = HyperZoneLoginMain.getMiscConfig().enableUuidHotChange
         )
 
         ProfileLayerVerifyListener.allowOutPreFinalProfile(finalCandidateProfile.id)
@@ -206,8 +205,11 @@ class OutPreAuthSessionHandler(
                 return@thenComposeAsync CompletableFuture.completedFuture(null)
             }
 
-            profile = profileEvent.gameProfile
-            NettyReflectionHelper.setGameProfile(player, profile)
+            profile = buildAttachedIdentityGameProfile(
+                currentGameProfile = profileEvent.gameProfile,
+                attachedProfile = attachedProfile,
+            )
+            setConnectedPlayerGameProfile(player, profile)
 
             server.eventManager.fire(
                 PermissionsSetupEvent(player, NettyReflectionHelper.defaultPermissions())
