@@ -30,34 +30,53 @@ import icu.h2l.api.player.HyperZonePlayer
 import icu.h2l.login.HyperZoneLoginMain
 
 object ProfileSkinApplySupport {
-    fun apply(hyperZonePlayer: HyperZonePlayer): GameProfile? {
-        val baseProfile = runCatching {
+    fun apply(hyperZonePlayer: HyperZonePlayer, baseProfile: GameProfile? = null): GameProfile? {
+        return applyAsync(hyperZonePlayer, baseProfile).join()
+    }
+
+    fun applyAsync(hyperZonePlayer: HyperZonePlayer, baseProfile: GameProfile? = null): java.util.concurrent.CompletableFuture<GameProfile?> {
+        val resolvedBaseProfile = resolveBaseProfile(hyperZonePlayer, baseProfile)
+            ?: return java.util.concurrent.CompletableFuture.completedFuture(null)
+        val event = ProfileSkinApplyEvent(hyperZonePlayer, resolvedBaseProfile)
+
+        return HyperZoneLoginMain.getInstance().proxy.eventManager.fire(event)
+            .handle { _, throwable ->
+                if (throwable != null) {
+                    error(throwable) { "Profile skin apply event failed: ${throwable.message}" }
+                    return@handle resolvedBaseProfile
+                }
+
+                val textures = event.textures ?: return@handle resolvedBaseProfile
+                val property = textures.toPropertyOrNull() ?: run {
+                    warn {
+                        "[ProfileSkinFlow] apply skipped incomplete textures: clientOriginal=${hyperZonePlayer.clientOriginalName}, profile=${resolvedBaseProfile.id}, valueLength=${textures.value.length}, signed=${textures.isSigned}"
+                    }
+                    return@handle resolvedBaseProfile
+                }
+                mergeTextures(resolvedBaseProfile, property)
+            }
+    }
+
+    private fun resolveBaseProfile(hyperZonePlayer: HyperZonePlayer, baseProfile: GameProfile?): GameProfile? {
+        if (baseProfile != null) {
+            return baseProfile
+        }
+
+        return runCatching {
             hyperZonePlayer.getAttachedGameProfile()
         }.getOrElse { throwable ->
             debug {
                 "[ProfileSkinFlow] apply aborted: clientOriginal=${hyperZonePlayer.clientOriginalName}, reason=${throwable.message ?: throwable.javaClass.simpleName}, waitingArea=${hyperZonePlayer.isInWaitingArea()}, attachedProfile=${hyperZonePlayer.hasAttachedProfile()}"
             }
-            return null
+            null
         }
-        val event = ProfileSkinApplyEvent(hyperZonePlayer, baseProfile)
+    }
 
-        runCatching {
-            HyperZoneLoginMain.getInstance().proxy.eventManager.fire(event).join()
-        }.onFailure { throwable ->
-            error(throwable) { "Profile skin apply event failed: ${throwable.message}" }
-        }
-
-        val textures = event.textures ?: return baseProfile
-        val property = textures.toPropertyOrNull() ?: run {
-            warn {
-                "[ProfileSkinFlow] apply skipped incomplete textures: clientOriginal=${hyperZonePlayer.clientOriginalName}, profile=${baseProfile.id}, valueLength=${textures.value.length}, signed=${textures.isSigned}"
-            }
-            return baseProfile
-        }
+    internal fun mergeTextures(baseProfile: GameProfile, textureProperty: GameProfile.Property): GameProfile {
         val mergedProperties = baseProfile.properties
             .filterNot { it.name.equals("textures", ignoreCase = true) }
             .toMutableList()
-            .apply { add(property) }
+            .apply { add(textureProperty) }
 
         return GameProfile(
             baseProfile.id,

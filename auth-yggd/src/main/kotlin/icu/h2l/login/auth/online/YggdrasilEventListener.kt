@@ -47,24 +47,24 @@ class YggdrasilEventListener(
             playerIp = event.playerIp
         )
         debug {
-            "[YggdrasilFlow] OnlineAuthEvent 收到，等待 LimboSpawn 触发验证: addr=${event.channel}, user=${event.userName}"
+            "[YggdrasilFlow] OnlineAuthEvent 收到，等待等待区进入事件触发验证: addr=${event.channel}, user=${event.userName}"
         }
     }
 
     @Subscribe
-    fun onLimboSpawn(event: VServerJoinEvent) {
+    fun onWaitingAreaJoin(event: VServerJoinEvent) {
         if (!event.proxyPlayer.isOnlineMode) return
         if (!event.hyperZonePlayer.isInWaitingArea()) return
 
         val channel = event.proxyPlayer.getChannel()
         val pending = pendingContexts.remove(channel)
         if (pending == null) {
-            debug { "[YggdrasilFlow] LimboSpawnEvent 未找到待验证上下文，跳过: addr=$channel" }
+            debug { "[YggdrasilFlow] WaitingAreaJoin 未找到待验证上下文，跳过: addr=$channel" }
             return
         }
 
         val username = event.proxyPlayer.username
-        debug { "[YggdrasilFlow] LimboSpawnEvent 收到，开始验证: user=$username" }
+        debug { "[YggdrasilFlow] WaitingAreaJoin 收到，开始验证: user=$username" }
         yggdrasilAuthModule.startYggdrasilAuth(
             player = event.proxyPlayer,
             username = pending.username,
@@ -72,7 +72,7 @@ class YggdrasilEventListener(
             serverId = pending.serverId,
             playerIp = pending.playerIp
         )
-        yggdrasilAuthModule.registerLimboHandler(event.proxyPlayer, event.hyperZonePlayer)
+        yggdrasilAuthModule.registerWaitingAreaPlayer(event.proxyPlayer, event.hyperZonePlayer)
     }
 
     @Subscribe

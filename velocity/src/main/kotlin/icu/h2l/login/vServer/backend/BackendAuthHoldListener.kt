@@ -24,7 +24,6 @@ package icu.h2l.login.vServer.backend
 import com.velocitypowered.api.event.Subscribe
 import com.velocitypowered.api.event.connection.DisconnectEvent
 import com.velocitypowered.api.event.player.PlayerChooseInitialServerEvent
-import com.velocitypowered.api.event.player.ServerConnectedEvent
 import com.velocitypowered.api.event.player.ServerPostConnectEvent
 import com.velocitypowered.api.event.player.ServerPreConnectEvent
 import com.velocitypowered.api.proxy.Player
@@ -45,7 +44,7 @@ import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Fallback auth hold flow used when Limbo is unavailable.
+ * Backend waiting-area flow backed by a real Velocity registered server.
  *
  * Players are redirected to a configured real backend server, kept there until
  * verification succeeds, then automatically connected to their remembered target.
@@ -148,10 +147,8 @@ class BackendAuthHoldListener(
         val hyperPlayer = getHyperPlayer(player) ?: return
 
         /**
-         * Backend 等待服不会像 Limbo 那样在更早阶段自行构造并接管玩家实体，
+         * Backend 等待服是在 `PlayerChooseInitialServerEvent` 阶段进入，
          * 因此这里就是 Backend 模式唯一合法的 `update(...)` 绑定点。
-         *
-         * Limbo 模式绝不能复用这条路径；否则会在其更早绑定之后再次调用 `update(...)`。
          */
         hyperPlayer.injectProxyPlayer(player)
 
@@ -303,7 +300,23 @@ class BackendAuthHoldListener(
         return true
     }
 
-    override fun canUseProxyFallbackCommand(player: Player): Boolean {
+    override fun needsBackendPlayerInfoCompat(): Boolean {
+        return HyperZoneLoginMain.getBackendServerConfig().enableWaitingAreaPlayerInfoCompensation
+    }
+
+    override fun needsBackendLoginProfileRewrite(): Boolean {
+        return true
+    }
+
+    override fun needsBackendRuntimeProfileSync(): Boolean {
+        return HyperZoneLoginMain.getBackendServerConfig().enableRuntimeProfileCompensation
+    }
+
+    override fun needsBackendInitialProfileCompat(): Boolean {
+        return true
+    }
+
+    override fun allowsProxyFallbackCommand(player: Player): Boolean {
         /**
          * 这里必须按“当前是否位于后端等待区服务器”判断，不能再复用一次性的 hold 状态。
          *
@@ -322,11 +335,8 @@ class BackendAuthHoldListener(
         PlayerAreaLifecycleListener.markWaitingAreaLeavePending(player, PlayerAreaTransitionReason.EXIT_REQUEST)
 
         /**
-         * 后端等待服和 Limbo 不同：
-         * 玩家“退出等待区”不应被直接断开，而应尽量送回 `reJoin(...)`
-         * 把他转入等待区之前的目标服。
-         *
-         * 只有 Limbo 才是“断开 Limbo 会话 = 退出等待区”。
+         * Backend 等待服的“退出等待区”不应被直接断开，
+         * 而应尽量送回进入等待区之前的目标服。
          */
         val state = backendHoldStates[player.getChannel()]
         val authServerName = state?.authServerName ?: configuredAuthServerName()

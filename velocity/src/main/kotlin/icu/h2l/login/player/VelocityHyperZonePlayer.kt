@@ -42,7 +42,7 @@ import java.util.concurrent.atomic.AtomicReference
  * `HyperZonePlayer` 的 Velocity 实现。
  *
  * 这里维护三组彼此独立但互相关联的状态：
- * 1. 连接/等待区状态：玩家是否仍在 Limbo 或后端认证等待服；
+ * 1. 连接/等待区状态：玩家是否仍在认证等待区实现内部；
  * 2. 认证状态：子模块是否已经认可本次登录；
  * 3. 凭证状态：子模块已经向当前会话提交了哪些可信凭证。
  *
@@ -99,8 +99,7 @@ class VelocityHyperZonePlayer(
      * 绑定当前登录会话对应的代理层 Player。
      *
      * 注意：每个 `VelocityHyperZonePlayer` 只允许绑定一次。
-     * - Backend 模式：在 `PlayerChooseInitialServerEvent` 中绑定；
-     * - Limbo 模式：由 Limbo 自己的接入流程更早完成绑定，不能再等 `PlayerChooseInitialServerEvent`。
+     * 当前等待区实现会在各自合法的接入阶段完成绑定，不能重复绑定。
      */
     fun injectProxyPlayer(player: Player) {
         if (!hasBoundProxyPlayer.compareAndSet(false, true)) {
@@ -160,9 +159,11 @@ class VelocityHyperZonePlayer(
         }
 
         HyperZoneLoginMain.getInstance().profileService.attachVerifiedCredentialProfile(this)
+        isVerifiedState.set(true)
         if (!hasAttachedProfile()) {
             sendMessage(HyperZoneLoginMain.getInstance().messageService.render(this, MessageKeys.Player.VERIFIED_UNBOUND))
         }
+        tryLeaveWaiting()
     }
 
     internal fun runCoreAuthorizedOverVerify() {
@@ -220,9 +221,6 @@ class VelocityHyperZonePlayer(
     }
 
     internal fun onAttachedProfileAvailable() {
-        if (!isVerifiedState.compareAndSet(false, true)) {
-            return
-        }
         tryLeaveWaiting()
     }
 

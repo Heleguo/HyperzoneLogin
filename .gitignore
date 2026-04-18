@@ -6,6 +6,7 @@ bin/
 .kotlin
 pubDoc
 *.log
+*.log.gz
 
 target/
 pom.xml.tag

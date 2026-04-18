@@ -19,10 +19,12 @@
  *
  */
 
-package icu.h2l.login.profile
+package icu.h2l.login.vServer.backend.compat
 
 import com.velocitypowered.api.util.GameProfile
 import icu.h2l.api.db.Profile
+import icu.h2l.login.util.buildAttachedIdentityGameProfile
+import icu.h2l.login.util.buildDeliveredGameProfile
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertSame
@@ -31,17 +33,17 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.util.UUID
 
-class VCProfileManagerTest {
+class BackendRuntimeProfileCompensatorTest {
     @Test
-    fun `runtime profile resolution applies attached name only by default`() {
+    fun `delivered game profile applies attached name only by default`() {
         val currentGameProfile = GameProfile(OLD_UUID, "WaitingTemp", emptyList())
         val attachedProfile = Profile(PROFILE_ID, "FormalName", NEW_UUID)
 
-        val resolved = resolveRuntimeGameProfile(
+        val resolved = buildDeliveredGameProfile(
             currentGameProfile = currentGameProfile,
             attachedProfile = attachedProfile,
             enableNameHotChange = true,
-            enableUuidHotChange = false
+            enableUuidHotChange = false,
         )
 
         assertEquals("FormalName", resolved.name)
@@ -50,15 +52,15 @@ class VCProfileManagerTest {
     }
 
     @Test
-    fun `runtime profile resolution applies both attached name and uuid when enabled`() {
+    fun `delivered game profile applies both attached name and uuid when enabled`() {
         val currentGameProfile = GameProfile(OLD_UUID, "WaitingTemp", emptyList())
         val attachedProfile = Profile(PROFILE_ID, "FormalName", NEW_UUID)
 
-        val resolved = resolveRuntimeGameProfile(
+        val resolved = buildDeliveredGameProfile(
             currentGameProfile = currentGameProfile,
             attachedProfile = attachedProfile,
             enableNameHotChange = true,
-            enableUuidHotChange = true
+            enableUuidHotChange = true,
         )
 
         assertEquals("FormalName", resolved.name)
@@ -66,24 +68,43 @@ class VCProfileManagerTest {
     }
 
     @Test
-    fun `compensating sync rewrites all affected indices`() {
+    fun `attached identity game profile always uses attached uuid and name while keeping properties`() {
+        val currentGameProfile = GameProfile(
+            OLD_UUID,
+            "TemporaryName",
+            listOf(GameProfile.Property("textures", "value", "signature"))
+        )
+        val attachedProfile = Profile(PROFILE_ID, "FormalName", NEW_UUID)
+
+        val resolved = buildAttachedIdentityGameProfile(
+            currentGameProfile = currentGameProfile,
+            attachedProfile = attachedProfile,
+        )
+
+        assertEquals("FormalName", resolved.name)
+        assertEquals(NEW_UUID, resolved.id)
+        assertEquals(currentGameProfile.properties, resolved.properties)
+    }
+
+    @Test
+    fun `backend runtime profile index compensator rewrites all affected indices`() {
         val connection = Any()
         val nameIndex = linkedMapOf(
             "oldname" to connection,
-            "other" to Any()
+            "other" to Any(),
         )
         val uuidIndex = linkedMapOf(
             OLD_UUID to connection,
-            OTHER_UUID to Any()
+            OTHER_UUID to Any(),
         )
         val backendPlayers = mutableListOf(
             linkedMapOf(OLD_UUID to connection),
-            linkedMapOf(OTHER_UUID to Any())
+            linkedMapOf(OTHER_UUID to Any()),
         )
         var replaced = false
         var rolledBack = false
 
-        ProfileCompensationSupport.applyCompensatingSync(
+        BackendRuntimeProfileIndexCompensator.applyCompensatingSync(
             connection = connection,
             newNameLower = "newname",
             oldUuid = OLD_UUID,
@@ -92,7 +113,7 @@ class VCProfileManagerTest {
             connectionsByUuid = uuidIndex,
             serverPlayers = backendPlayers,
             replaceProfile = { replaced = true },
-            rollbackProfile = { rolledBack = true }
+            rollbackProfile = { rolledBack = true },
         )
 
         assertTrue(replaced)
@@ -107,7 +128,7 @@ class VCProfileManagerTest {
     }
 
     @Test
-    fun `compensating sync restores previous state on failure`() {
+    fun `backend runtime profile index compensator restores previous state on failure`() {
         val connection = Any()
         val nameIndex = linkedMapOf("oldname" to connection)
         val uuidIndex = linkedMapOf(OLD_UUID to connection)
@@ -119,7 +140,7 @@ class VCProfileManagerTest {
         var rolledBack = false
 
         assertThrows(IllegalStateException::class.java) {
-            ProfileCompensationSupport.applyCompensatingSync(
+            BackendRuntimeProfileIndexCompensator.applyCompensatingSync(
                 connection = connection,
                 newNameLower = "newname",
                 oldUuid = OLD_UUID,
@@ -129,7 +150,7 @@ class VCProfileManagerTest {
                 serverPlayers = backendPlayers,
                 replaceProfile = { replaced = true },
                 rollbackProfile = { rolledBack = true },
-                postSyncHook = { throw IllegalStateException("boom") }
+                postSyncHook = { throw IllegalStateException("boom") },
             )
         }
 
@@ -141,22 +162,22 @@ class VCProfileManagerTest {
     }
 
     @Test
-    fun `compensating sync rejects conflicting live mappings`() {
+    fun `backend runtime profile index compensator rejects conflicting live mappings`() {
         val connection = Any()
         val conflictingConnection = Any()
         val nameIndex = linkedMapOf(
             "oldname" to connection,
-            "newname" to conflictingConnection
+            "newname" to conflictingConnection,
         )
         val uuidIndex = linkedMapOf(
             OLD_UUID to connection,
-            OTHER_UUID to conflictingConnection
+            OTHER_UUID to conflictingConnection,
         )
         val backendPlayers = mutableListOf(linkedMapOf(OLD_UUID to connection))
         var replaced = false
 
         assertThrows(IllegalStateException::class.java) {
-            ProfileCompensationSupport.applyCompensatingSync(
+            BackendRuntimeProfileIndexCompensator.applyCompensatingSync(
                 connection = connection,
                 newNameLower = "newname",
                 oldUuid = OLD_UUID,
@@ -165,7 +186,7 @@ class VCProfileManagerTest {
                 connectionsByUuid = uuidIndex,
                 serverPlayers = backendPlayers,
                 replaceProfile = { replaced = true },
-                rollbackProfile = {}
+                rollbackProfile = {},
             )
         }
 
@@ -182,5 +203,4 @@ class VCProfileManagerTest {
         private val OTHER_UUID: UUID = UUID.fromString("33333333-3333-4333-8333-333333333333")
     }
 }
-
 

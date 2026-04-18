@@ -21,7 +21,7 @@ velocity / 主插件 (HyperZoneLogin 核心)
 - 命令：
   - 内置命令实现 `HyperZoneLoginCommand`，支持如下用例（示例）：
 	- `reload`：重载配置/状态（输出 `Reloaded!`）。
-	- `re`：对玩家触发重新认证（仅玩家可执行，会调用 `triggerLimboAuthForPlayer`）。
+  - `re`：对玩家触发重新认证（仅玩家可执行，会调用当前等待区适配器的 `reJoin(...)`）。
 	- `uuid`：显示代理 Player 与 HyperZonePlayer 的信息（包括 profile、uuid 等）。
     - 管理命令通过 Brigadier 子命令节点上的权限检查进行限制：`reload` 与 `uuid` 需要 `hyperzonelogin.admin`，`re` 允许普通玩家使用。
 - 事件与表管理：
@@ -37,10 +37,23 @@ velocity / 主插件 (HyperZoneLogin 核心)
   - `auth-offline`、`auth-yggd`、`profile-skin`、`data-merge` 也会在注册自身子模块前按需加载各自运行库，并复用该缓存目录；
   - 该机制参考并改编自 LuckPerms，详细署名见仓库根目录的 `THIRD_PARTY_NOTICES.md`。
 
-- 无 `limboapi` 时的认证等待区：
-  - 可在 `backend-server.conf` 中配置 `fallbackAuthServer` 为一个真实后端服务器名；
-  - 当未安装 `limboapi` 时，未认证玩家会被固定送入该服务器等待认证；
-  - 可通过 `postAuthDefaultServer` 配置认证完成后优先进入的子服务器，默认 `play`；
+- 认证等待区：
+  - `backend-server.conf` 新增 `vServerMode`：
+    - `backend`：使用当前的后端等待服模式；
+    - `outpre`：先挂起正常 Velocity 注册，把登录阶段连接桥接到真实认证服，认证完成后再继续正常初始服流程；
+  - `backend-server.conf` 只负责 `backend` 模式配置：
+    - `fallbackAuthServer`
+    - `postAuthDefaultServer`
+    - `rememberRequestedServerDuringAuth`
+  - 使用 `backend` 模式时，未认证玩家会被固定送入该服务器等待认证；
+  - `outpre` 改为使用独立的 `vserver-outpre.conf`：
+    - `authHost` / `authPort`：outpre 要直连桥接到的真实认证服；
+    - `authLabel`：仅用于日志/状态标识的逻辑名，不需要在 Velocity 中注册；
+    - `postAuthDefaultServer`：认证完成后默认进入的子服务器；
+    - `rememberRequestedServerDuringAuth`：是否记住玩家在认证阶段切换出来的目标服；
+    - `presentedHost` / `presentedPort` / `presentedPlayerIp`：转接到认证服时，对后端暴露的连接信息；
+  - 这些参数只由 `vserver-outpre.conf` 控制，不再与 `backend` 模式共享，也不再从 Velocity 的 `virtual host / forced hosts / attempt-connection-order` 推导；
+  - `outpre` 的认证服无需在 Velocity 中注册；只要配置好 `authHost/authPort` 即可进行直连桥接；
   - 认证完成前，玩家不能进入其他后端；
   - 若 `rememberRequestedServerDuringAuth=true`，则会记住玩家原本想去的服务器，并在认证成功后自动连接过去。
 

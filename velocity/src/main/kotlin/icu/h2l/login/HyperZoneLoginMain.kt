@@ -44,15 +44,15 @@ import icu.h2l.login.config.DebugConfig
 import icu.h2l.login.config.MessagesConfig
 import icu.h2l.login.config.MiscConfig
 import icu.h2l.login.config.ModulesConfig
+import icu.h2l.login.config.OutPreConfig
 import icu.h2l.login.config.RemapConfig
 import icu.h2l.login.database.DatabaseConfig
 import icu.h2l.login.database.DatabaseHelper
 import icu.h2l.login.inject.network.VelocityNetworkModule
 import icu.h2l.login.vServer.backend.BackendAuthHoldListener
-import icu.h2l.login.vServer.limbo.LimboVServerAuth
+import icu.h2l.login.vServer.outpre.OutPreVServerAuth
 import icu.h2l.login.vServer.command.ExitVServerCommand
 import icu.h2l.login.vServer.command.OverVServerCommand
-import icu.h2l.login.listener.ProfileLayerVerifyListener
 import icu.h2l.login.listener.PlayerAreaLifecycleListener
 import icu.h2l.login.manager.HyperChatCommandManagerImpl
 import icu.h2l.login.manager.HyperZonePlayerManager
@@ -63,7 +63,8 @@ import icu.h2l.login.listener.LoginReUuidListener
 import icu.h2l.login.module.EmbeddedModuleRegistry
 import icu.h2l.login.module.EmbeddedModuleSpec
 import icu.h2l.login.profile.ProfileBindingCodeService
-import icu.h2l.login.profile.VCProfileManager
+import icu.h2l.login.vServer.backend.compat.BackendRuntimeProfileCompensator
+import icu.h2l.login.vServer.backend.compat.BackendProfileLayerCompatListener
 import icu.h2l.login.profile.VelocityHyperZoneProfileService
 import icu.h2l.login.util.registerApiLogger
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger
@@ -93,7 +94,7 @@ class HyperZoneLoginMain(
     lateinit var databaseManager: icu.h2l.login.manager.DatabaseManager
     lateinit var databaseHelper: DatabaseHelper
     lateinit var profileService: VelocityHyperZoneProfileService
-    lateinit var vcProfileManager: VCProfileManager
+    lateinit var backendRuntimeProfileCompensator: BackendRuntimeProfileCompensator
     lateinit var bindingCodeService: ProfileBindingCodeService
     lateinit var messageService: MessageService
     val serverAdapter: HyperZoneVServerAdapter?
@@ -112,6 +113,7 @@ class HyperZoneLoginMain(
         private lateinit var debugConfig: DebugConfig
         private lateinit var modulesConfig: ModulesConfig
         private lateinit var backendServerConfig: BackendServerConfig
+        private lateinit var outPreConfig: OutPreConfig
         private lateinit var messagesConfig: MessagesConfig
 
         @JvmStatic
@@ -130,6 +132,9 @@ class HyperZoneLoginMain(
         fun getBackendServerConfig(): BackendServerConfig = backendServerConfig
 
         @JvmStatic
+        fun getOutPreConfig(): OutPreConfig = outPreConfig
+
+        @JvmStatic
         fun getMessagesConfig(): MessagesConfig = messagesConfig
     }
 
@@ -146,6 +151,7 @@ class HyperZoneLoginMain(
         loadDebugConfig()
         loadModulesConfig()
         loadBackendServerConfig()
+        loadOutPreConfig()
         loadMessagesConfig()
         messageService = MessageService(dataDirectory, logger)
         messageService.load(messagesConfig)
@@ -154,7 +160,7 @@ class HyperZoneLoginMain(
         // 创建基础表（Profile 表等）
         createBaseTables()
         profileService = VelocityHyperZoneProfileService(databaseHelper)
-        vcProfileManager = VCProfileManager(profileService, logger)
+        backendRuntimeProfileCompensator = BackendRuntimeProfileCompensator(profileService, logger)
         bindingCodeService = ProfileBindingCodeService(
             BindingCodeRepository(databaseManager, databaseManager.getBindingCodeTable()),
             profileService
@@ -163,42 +169,27 @@ class HyperZoneLoginMain(
 
         activeVServerAdapter = null
 
-        // Soft-dependency: prefer Limbo when available, otherwise fall back to a real backend waiting-area server.
-        val limboPluginPresent = server.pluginManager.getPlugin("limboapi").isPresent
-        if (limboPluginPresent) {
-            try {
-                val limbo = LimboVServerAuth(server)
-                limbo.load()
-                activeVServerAdapter = limbo
-                logger.info("Limbo plugin detected; using Limbo waiting-area adapter")
-            } catch (t: Throwable) {
-                logger.error(
-                    "Limbo plugin detected but initialization failed during adapter setup; falling back to backend waiting-area mode if configured",
-                    t
-                )
-            }
-        }
-
-        if (activeVServerAdapter == null) {
-            val configuredFallback = backendServerConfig.fallbackAuthServer.trim()
-            if (configuredFallback.isNotBlank()) {
-                activeVServerAdapter = BackendAuthHoldListener(server)
-                logger.info(
-                    if (limboPluginPresent) {
-                        "Limbo unavailable; using backend auth hold server '$configuredFallback'"
-                    } else {
-                        "Limbo not present; using backend auth hold server '$configuredFallback'"
-                    }
-                )
-            } else {
-                logger.info(
-                    if (limboPluginPresent) {
-                        "Limbo unavailable; running without Limbo integration or backend auth hold"
-                    } else {
-                        "Limbo not present; running without Limbo integration or backend auth hold"
-                    }
-                )
-            }
+        val configuredMode = normalizeVServerMode(backendServerConfig.vServerMode)
+        val configuredFallback = backendServerConfig.fallbackAuthServer.trim()
+        val configuredOutPreAuthAddress = outPreConfig.resolveAuthAddress()
+        if (configuredOutPreAuthAddress != null && configuredMode == "outpre") {
+            activeVServerAdapter = OutPreVServerAuth(server)
+            logger.info(
+                "Using outpre waiting-area adapter on direct auth endpoint '{}' ({})",
+                outPreConfig.authTargetLabel(),
+                configuredOutPreAuthAddress,
+            )
+        } else if (configuredFallback.isNotBlank() && configuredMode == "backend") {
+            activeVServerAdapter = BackendAuthHoldListener(server)
+            logger.info("Using backend auth hold server '$configuredFallback'")
+        } else {
+            logger.info(
+                if (configuredMode == "outpre") {
+                    "Outpre mode is enabled but vserver-outpre.conf authHost/authPort is invalid; running without waiting-area adapter"
+                } else {
+                    "Backend mode is enabled but fallbackAuthServer is blank; running without waiting-area adapter"
+                }
+            )
         }
 
         HyperChatCommandManagerImpl.bindVServer(proxy, activeVServerAdapter)
@@ -238,8 +229,10 @@ class HyperZoneLoginMain(
         val hzlCommand = HyperZoneLoginCommand(bindingCodeService).createCommand()
         val hzlCommandMeta = proxy.commandManager.metaBuilder(hzlCommand).build()
         proxy.commandManager.register(hzlCommandMeta, hzlCommand)
-        proxy.eventManager.register(plugin, ProfileLayerVerifyListener())
-        proxy.eventManager.register(plugin, vcProfileManager)
+        if (activeVServerAdapter?.needsBackendInitialProfileCompat() == true) {
+            proxy.eventManager.register(plugin, BackendProfileLayerCompatListener())
+        }
+        proxy.eventManager.register(plugin, backendRuntimeProfileCompensator)
         proxy.eventManager.register(plugin, LoginRenameListener())
         proxy.eventManager.register(plugin, LoginReUuidListener())
         proxy.eventManager.register(plugin, PlayerAreaLifecycleListener)
@@ -314,14 +307,16 @@ class HyperZoneLoginMain(
             ?: messageService.send(player, MessageKeys.HzlCommand.AUTH_FLOW_UNAVAILABLE)
     }
 
-    @Deprecated("Use triggerVServerReJoinForPlayer(player) instead")
-    fun triggerVServerAuthForPlayer(player: com.velocitypowered.api.proxy.Player) {
-        triggerVServerReJoinForPlayer(player)
-    }
+    private fun normalizeVServerMode(rawMode: String): String {
+        return when (rawMode.trim().lowercase()) {
+            "", "auto", "limbo" -> {
+                logger.warn("vServerMode='{}' is deprecated after Limbo removal; falling back to 'backend'", rawMode)
+                "backend"
+            }
 
-    @Deprecated("Use triggerVServerReJoinForPlayer(player) instead")
-    fun triggerLimboAuthForPlayer(player: com.velocitypowered.api.proxy.Player) {
-        triggerVServerReJoinForPlayer(player)
+            "outpre" -> "outpre"
+            else -> "backend"
+        }
     }
 
     private fun logInternalTestWarning() {
@@ -336,6 +331,7 @@ class HyperZoneLoginMain(
         loadDebugConfig()
         loadModulesConfig()
         loadBackendServerConfig()
+        loadOutPreConfig()
         loadMessagesConfig()
         if (::messageService.isInitialized) {
             messageService.load(messagesConfig)
@@ -626,6 +622,38 @@ class HyperZoneLoginMain(
         }
         if (config != null) {
             backendServerConfig = config
+        }
+    }
+
+    private fun loadOutPreConfig() {
+        val path = dataDirectory.resolve("vserver-outpre.conf")
+        val firstCreation = Files.notExists(path)
+        val loader = HoconConfigurationLoader.builder()
+            .defaultOptions { opts: ConfigurationOptions ->
+                opts
+                    .shouldCopyDefaults(true)
+                    .header(
+                        """
+                            HyperZoneLogin OutPre Configuration | by ksqeib
+                            outpre 模式的认证服、认证后目标服，以及对认证服暴露的 Host / Port / Player IP 都只在这里配置。
+
+                        """.trimIndent()
+                    ).serializers { s ->
+                        s.registerAnnotatedObjects(
+                            ObjectMapper.factoryBuilder().addDiscoverer(dataClassFieldDiscoverer()).build()
+                        )
+                    }
+            }
+            .path(path)
+            .build()
+        val node = loader.load()
+        val config = node.get(OutPreConfig::class.java)
+        if (firstCreation) {
+            node.set(config)
+            loader.save(node)
+        }
+        if (config != null) {
+            outPreConfig = config
         }
     }
 

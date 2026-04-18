@@ -25,11 +25,11 @@ import com.velocitypowered.api.event.Subscribe
 import icu.h2l.api.event.vServer.VServerJoinEvent
 import icu.h2l.login.auth.offline.service.OfflineAuthService
 
-class OfflineLimboEventListener(
+class OfflineWaitingAreaEventListener(
     private val authService: OfflineAuthService
 ) {
     @Subscribe
-    fun onLimboSpawn(event: VServerJoinEvent) {
+    fun onWaitingAreaJoin(event: VServerJoinEvent) {
         if (event.proxyPlayer.isOnlineMode) return
         if (!event.hyperZonePlayer.isInWaitingArea()) return
 

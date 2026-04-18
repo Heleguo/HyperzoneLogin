@@ -103,7 +103,7 @@ class OfflineSubModule : HyperSubModule {
             commandManager = api.chatCommandManager,
             authService = offlineAuthService
         )
-        proxy.eventManager.register(api, OfflineLimboEventListener(offlineAuthService))
+        proxy.eventManager.register(api, OfflineWaitingAreaEventListener(offlineAuthService))
         info { "OfflineSubModule 已加载，离线聊天命令与提示监听器已注册" }
     }
 }

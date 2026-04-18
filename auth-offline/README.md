@@ -26,7 +26,7 @@ Auth Offline 模块 (hzl-auth-offline)
   - 游戏内玩家提示现已接入主插件共享的 i18n 服务，默认语言文件位于 `messages/auth-offline/` 下的 `en_us.conf`、`zh_cn.conf`、`ru_ru.conf`。
   - 模块启动时会自动把这些默认文案复制到主插件数据目录；修改后可通过主插件 `/hzl reload` 一并重载。
 - 事件与集成：
-  - 模块会在注册时向代理事件管理器注册 `OfflineAuthTableManager`、命令注册器和监听器（例如 `OfflineLimboEventListener`）。
+  - 模块会在注册时向代理事件管理器注册 `OfflineAuthTableManager`、命令注册器和监听器（例如 `OfflineWaitingAreaEventListener`）。
   - 模块实现依赖的 provider 接口包括 `HyperChatCommandManagerProvider` 与 `HyperZonePlayerAccessorProvider`，注册时会对 owner 做类型断言并在缺失时抛出异常以防止错误集成。
 
 可用命令（聊天命令，由模块在注册时通过 `HyperChatCommandManager` 注册）

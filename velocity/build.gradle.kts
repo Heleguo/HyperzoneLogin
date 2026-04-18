@@ -76,8 +76,6 @@ dependencies {
 //    VC
     compileOnly(libs.velocityApi)
     compileOnly(libs.velocityProxy) // From Elytrium Repo.
-//    limbo
-    compileOnly(libs.limboApi)
     compileOnly(libs.floodgateApi)
     add(bstatsRelocatedClasspath.name, libs.bstatsVelocity)
     compileOnly(files(relocateBstatsCompileOnlyJar.flatMap { it.archiveFile }))

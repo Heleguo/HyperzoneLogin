@@ -39,8 +39,6 @@ dependencies {
 //    config
     compileOnly(libs.configurateHocon)
     compileOnly(libs.configurateExtraKotlin)
-//    limbo
-    compileOnly(libs.limboApi)
     needPackageCompileOnly(libs.angusMail)
     needPackageCompileOnly(libs.googleAuth)
 

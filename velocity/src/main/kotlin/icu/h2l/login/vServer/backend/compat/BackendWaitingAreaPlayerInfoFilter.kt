@@ -19,7 +19,7 @@
  *
  */
 
-package icu.h2l.login.inject.network.netty.replacer
+package icu.h2l.login.vServer.backend.compat
 
 import com.velocitypowered.api.proxy.Player
 import com.velocitypowered.proxy.connection.MinecraftConnection
@@ -31,7 +31,7 @@ import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelInboundHandlerAdapter
 import io.netty.util.ReferenceCountUtil
 
-class WaitingAreaUpsertPlayerInfoPacketReplacer : ChannelInboundHandlerAdapter() {
+class BackendWaitingAreaPlayerInfoFilter : ChannelInboundHandlerAdapter() {
     private var proxyPlayer: Player? = null
     private var unresolvedPlayerLogged = false
 
@@ -48,7 +48,7 @@ class WaitingAreaUpsertPlayerInfoPacketReplacer : ChannelInboundHandlerAdapter()
         if (player == null && msg is UpsertPlayerInfoPacket && !unresolvedPlayerLogged) {
             unresolvedPlayerLogged = true
             debug {
-                "[WaitingAreaTabCompat] upsert passthrough before player resolved: channel=${ctx.channel().id().asShortText()}, packet=${describePacket(msg)}"
+                "[BackendWaitingAreaPlayerInfoFilter] upsert passthrough before player resolved: channel=${ctx.channel().id().asShortText()}, packet=${describePacket(msg)}"
             }
         }
 
@@ -59,7 +59,7 @@ class WaitingAreaUpsertPlayerInfoPacketReplacer : ChannelInboundHandlerAdapter()
             }
             val nextPacketName = msg?.javaClass?.simpleName ?: "null"
             debug {
-                "[WaitingAreaTabCompat] retire filter after waiting area: player=${resolvedPlayer.username}, uuid=${resolvedPlayer.uniqueId}, currentServer=${currentServerName(resolvedPlayer)}, nextPacket=$nextPacketName"
+                "[BackendWaitingAreaPlayerInfoFilter] retire filter after backend waiting area: player=${resolvedPlayer.username}, uuid=${resolvedPlayer.uniqueId}, currentServer=${currentServerName(resolvedPlayer)}, nextPacket=$nextPacketName"
             }
             retire(ctx)
             super.channelRead(ctx, msg)
@@ -72,7 +72,7 @@ class WaitingAreaUpsertPlayerInfoPacketReplacer : ChannelInboundHandlerAdapter()
                 return
             }
             debug {
-                "[WaitingAreaTabCompat] drop waiting-area upsert: player=${resolvedPlayer.username}, uuid=${resolvedPlayer.uniqueId}, currentServer=${currentServerName(resolvedPlayer)}, packet=${describePacket(msg)}"
+                "[BackendWaitingAreaPlayerInfoFilter] drop backend waiting-area upsert: player=${resolvedPlayer.username}, uuid=${resolvedPlayer.uniqueId}, currentServer=${currentServerName(resolvedPlayer)}, packet=${describePacket(msg)}"
             }
             ReferenceCountUtil.safeRelease(msg)
             return
@@ -87,11 +87,13 @@ class WaitingAreaUpsertPlayerInfoPacketReplacer : ChannelInboundHandlerAdapter()
         }
 
         val connection = ctx.channel().pipeline().get(MinecraftConnection::class.java) ?: return
-        val backendConnection = connection.association as? VelocityServerConnection ?: return
-        proxyPlayer = backendConnection.player
+        proxyPlayer = when (val association = connection.association) {
+            is VelocityServerConnection -> association.player
+            else -> return
+        }
         unresolvedPlayerLogged = false
         debug {
-            "[WaitingAreaTabCompat] resolved backend player for upsert filter: player=${backendConnection.player.username}, uuid=${backendConnection.player.uniqueId}, target=${backendConnection.server.serverInfo.name}, channel=${ctx.channel().id().asShortText()}"
+            "[BackendWaitingAreaPlayerInfoFilter] resolved backend player for player-info filter: player=${proxyPlayer?.username}, uuid=${proxyPlayer?.uniqueId}, channel=${ctx.channel().id().asShortText()}"
         }
     }
 
@@ -107,12 +109,12 @@ class WaitingAreaUpsertPlayerInfoPacketReplacer : ChannelInboundHandlerAdapter()
     private fun currentServerName(player: Player): String {
         return player.currentServer
             .map { it.server.serverInfo.name }
-            .orElse("<none>")
+            .orElse(null)
+            ?: "<none>"
     }
 
     private fun describePacket(packet: UpsertPlayerInfoPacket): String {
         return "actions=${packet.actions}, entries=${packet.entries.size}"
     }
 }
-
 

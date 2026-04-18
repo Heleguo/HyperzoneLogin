@@ -78,11 +78,11 @@ class YggdrasilAuthModule(
         private val authResults = ConcurrentHashMap<Player, YggdrasilAuthResult>()
 
     /**
-     * 存储LimboAuthSessionHandler实例
+     * 存储当前等待区玩家上下文
         * Key: 玩家连接
-     * Value: LimboAuthSessionHandler实例
+     * Value: 当前等待区中的 HyperZonePlayer
      */
-        private val limboHandlers = ConcurrentHashMap<Player, HyperZonePlayer>()
+        private val waitingAreaPlayers = ConcurrentHashMap<Player, HyperZonePlayer>()
 
     private val entryDatabaseHelper = EntryDatabaseHelper(
         databaseManager = databaseManager,
@@ -144,10 +144,10 @@ class YggdrasilAuthModule(
                     val result = performYggdrasilAuth(player, username, uuid, serverId, playerIp)
                     authResults[player] = result
                     debug { "[YggdrasilFlow] 验证任务完成并缓存结果: user=$username, result=${result.javaClass.simpleName}" }
-                    limboHandlers[player]?.let { handler ->
+                    waitingAreaPlayers[player]?.let { handler ->
                         dispatchAuthResultToHandler(player, username, handler, result)
                     } ?: run {
-                        debug { "[YggdrasilFlow] 尚未注册 Limbo handler，等待后续 LimboSpawnEvent: user=$username" }
+                        debug { "[YggdrasilFlow] 尚未注册等待区玩家上下文，等待后续 WaitingAreaJoin: user=$username" }
                     }
                 } finally {
                     inFlightAuthJobs.remove(player)
@@ -169,33 +169,33 @@ class YggdrasilAuthModule(
     }
 
     /**
-     * 注册玩家的LimboAuthSessionHandler实例
-     * 应该在玩家开始验证时就调用此方法
-     * 
+     * 注册玩家当前等待区上下文。
+     * 应该在玩家进入等待区后立即调用此方法。
+     *
      * @param player 玩家连接
-     * @param handler LimboAuthSessionHandler实例
+     * @param waitingAreaPlayer 当前等待区中的 HyperZonePlayer
      */
-    fun registerLimboHandler(player: Player, handler: HyperZonePlayer) {
-        limboHandlers[player] = handler
-        debug { "为玩家 ${player.username} 注册 LimboAuthSessionHandler" }
+    fun registerWaitingAreaPlayer(player: Player, waitingAreaPlayer: HyperZonePlayer) {
+        waitingAreaPlayers[player] = waitingAreaPlayer
+        debug { "为玩家 ${player.username} 注册等待区玩家上下文" }
 
         authResults[player]?.let { result ->
             debug { "[YggdrasilFlow] 命中已完成结果，立即回调: user=${player.username}" }
             val displayName = (result as? YggdrasilAuthResult.Success)?.profile?.name ?: "unknown"
-            dispatchAuthResultToHandler(player, displayName, handler, result)
+            dispatchAuthResultToHandler(player, displayName, waitingAreaPlayer, result)
         } ?: run {
             debug { "[YggdrasilFlow] 验证结果尚未完成，等待异步回调: user=${player.username}" }
         }
     }
 
     /**
-     * 获取玩家的LimboAuthSessionHandler实例
-     * 
+     * 获取玩家当前的等待区上下文。
+     *
      * @param player 玩家连接
-     * @return LimboAuthSessionHandler实例，如果未注册则返回null
+     * @return 当前等待区中的 HyperZonePlayer；若未注册则返回 null
      */
-    fun getLimboHandler(player: Player): HyperZonePlayer? {
-        return limboHandlers[player]
+    fun getWaitingAreaPlayer(player: Player): HyperZonePlayer? {
+        return waitingAreaPlayers[player]
     }
 
 
@@ -334,7 +334,7 @@ class YggdrasilAuthModule(
 
     private fun clearTransientState(player: Player) {
         authResults.remove(player)
-        limboHandlers.remove(player)
+        waitingAreaPlayers.remove(player)
         inFlightAuthJobs.remove(player)?.cancel()
     }
 
@@ -486,7 +486,7 @@ class YggdrasilAuthModule(
     }
 
     private fun notifyFirstBatchFailure(player: Player, result: YggdrasilAuthResult) {
-        val handler = limboHandlers[player] ?: return
+        val handler = waitingAreaPlayers[player] ?: return
 
         val message = when (result) {
             is YggdrasilAuthResult.Failed -> YggdrasilMessages.firstBatchFailed(handler, result.reason, result.statusCode)
