@@ -67,9 +67,21 @@ class OutPreVServerAuth(
     private val pendingInitialHandlers = ConcurrentHashMap<Channel, OutPreAuthSessionHandler>()
     private val initialBridges = ConcurrentHashMap<Channel, OutPreBackendBridge>()
 
+    private fun trace(message: String) {
+        logger.info("[FG-OUTPRE-TRACE] $message")
+    }
+
+    private fun describeState(state: OutPreState?): String {
+        if (state == null) {
+            return "state=null"
+        }
+        return "state(inAuthHold=${state.inAuthHold}, hasConnectedToAuthServerOnce=${state.hasConnectedToAuthServerOnce}, verifiedExitPending=${state.verifiedExitPending}, initialFlowPending=${state.initialFlowPending}, returnTarget=${state.returnTargetServerName}, authTarget=${state.authTargetLabel})"
+    }
+
     override fun isEnabled(): Boolean {
         return configuredAuthAddress() != null
     }
+
 
     fun createBridge(player: ConnectedPlayer): OutPreBackendBridge {
         initialBridges[player.getChannel()]?.let { return it }
@@ -85,6 +97,9 @@ class OutPreVServerAuth(
     fun beginInitialJoin(player: ConnectedPlayer, handler: OutPreAuthSessionHandler) {
         val messages = HyperZoneLoginMain.getInstance().messageService
         val hyperPlayer = getHyperPlayer(player) ?: return
+        trace(
+            "outpre.beginInitialJoin start channel=${player.getChannel()} player=${player.username} waitingArea=${hyperPlayer.isInWaitingArea()} verified=${hyperPlayer.isVerified()} attachedProfile=${hyperPlayer.hasAttachedProfile()}"
+        )
 
         runCatching {
             hyperPlayer.injectProxyPlayer(player)
@@ -104,11 +119,16 @@ class OutPreVServerAuth(
         states[player.getChannel()] = state
         pendingInitialHandlers[player.getChannel()] = handler
         hyperPlayer.suspendMessageDelivery()
+        trace("outpre.beginInitialJoin state-created channel=${player.getChannel()} player=${player.username} ${describeState(state)}")
 
         val authStartEvent = VServerAuthStartEvent(player, hyperPlayer)
         server.eventManager.fire(authStartEvent).join()
+        trace(
+            "outpre.beginInitialJoin after-authStart channel=${player.getChannel()} player=${player.username} waitingArea=${hyperPlayer.isInWaitingArea()} verified=${hyperPlayer.isVerified()} attachedProfile=${hyperPlayer.hasAttachedProfile()} ${describeState(state)}"
+        )
 
         if (!player.isActive) {
+            trace("outpre.beginInitialJoin player-inactive channel=${player.getChannel()} player=${player.username} clearing-initial-state")
             clearInitialJoinState(player, state, hyperPlayer)
             return
         }
@@ -116,8 +136,10 @@ class OutPreVServerAuth(
         if (!hyperPlayer.isInWaitingArea()) {
             state.inAuthHold = false
             state.verifiedExitPending = true
+            trace("outpre.beginInitialJoin already-ready-after-authStart channel=${player.getChannel()} player=${player.username} ${describeState(state)}")
         }
 
+        trace("outpre.beginInitialJoin connect-bridge channel=${player.getChannel()} player=${player.username} ${describeState(state)}")
         connectToAuthBridge(player, hyperPlayer, createBridge(player), state)
     }
 
@@ -195,27 +217,33 @@ class OutPreVServerAuth(
 
     override fun onVerified(player: Player) {
         val state = states[player.getChannel()] ?: return
+        trace("outpre.onVerified before channel=${player.getChannel()} player=${player.username} ${describeState(state)}")
         state.inAuthHold = false
 
         if (state.initialFlowPending) {
             if (!state.hasConnectedToAuthServerOnce) {
                 state.verifiedExitPending = true
+                trace("outpre.onVerified deferred-until-auth-join channel=${player.getChannel()} player=${player.username} ${describeState(state)}")
                 return
             }
             val handler = pendingInitialHandlers[player.getChannel()]
             if (handler == null) {
                 state.verifiedExitPending = true
+                trace("outpre.onVerified missing-handler channel=${player.getChannel()} player=${player.username} ${describeState(state)}")
                 return
             }
+            trace("outpre.onVerified completing-initial-flow channel=${player.getChannel()} player=${player.username} target=${state.returnTargetServerName} ${describeState(state)}")
             handler.completeAfterVerification(state.returnTargetServerName)
             return
         }
 
         if (!state.hasConnectedToAuthServerOnce) {
             state.verifiedExitPending = true
+            trace("outpre.onVerified deferred-no-auth-join channel=${player.getChannel()} player=${player.username} ${describeState(state)}")
             return
         }
 
+        trace("outpre.onVerified connect-verified-target channel=${player.getChannel()} player=${player.username} ${describeState(state)}")
         connectVerifiedPlayerToTarget(player, state)
     }
 
@@ -321,11 +349,15 @@ class OutPreVServerAuth(
         state: OutPreState,
     ) {
         state.hasConnectedToAuthServerOnce = true
+        trace(
+            "outpre.onAuthServerJoined channel=${player.getChannel()} player=${player.username} waitingArea=${hyperPlayer.isInWaitingArea()} verified=${hyperPlayer.isVerified()} attachedProfile=${hyperPlayer.hasAttachedProfile()} ${describeState(state)}"
+        )
         hyperPlayer.resumeMessageDelivery()
         server.eventManager.fire(VServerJoinEvent(player, hyperPlayer))
 
         if (state.verifiedExitPending) {
             state.verifiedExitPending = false
+            trace("outpre.onAuthServerJoined consume-verifiedExitPending channel=${player.getChannel()} player=${player.username} ${describeState(state)}")
             if (state.initialFlowPending) {
                 pendingInitialHandlers[player.getChannel()]?.completeAfterVerification(state.returnTargetServerName)
             } else {

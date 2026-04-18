@@ -151,6 +151,14 @@ class NettyLoginSessionHandler(
     private fun handleServerLogin(ctx: ChannelHandlerContext, packet: ServerLoginPacket) {
         aState(0)
         cState = 1
+        logger.info(
+            "[FG-OUTPRE-TRACE] netty.handleServerLogin channel={} username={} holderUuid={} protocol={} sessionHandler={} ",
+            mcConnection.channel,
+            packet.username,
+            packet.holderUuid,
+            mcConnection.protocolVersion,
+            mcConnection.activeSessionHandler?.javaClass?.name ?: "null",
+        )
         val playerKey: IdentifiedKey? = packet.playerKey
         if (playerKey != null) {
             if (playerKey.hasExpired()) {
@@ -206,11 +214,26 @@ class NettyLoginSessionHandler(
                     val openPreLoginEvent =
                         OpenPreLoginEvent(holderUuid!!, userName, host, playerIp, mcConnection.channel)
                     injector.proxy.eventManager.fire(openPreLoginEvent).thenRun {
+                        val resolvedOnlineMode = openPreLoginEvent.isOnline
+                            && !result.isForceOfflineMode
+                            && (injector.proxy.configuration.isOnlineMode || result.isOnlineModeAllowed)
+                        logger.info(
+                            "[FG-OUTPRE-TRACE] netty.handleServerLogin after-OpenPreLogin channel={} username={} allow={} requestedOnline={} resolvedOnline={} forceOffline={} onlineAllowed={} host={} playerIp={} ",
+                            mcConnection.channel,
+                            userName,
+                            openPreLoginEvent.allow,
+                            openPreLoginEvent.isOnline,
+                            resolvedOnlineMode,
+                            result.isForceOfflineMode,
+                            result.isOnlineModeAllowed,
+                            host,
+                            playerIp,
+                        )
                         if (!openPreLoginEvent.allow) {
                             inbound.disconnect(openPreLoginEvent.disconnectMessage)
                             return@thenRun
                         }
-                        onlineMode = openPreLoginEvent.isOnline
+                        onlineMode = resolvedOnlineMode
                         if (mcConnection.protocolVersion.noLessThan(ProtocolVersion.MINECRAFT_1_20_5)) {
 //                            高版本离线也可以加密
                             val request: EncryptionRequestPacket = generateEncryptionRequest(onlineMode)
@@ -263,6 +286,15 @@ class NettyLoginSessionHandler(
 
         injector.proxy.eventManager.fire(openStartAuthEvent).thenRunAsync(
             {
+                logger.info(
+                    "[FG-OUTPRE-TRACE] netty.doLogin after-OpenStartAuth channel={} username={} allow={} onlineMode={} gameProfile={} encrypt={} ",
+                    mcConnection.channel,
+                    login.username,
+                    openStartAuthEvent.allow,
+                    onlineMode,
+                    openStartAuthEvent.gameProfile,
+                    encrypt,
+                )
                 if (mcConnection.isClosed) {
                     // The player disconnected after we authenticated them.
                     return@thenRunAsync
@@ -296,6 +328,14 @@ class NettyLoginSessionHandler(
                         injector.proxy, inbound, getProfile, onlineMode = onlineMode,
                         UUID.randomUUID().toString() // For LoginEvent, not important
                     )
+
+                logger.info(
+                    "[FG-OUTPRE-TRACE] netty.doLogin selected-handler channel={} username={} handler={} gameProfile={} ",
+                    mcConnection.channel,
+                    login.username,
+                    authSessionHandler.javaClass.name,
+                    getProfile,
+                )
 
                 mcConnection.setActiveSessionHandler(StateRegistry.LOGIN, authSessionHandler)
 

@@ -22,17 +22,69 @@
 package icu.h2l.login.auth.floodgate.service
 
 import org.geysermc.floodgate.api.FloodgateApi
+import org.geysermc.floodgate.api.player.FloodgatePlayer
+import org.geysermc.floodgate.api.player.PropertyKey
+import java.net.InetSocketAddress
 import java.util.UUID
 
 open class FloodgateApiHolder(
     private val api: FloodgateApi = FloodgateApi.getInstance()
 ) {
+    data class ResolvedFloodgateIdentity(
+        val userName: String,
+        val userUUID: UUID,
+    )
+
     open fun isFloodgatePlayer(uuid: UUID): Boolean {
         return api.isFloodgatePlayer(uuid)
     }
 
     open fun getPlayerPrefix(): String {
         return api.playerPrefix
+    }
+
+    open fun resolveLoginIdentity(userName: String, playerIp: String): ResolvedFloodgateIdentity? {
+        val loginName = userName.lowercase()
+        val matchedPlayers = api.players.asSequence()
+            .filter { player -> loginName in candidateNames(player) }
+            .toList()
+        if (matchedPlayers.isEmpty()) {
+            return null
+        }
+
+        val socketMatchedPlayer = matchedPlayers.singleOrNull { player ->
+            player.socketAddressHost()?.equals(playerIp, ignoreCase = true) == true
+        }
+        val resolvedPlayer = socketMatchedPlayer ?: matchedPlayers.singleOrNull() ?: return null
+        return ResolvedFloodgateIdentity(
+            userName = resolvedPlayer.correctUsername,
+            userUUID = resolvedPlayer.correctUniqueId,
+        )
+    }
+
+    private fun candidateNames(player: FloodgatePlayer): Set<String> {
+        return buildSet {
+            add(player.username.lowercase())
+            add(player.javaUsername.lowercase())
+            add(player.correctUsername.lowercase())
+
+            val prefix = getPlayerPrefix()
+            if (prefix.isNotBlank()) {
+                add(player.javaUsername.removePrefix(prefix).lowercase())
+                add(player.correctUsername.removePrefix(prefix).lowercase())
+            }
+        }
+    }
+
+    private fun FloodgatePlayer.socketAddressHost(): String? {
+        if (!hasProperty(PropertyKey.SOCKET_ADDRESS)) {
+            return null
+        }
+
+        val address = runCatching {
+            getProperty<Any?>(PropertyKey.SOCKET_ADDRESS)
+        }.getOrNull() as? InetSocketAddress ?: return null
+        return address.address?.hostAddress ?: address.hostString
     }
 }
 

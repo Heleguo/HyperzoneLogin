@@ -41,6 +41,10 @@ class FloodgateAuthService(
 ) {
     private val logger = java.util.logging.Logger.getLogger("hzl-auth-floodgate")
 
+    private fun trace(message: String) {
+        logger.info("[FG-OUTPRE-TRACE] $message")
+    }
+
     sealed interface VerifyResult {
         data object NotFloodgate : VerifyResult
         data object Accepted : VerifyResult
@@ -59,19 +63,29 @@ class FloodgateAuthService(
      * 因此这里只负责：识别 Floodgate、创建登录期玩家对象、记录会话。
      */
     fun acceptInitialProfile(channel: Channel, userName: String, userUUID: UUID): VerifyResult {
+        trace(
+            "acceptInitialProfile start channel=$channel userName=$userName userUUID=$userUUID adapter=${api.serverAdapter?.javaClass?.name ?: "null"}"
+        )
         if (!floodgateApiHolder.isFloodgatePlayer(userUUID)) {
+            trace("acceptInitialProfile ignored: not floodgate channel=$channel userUUID=$userUUID")
             return VerifyResult.NotFloodgate
         }
 
         val normalizedUserName = normalizeUserName(userName)
+        trace(
+            "acceptInitialProfile floodgate detected channel=$channel rawName=$userName normalizedName=$normalizedUserName userUUID=$userUUID"
+        )
 
         sessionHolder.remember(channel, normalizedUserName, userUUID)
+        trace("acceptInitialProfile session remembered channel=$channel normalizedName=$normalizedUserName userUUID=$userUUID")
 
         try {
             api.hyperZonePlayers.create(channel, normalizedUserName, userUUID, FLOODGATE_CHANNEL_PLACEHOLDER_MODE)
+            trace("acceptInitialProfile hyper player created channel=$channel normalizedName=$normalizedUserName userUUID=$userUUID")
         } catch (throwable: Throwable) {
             val isDuplicateCreate = throwable.message?.contains("重复创建 HyperZonePlayer") == true
             if (isDuplicateCreate) {
+                trace("acceptInitialProfile duplicate hyper player create channel=$channel normalizedName=$normalizedUserName userUUID=$userUUID")
                 runCatching { api.hyperZonePlayers.getByChannel(channel) }.getOrElse { lookupError ->
                     logger.warning(
                         "Floodgate 玩家 $normalizedUserName($userUUID) 初始化登录对象重复后回收失败: ${lookupError.message}"
@@ -87,12 +101,18 @@ class FloodgateAuthService(
         }
 
 
+        trace("acceptInitialProfile accepted channel=$channel normalizedName=$normalizedUserName userUUID=$userUUID")
+
         return VerifyResult.Accepted
     }
 
     fun complete(channel: Channel, hyperZonePlayer: HyperZonePlayer): CompleteResult {
         val session = sessionHolder.get(channel)
+        trace(
+            "complete start channel=$channel player=${hyperZonePlayer.clientOriginalName} sessionPresent=${session != null} waitingArea=${hyperZonePlayer.isInWaitingArea()} verified=${hyperZonePlayer.isVerified()} attachedProfile=${profileService.getAttachedProfile(hyperZonePlayer)?.id} credentialTypes=${hyperZonePlayer.getSubmittedCredentials().map { it.javaClass.simpleName }}"
+        )
         if (session == null && !hasFloodgateCredential(hyperZonePlayer)) {
+            trace("complete ignored channel=$channel player=${hyperZonePlayer.clientOriginalName}: no session and no floodgate credential")
             return CompleteResult(handled = false, passed = false)
         }
 
@@ -105,6 +125,9 @@ class FloodgateAuthService(
                     } else {
                         null
                     }
+                trace(
+                    "complete preparing credential channel=$channel player=${hyperZonePlayer.clientOriginalName} sessionName=${session.userName} sessionUuid=${session.userUUID} suggestedProfileCreateUuid=$suggestedProfileCreateUuid knownProfileId=$knownProfileId"
+                )
                 hyperZonePlayer.submitCredential(
                     FloodgateHyperZoneCredential(
                         trustedName = session.userName,
@@ -113,8 +136,12 @@ class FloodgateAuthService(
                         knownProfileId = knownProfileId
                     )
                 )
+                trace(
+                    "complete credential submitted channel=$channel player=${hyperZonePlayer.clientOriginalName} credentialTypes=${hyperZonePlayer.getSubmittedCredentials().map { it.javaClass.simpleName }}"
+                )
 
                 if (knownProfileId == null) {
+                    trace("complete blocked channel=$channel player=${hyperZonePlayer.clientOriginalName}: no known profile id")
                     return CompleteResult(
                         handled = true,
                         passed = false,
@@ -123,11 +150,21 @@ class FloodgateAuthService(
                     )
                 }
             }
+            trace(
+                "complete before overVerify channel=$channel player=${hyperZonePlayer.clientOriginalName} waitingArea=${hyperZonePlayer.isInWaitingArea()} attachedProfile=${profileService.getAttachedProfile(hyperZonePlayer)?.id}"
+            )
             hyperZonePlayer.overVerify()
+            trace(
+                "complete after overVerify channel=$channel player=${hyperZonePlayer.clientOriginalName} waitingArea=${hyperZonePlayer.isInWaitingArea()} verified=${hyperZonePlayer.isVerified()} attachedProfile=${profileService.getAttachedProfile(hyperZonePlayer)?.id}"
+            )
             sessionHolder.remove(channel)
+            trace("complete success channel=$channel player=${hyperZonePlayer.clientOriginalName} sessionCleared=true")
             CompleteResult(handled = true, passed = true)
         } catch (throwable: Throwable) {
             logger.warning("Floodgate 玩家 ${hyperZonePlayer.clientOriginalName} 完成认证失败: ${throwable.message}")
+            trace(
+                "complete failed channel=$channel player=${hyperZonePlayer.clientOriginalName} waitingArea=${hyperZonePlayer.isInWaitingArea()} verified=${hyperZonePlayer.isVerified()} attachedProfile=${profileService.getAttachedProfile(hyperZonePlayer)?.id} error=${throwable.message}"
+            )
             CompleteResult(
                 handled = true,
                 passed = false,
@@ -136,6 +173,7 @@ class FloodgateAuthService(
             )
         }
     }
+
 
     private fun hasFloodgateCredential(hyperZonePlayer: HyperZonePlayer): Boolean {
         return hyperZonePlayer.getSubmittedCredentials().any { it is FloodgateHyperZoneCredential }

@@ -158,6 +158,8 @@ class FloodgateAuthServiceTest {
         every { playerAccessor.create(channel, "BedrockUser", userUuid, any()) } returns hyperPlayer
         every { hyperPlayer.clientOriginalName } returns "BedrockUser"
         every { hyperPlayer.registrationName } returns "BedrockUser"
+        every { hyperPlayer.isInWaitingArea() } returns true
+        every { hyperPlayer.isVerified() } returns false
         every { hyperPlayer.getSubmittedCredentials() } answers { submittedCredentials.toList() }
         every { hyperPlayer.submitCredential(any()) } answers {
             submittedCredentials += firstArg<HyperZoneCredential>()
@@ -206,6 +208,8 @@ class FloodgateAuthServiceTest {
         every { playerAccessor.create(channel, "BedrockUser", userUuid, any()) } returns hyperPlayer
         every { hyperPlayer.clientOriginalName } returns "BedrockUser"
         every { hyperPlayer.registrationName } returns "BedrockUser"
+        every { hyperPlayer.isInWaitingArea() } returns true
+        every { hyperPlayer.isVerified() } returns false
         every { hyperPlayer.getSubmittedCredentials() } answers { submittedCredentials.toList() }
         every { hyperPlayer.submitCredential(any()) } answers {
             submittedCredentials += firstArg<HyperZoneCredential>()
@@ -260,13 +264,18 @@ class FloodgateAuthServiceTest {
     @Test
     fun `complete returns unhandled when neither floodgate session nor credential exists`() {
         val hyperPlayer = mockk<HyperZonePlayer>()
+        every { hyperPlayer.clientOriginalName } returns "BedrockUser"
+        every { hyperPlayer.isInWaitingArea() } returns true
+        every { hyperPlayer.isVerified() } returns false
         every { hyperPlayer.getSubmittedCredentials() } returns emptyList()
+        every { profileService.getAttachedProfile(hyperPlayer) } returns null
 
         val result = service.complete(channel, hyperPlayer)
 
         assertFalse(result.handled)
         assertFalse(result.passed)
     }
+
 
     private class FakeFloodgateApiHolder : FloodgateApiHolder(mockk(relaxed = true)) {
         val trustedUuids = mutableSetOf<UUID>()

@@ -22,48 +22,46 @@
 package icu.h2l.login.auth.floodgate.listener
 
 import com.velocitypowered.api.event.Subscribe
-import icu.h2l.api.connection.disconnectWithMessage
-import icu.h2l.api.connection.getNettyChannel
-import icu.h2l.api.event.profile.VerifyInitialGameProfileEvent
+import icu.h2l.api.event.connection.OpenStartAuthEvent
+import icu.h2l.login.auth.floodgate.service.FloodgateApiHolder
 import icu.h2l.login.auth.floodgate.service.FloodgateAuthService
 import java.util.logging.Logger
 
-class FloodgateGameProfileListener(
-    private val authService: FloodgateAuthService
+class FloodgateOpenStartAuthListener(
+    private val authService: FloodgateAuthService,
+    private val floodgateApiHolder: FloodgateApiHolder,
 ) {
     private val logger = Logger.getLogger("hzl-auth-floodgate")
 
-    @Subscribe
-    fun onVerifyInitialGameProfile(event: VerifyInitialGameProfileEvent) {
+    @Subscribe(priority = Short.MAX_VALUE)
+    fun onOpenStartAuth(event: OpenStartAuthEvent) {
+        val resolvedIdentity = floodgateApiHolder.resolveLoginIdentity(event.userName, event.playerIp) ?: return
         logger.info(
-            "[FG-OUTPRE-TRACE] onVerifyInitialGameProfile channel=${event.connection.getNettyChannel()} profileName=${event.gameProfile.name} profileId=${event.gameProfile.id}"
+            "[FG-OUTPRE-TRACE] onOpenStartAuth resolved channel=${event.channel} loginName=${event.userName} playerIp=${event.playerIp} floodgateName=${resolvedIdentity.userName} floodgateUuid=${resolvedIdentity.userUUID}"
         )
-        // Floodgate 会跳过 HZL 自订的 OpenPreLogin/OpenStartAuth，
-        // 所以必须在这里提前创建登录期 HyperZonePlayer 并记录渠道会话。
+
         when (
             val result = authService.acceptInitialProfile(
-                channel = event.connection.getNettyChannel(),
-                userName = event.gameProfile.name,
-                userUUID = event.gameProfile.id
+                channel = event.channel,
+                userName = resolvedIdentity.userName,
+                userUUID = resolvedIdentity.userUUID,
             )
         ) {
             FloodgateAuthService.VerifyResult.NotFloodgate -> {
                 logger.info(
-                    "[FG-OUTPRE-TRACE] onVerifyInitialGameProfile ignored channel=${event.connection.getNettyChannel()} profileName=${event.gameProfile.name}: not floodgate"
+                    "[FG-OUTPRE-TRACE] onOpenStartAuth ignored channel=${event.channel} loginName=${event.userName}: resolved player is not floodgate"
                 )
-                return
             }
             is FloodgateAuthService.VerifyResult.Failed -> {
+                event.allow = false
+                event.disconnectMessage = result.userMessage
                 logger.info(
-                    "[FG-OUTPRE-TRACE] onVerifyInitialGameProfile failed channel=${event.connection.getNettyChannel()} profileName=${event.gameProfile.name}"
+                    "[FG-OUTPRE-TRACE] onOpenStartAuth failed channel=${event.channel} loginName=${event.userName}"
                 )
-                event.connection.disconnectWithMessage(result.userMessage)
-                return
             }
             FloodgateAuthService.VerifyResult.Accepted -> {
-                event.pass = true
                 logger.info(
-                    "[FG-OUTPRE-TRACE] onVerifyInitialGameProfile accepted channel=${event.connection.getNettyChannel()} profileName=${event.gameProfile.name} pass=${event.pass}"
+                    "[FG-OUTPRE-TRACE] onOpenStartAuth accepted channel=${event.channel} loginName=${event.userName} floodgateName=${resolvedIdentity.userName}"
                 )
             }
         }

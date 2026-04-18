@@ -159,8 +159,23 @@ class VelocityHyperZonePlayer(
             return
         }
 
+        HyperZoneLoginMain.getInstance().logger.info(
+            "[FG-OUTPRE-TRACE] hyperPlayer.overVerify before player={} verified={} attachedProfile={} credentials={} proxyBound={} ",
+            clientOriginalName,
+            isVerifiedState.get(),
+            hasAttachedProfile(),
+            submittedCredentials.map { it.javaClass.simpleName },
+            proxyPlayer != null,
+        )
+
         HyperZoneLoginMain.getInstance().profileService.attachVerifiedCredentialProfile(this)
         isVerifiedState.set(true)
+        HyperZoneLoginMain.getInstance().logger.info(
+            "[FG-OUTPRE-TRACE] hyperPlayer.overVerify after-attach player={} verified={} attachedProfile={} ",
+            clientOriginalName,
+            isVerifiedState.get(),
+            hasAttachedProfile(),
+        )
         if (!hasAttachedProfile()) {
             sendMessage(HyperZoneLoginMain.getInstance().messageService.render(this, MessageKeys.Player.VERIFIED_UNBOUND))
         }
@@ -220,6 +235,13 @@ class VelocityHyperZonePlayer(
     }
 
     private fun tryLeaveWaiting() {
+        HyperZoneLoginMain.getInstance().logger.info(
+            "[FG-OUTPRE-TRACE] hyperPlayer.tryLeaveWaiting player={} verified={} attachedProfile={} proxyBound={} ",
+            clientOriginalName,
+            isVerifiedState.get(),
+            hasAttachedProfile(),
+            proxyPlayer != null,
+        )
 
         if (!isVerifiedState.get() || !hasAttachedProfile()) {
             return

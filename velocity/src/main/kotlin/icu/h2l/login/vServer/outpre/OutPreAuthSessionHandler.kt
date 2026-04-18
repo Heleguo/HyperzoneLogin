@@ -96,6 +96,13 @@ class OutPreAuthSessionHandler(
             profile,
             server.configuration.playerInfoForwardingMode,
         )
+        logger.info(
+            "[FG-OUTPRE-TRACE] outpre.handler.activated channel={} initialProfile={} onlineMode={} protocol={} ",
+            mcConnection.channel,
+            describeGameProfileBrief(profile),
+            onlineMode,
+            inbound.protocolVersion,
+        )
 
         val player = NettyReflectionHelper.createConnectedPlayer(
             server = server,
@@ -121,6 +128,13 @@ class OutPreAuthSessionHandler(
     }
 
     private fun startTemporaryLoginPhase(player: ConnectedPlayer) {
+        logger.info(
+            "[FG-OUTPRE-TRACE] outpre.handler.startTemporaryLoginPhase channel={} player={} onlineMode={} profile={} ",
+            mcConnection.channel,
+            player.username,
+            onlineMode,
+            describeGameProfileBrief(player.gameProfile),
+        )
         val threshold = server.configuration.compressionThreshold
         if (threshold >= 0 && mcConnection.protocolVersion.noLessThan(ProtocolVersion.MINECRAFT_1_8)) {
             mcConnection.write(SetCompressionPacket(threshold))
@@ -176,6 +190,12 @@ class OutPreAuthSessionHandler(
 
     fun completeAfterVerification(preferredTargetServerName: String?) {
         if (loginState != State.BRIDGING) {
+            logger.info(
+                "[FG-OUTPRE-TRACE] outpre.handler.completeAfterVerification ignored channel={} state={} preferredTarget={} ",
+                mcConnection.channel,
+                loginState,
+                preferredTargetServerName,
+            )
             return
         }
         loginState = State.FINALIZING
@@ -185,6 +205,17 @@ class OutPreAuthSessionHandler(
             player.disconnect0(Component.text("OutPre finalization failed: missing HyperZonePlayer", NamedTextColor.RED), false)
             return
         }
+
+        logger.info(
+            "[FG-OUTPRE-TRACE] outpre.handler.completeAfterVerification start channel={} player={} preferredTarget={} waitingArea={} verified={} attachedProfile={} credentials={} ",
+            mcConnection.channel,
+            player.username,
+            preferredTargetServerName,
+            hyperPlayer.isInWaitingArea(),
+            hyperPlayer.isVerified(),
+            hyperPlayer.hasAttachedProfile(),
+            hyperPlayer.getSubmittedCredentials().map { it.javaClass.simpleName },
+        )
 
         val attachedProfile = runCatching {
             HyperZoneLoginMain.getInstance().profileService.getAttachedProfile(hyperPlayer)
@@ -272,6 +303,12 @@ class OutPreAuthSessionHandler(
     }
 
     private fun continueReleasedFlow(player: ConnectedPlayer, preferredTargetServerName: String?) {
+        logger.info(
+            "[FG-OUTPRE-TRACE] outpre.handler.continueReleasedFlow channel={} player={} preferredTarget={} ",
+            mcConnection.channel,
+            player.username,
+            preferredTargetServerName,
+        )
         val releaseAction = {
             loginState = State.RELEASED
             server.eventManager.fire(PostLoginEvent(player)).thenCompose {

@@ -35,7 +35,9 @@ import icu.h2l.login.inject.network.netty.replacer.ServerLoginSuccessPacketRepla
 import icu.h2l.login.inject.network.netty.ViaChannelInitializer
 import icu.h2l.login.vServer.backend.compat.BackendWaitingAreaPlayerInfoFilter
 import io.netty.channel.Channel
+import io.netty.channel.ChannelInitializer
 import java.net.InetSocketAddress
+import java.lang.reflect.Method
 
 private typealias VelocityEndpointMap = Multimap<InetSocketAddress, Endpoint>
 
@@ -47,11 +49,55 @@ class VelocityNetworkInjectorImpl(
     companion object {
         private const val SERVER_INJECTED_PIPELINE_NAME = "s_init_h2l"
         private const val LOGIN_HANDLER = "h2l_login_handler"
+        private const val LOGIN_SUCCESS_PROFILE_REPLACER = "h2l_login_success_profile"
+
+        private val channelInitializerInitMethod by lazy {
+            ChannelInitializer::class.java.getDeclaredMethod("initChannel", Channel::class.java).apply {
+                isAccessible = true
+            }
+        }
     }
 
     private val endpoints: VelocityEndpointMap = ConnectionManager::class.java.getDeclaredField("endpoints").also {
         it.isAccessible = true
     }.get(cm) as VelocityEndpointMap
+
+    private val serverChannelInitializerHolder: Any = ConnectionManager::class.java.getDeclaredField("serverChannelInitializer").also {
+        it.isAccessible = true
+    }.get(cm)
+
+    private val serverChannelInitializerGetMethod: Method = serverChannelInitializerHolder.javaClass.getMethod("get")
+    private val serverChannelInitializerSetMethod: Method = serverChannelInitializerHolder.javaClass.getMethod(
+        "set",
+        ChannelInitializer::class.java,
+    )
+
+    @Volatile
+    private var serverInitializerInjected = false
+
+    fun injectToServerInitializer() {
+        if (serverInitializerInjected) {
+            return
+        }
+
+        synchronized(this) {
+            if (serverInitializerInjected) {
+                return
+            }
+
+            val original = serverChannelInitializerGetMethod.invoke(serverChannelInitializerHolder) as ChannelInitializer<Channel>
+            if (original is HzlServerChannelInitializer) {
+                serverInitializerInjected = true
+                return
+            }
+
+            serverChannelInitializerSetMethod.invoke(
+                serverChannelInitializerHolder,
+                HzlServerChannelInitializer(this, original),
+            )
+            serverInitializerInjected = true
+        }
+    }
 
     fun injectToServerPipeline() {
         endpoints.values().forEach { endpoint ->
@@ -68,23 +114,37 @@ class VelocityNetworkInjectorImpl(
 
         channel.pipeline().addFirst(SERVER_INJECTED_PIPELINE_NAME, object : SeverChannelAcceptAdapter() {
             override fun init(channel: Channel) {
-//                println("INIT $channel")
-//                println(channel.pipeline().names())
-
-                val connection = channel.pipeline().get(MinecraftConnection::class.java)
-
-                channel.pipeline().addBefore(
-                    "handler",
-                    LOGIN_HANDLER,
-                    NettyLoginSessionHandler(
-                        this@VelocityNetworkInjectorImpl,
-                        connection,
-                        channel,
-                    )
-                )
-                channel.pipeline().addLast("h2l_login_success_profile", ServerLoginSuccessPacketReplacer(channel))
+                injectToAcceptedChannel(channel)
             }
         })
+    }
+
+    private fun injectToAcceptedChannel(channel: Channel) {
+        val pipeline = channel.pipeline()
+        if (pipeline.names().contains(LOGIN_HANDLER)) {
+            if (!pipeline.names().contains(LOGIN_SUCCESS_PROFILE_REPLACER)) {
+                pipeline.addLast(LOGIN_SUCCESS_PROFILE_REPLACER, ServerLoginSuccessPacketReplacer(channel))
+            }
+            return
+        }
+
+        val connection = pipeline.get(MinecraftConnection::class.java) ?: return
+        if (pipeline.get("handler") == null) {
+            return
+        }
+
+        pipeline.addBefore(
+            "handler",
+            LOGIN_HANDLER,
+            NettyLoginSessionHandler(
+                this,
+                connection,
+                channel,
+            )
+        )
+        if (!pipeline.names().contains(LOGIN_SUCCESS_PROFILE_REPLACER)) {
+            pipeline.addLast(LOGIN_SUCCESS_PROFILE_REPLACER, ServerLoginSuccessPacketReplacer(channel))
+        }
     }
 
 
@@ -105,6 +165,16 @@ class VelocityNetworkInjectorImpl(
 //                    println("SVA: ${channel.pipeline().names()}")
                 }
             })
+        }
+    }
+
+    private class HzlServerChannelInitializer(
+        private val injector: VelocityNetworkInjectorImpl,
+        private val original: ChannelInitializer<Channel>,
+    ) : ChannelInitializer<Channel>() {
+        override fun initChannel(channel: Channel) {
+            channelInitializerInitMethod.invoke(original, channel)
+            injector.injectToAcceptedChannel(channel)
         }
     }
 }

@@ -24,6 +24,7 @@ package icu.h2l.login.listener
 import com.velocitypowered.api.event.Subscribe
 import com.velocitypowered.api.event.player.GameProfileRequestEvent
 import icu.h2l.api.connection.disconnectWithMessage
+import icu.h2l.api.connection.getNettyChannel
 import icu.h2l.api.event.profile.VerifyInitialGameProfileEvent
 import icu.h2l.login.HyperZoneLoginMain
 import icu.h2l.login.vServer.backend.compat.BackendProfileLayerCompatListener.Companion.PLUGIN_CONFLICT_MESSAGE
@@ -37,6 +38,12 @@ class LoginVerifyListener {
         val incomingProfile = event.gameProfile
         val incomingName = incomingProfile.name
         val verifyEvent = VerifyInitialGameProfileEvent(event.connection, incomingProfile)
+        HyperZoneLoginMain.getInstance().logger.info(
+            "[FG-OUTPRE-TRACE] loginVerify.onGameProfileRequest channel={} incomingName={} incomingUuid={} ",
+            event.connection.getNettyChannel(),
+            incomingProfile.name,
+            incomingProfile.id,
+        )
 
         fun disconnectWithError(logMessage: String, userMessage: String) {
             HyperZoneLoginMain.getInstance().logger.error(logMessage)
@@ -48,6 +55,13 @@ class LoginVerifyListener {
         } catch (t: Throwable) {
             HyperZoneLoginMain.getInstance().logger.error("初始 GameProfile 扩展校验事件执行失败: ${t.message}", t)
         }
+
+        HyperZoneLoginMain.getInstance().logger.info(
+            "[FG-OUTPRE-TRACE] loginVerify.afterVerifyEvent channel={} incomingName={} pass={} ",
+            event.connection.getNettyChannel(),
+            incomingProfile.name,
+            verifyEvent.pass,
+        )
 
         if (verifyEvent.pass) {
             return

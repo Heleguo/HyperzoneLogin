@@ -115,6 +115,7 @@ interface HyperZoneVServerAdapter {
      */
     fun needsBackendInitialProfileCompat(): Boolean = false
 
+
     /**
      * 退出当前等待区。
      *

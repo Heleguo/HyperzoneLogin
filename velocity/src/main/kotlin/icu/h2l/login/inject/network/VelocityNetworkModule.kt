@@ -36,6 +36,8 @@ class VelocityNetworkModule : HyperSubModule {
         }.get(proxy) as ConnectionManager
         val injector = VelocityNetworkInjectorImpl(connectionManager, proxy)
 
+        injector.injectToServerInitializer()
+
 //        发送到玩家方向
         proxy.eventManager.register(
             api,
