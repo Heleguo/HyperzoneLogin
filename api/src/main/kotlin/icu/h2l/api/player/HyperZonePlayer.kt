@@ -160,7 +160,8 @@ interface HyperZonePlayer {
     /**
      * 获取玩家在等待区阶段应使用的临时 GameProfile。
      *
-     * 该档案必须是系统主动生成并受控的临时档案；
+     * 该档案必须在当前登录会话创建时由系统主动生成并受控持有；
+     * 后续流程只能读取，不应在运行中再次改写；
      * 认证阶段拿到的初始档案、客户端上报档案等都不应作为等待区身份直接对外使用。
      */
     fun getTemporaryGameProfile(): GameProfile
@@ -172,25 +173,4 @@ interface HyperZonePlayer {
      * 以暴露“未完成 profile 链路却尝试进入游戏区”的逻辑问题。
      */
     fun getAttachedGameProfile(): GameProfile
-
-
-    /**
-     * 设置登录阶段生成的临时 GameProfile。
-     *
-     * 该档案用于等待区阶段的受控临时身份。
-     *
-     * @param profile 新的临时档案；传入 `null` 表示清空当前临时档案
-     */
-    fun setTemporaryGameProfile(profile: GameProfile?)
-
-    /**
-     * 兼容旧接口名。
-     */
-    @Deprecated(
-        message = "Use setTemporaryGameProfile(...) instead",
-        replaceWith = ReplaceWith("setTemporaryGameProfile(profile)")
-    )
-    fun setTemporaryForwardingProfile(profile: GameProfile?) {
-        setTemporaryGameProfile(profile)
-    }
 }

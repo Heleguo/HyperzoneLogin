@@ -21,21 +21,18 @@
 
 package icu.h2l.login.auth.floodgate.service
 
-import com.velocitypowered.api.util.GameProfile
 import icu.h2l.api.HyperZoneApi
 import icu.h2l.api.db.Profile
 import icu.h2l.api.player.HyperZonePlayer
 import icu.h2l.api.player.HyperZonePlayerAccessor
 import icu.h2l.api.profile.HyperZoneCredential
 import icu.h2l.api.profile.HyperZoneProfileService
-import icu.h2l.api.util.RemapUtils
 import icu.h2l.login.auth.floodgate.config.FloodgateAuthConfig
 import icu.h2l.login.auth.floodgate.credential.FloodgateHyperZoneCredential
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
-import io.mockk.slot
 import io.mockk.verify
 import io.netty.channel.Channel
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -91,10 +88,8 @@ class FloodgateAuthServiceTest {
     fun `acceptInitialProfile strips default floodgate prefix by default`() {
         val userUuid = UUID.fromString("22222222-2222-2222-2222-222222222222")
         val hyperPlayer = mockk<HyperZonePlayer>(relaxed = true)
-        val temporaryProfile = slot<GameProfile>()
         floodgateApiHolder.configuredPlayerPrefix = "."
         floodgateApiHolder.trustedUuids += userUuid
-        every { hyperPlayer.setTemporaryGameProfile(capture(temporaryProfile)) } just runs
         every { playerAccessor.create(channel, "BedrockUser", userUuid, any()) } returns hyperPlayer
 
         val result = service.acceptInitialProfile(channel, ".BedrockUser", userUuid)
@@ -104,24 +99,15 @@ class FloodgateAuthServiceTest {
         assertNotNull(remembered)
         assertEquals("BedrockUser", remembered!!.userName)
         assertEquals(userUuid, remembered.userUUID)
-        assertTrue(temporaryProfile.isCaptured)
-        assertTrue(temporaryProfile.captured.name.startsWith(RemapUtils.EXPECTED_NAME_PREFIX))
-        assertEquals(
-            RemapUtils.genUUID(temporaryProfile.captured.name, RemapUtils.REMAP_PREFIX),
-            temporaryProfile.captured.id
-        )
         verify(exactly = 1) { playerAccessor.create(channel, "BedrockUser", userUuid, any()) }
-        verify(exactly = 1) { hyperPlayer.setTemporaryGameProfile(any()) }
     }
 
     @Test
-    fun `acceptInitialProfile reuses existing login player and assigns temporary profile on duplicate create`() {
+    fun `acceptInitialProfile reuses existing login player on duplicate create`() {
         val userUuid = UUID.fromString("12121212-1212-1212-1212-121212121212")
         val hyperPlayer = mockk<HyperZonePlayer>(relaxed = true)
-        val temporaryProfile = slot<GameProfile>()
         floodgateApiHolder.configuredPlayerPrefix = "."
         floodgateApiHolder.trustedUuids += userUuid
-        every { hyperPlayer.setTemporaryGameProfile(capture(temporaryProfile)) } just runs
         every { playerAccessor.create(channel, "BedrockUser", userUuid, any()) } throws IllegalStateException("重复创建 HyperZonePlayer")
         every { playerAccessor.getByChannel(channel) } returns hyperPlayer
 
@@ -129,15 +115,8 @@ class FloodgateAuthServiceTest {
 
         assertSame(FloodgateAuthService.VerifyResult.Accepted, result)
         assertEquals("BedrockUser", sessionHolder.get(channel)?.userName)
-        assertTrue(temporaryProfile.isCaptured)
-        assertTrue(temporaryProfile.captured.name.startsWith(RemapUtils.EXPECTED_NAME_PREFIX))
-        assertEquals(
-            RemapUtils.genUUID(temporaryProfile.captured.name, RemapUtils.REMAP_PREFIX),
-            temporaryProfile.captured.id
-        )
         verify(exactly = 1) { playerAccessor.create(channel, "BedrockUser", userUuid, any()) }
         verify(exactly = 1) { playerAccessor.getByChannel(channel) }
-        verify(exactly = 1) { hyperPlayer.setTemporaryGameProfile(any()) }
     }
 
     @Test
@@ -177,7 +156,6 @@ class FloodgateAuthServiceTest {
         floodgateApiHolder.configuredPlayerPrefix = "."
         floodgateApiHolder.trustedUuids += userUuid
         every { playerAccessor.create(channel, "BedrockUser", userUuid, any()) } returns hyperPlayer
-        every { hyperPlayer.setTemporaryGameProfile(any()) } just runs
         every { hyperPlayer.clientOriginalName } returns "BedrockUser"
         every { hyperPlayer.registrationName } returns "BedrockUser"
         every { hyperPlayer.getSubmittedCredentials() } answers { submittedCredentials.toList() }
@@ -226,7 +204,6 @@ class FloodgateAuthServiceTest {
         floodgateApiHolder.configuredPlayerPrefix = "."
         floodgateApiHolder.trustedUuids += userUuid
         every { playerAccessor.create(channel, "BedrockUser", userUuid, any()) } returns hyperPlayer
-        every { hyperPlayer.setTemporaryGameProfile(any()) } just runs
         every { hyperPlayer.clientOriginalName } returns "BedrockUser"
         every { hyperPlayer.registrationName } returns "BedrockUser"
         every { hyperPlayer.getSubmittedCredentials() } answers { submittedCredentials.toList() }

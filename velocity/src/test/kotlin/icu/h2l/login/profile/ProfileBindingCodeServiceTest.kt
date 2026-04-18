@@ -196,8 +196,6 @@ class ProfileBindingCodeServiceTest {
         override fun getTemporaryGameProfile() = error("not used")
 
         override fun getAttachedGameProfile() = error("not used")
-
-        override fun setTemporaryGameProfile(profile: com.velocitypowered.api.util.GameProfile?) {}
     }
 
     private class FakeCredential : HyperZoneCredential {

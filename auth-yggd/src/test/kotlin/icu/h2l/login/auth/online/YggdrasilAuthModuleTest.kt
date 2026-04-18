@@ -244,7 +244,7 @@ class YggdrasilAuthModuleTest {
         override val clientOriginalUUID: UUID = UUID.randomUUID()
     ) : HyperZonePlayer {
         private val submittedCredentials = mutableListOf<HyperZoneCredential>()
-        private var temporaryProfile: GameProfile = GameProfile(UUID.randomUUID(), "temp", emptyList())
+        private val temporaryProfile: GameProfile = GameProfile(UUID.randomUUID(), "temp", emptyList())
         override var registrationName: String = clientOriginalName
 
         override val isOnlinePlayer: Boolean = false
@@ -270,10 +270,6 @@ class YggdrasilAuthModuleTest {
         override fun getTemporaryGameProfile(): GameProfile = temporaryProfile
 
         override fun getAttachedGameProfile(): GameProfile = temporaryProfile
-
-        override fun setTemporaryGameProfile(profile: GameProfile?) {
-            temporaryProfile = profile ?: temporaryProfile
-        }
     }
 }
 

@@ -60,6 +60,7 @@ import icu.h2l.login.message.MessageKeys
 import icu.h2l.login.message.MessageService
 import icu.h2l.login.listener.LoginRenameListener
 import icu.h2l.login.listener.LoginReUuidListener
+import icu.h2l.login.listener.LoginVerifyListener
 import icu.h2l.login.module.EmbeddedModuleRegistry
 import icu.h2l.login.module.EmbeddedModuleSpec
 import icu.h2l.login.profile.ProfileBindingCodeService
@@ -67,6 +68,7 @@ import icu.h2l.login.vServer.backend.compat.BackendRuntimeProfileCompensator
 import icu.h2l.login.vServer.backend.compat.BackendProfileLayerCompatListener
 import icu.h2l.login.profile.VelocityHyperZoneProfileService
 import icu.h2l.login.util.registerApiLogger
+import icu.h2l.login.vServer.outpre.listener.OutPreVerifyInitialGameProfileListener
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger
 import org.spongepowered.configurate.ConfigurationNode
 import org.spongepowered.configurate.ConfigurationOptions
@@ -232,9 +234,13 @@ class HyperZoneLoginMain(
         if (activeVServerAdapter?.needsBackendInitialProfileCompat() == true) {
             proxy.eventManager.register(plugin, BackendProfileLayerCompatListener())
         }
+        if (activeVServerAdapter is OutPreVServerAuth) {
+            proxy.eventManager.register(plugin, OutPreVerifyInitialGameProfileListener())
+        }
         proxy.eventManager.register(plugin, backendRuntimeProfileCompensator)
         proxy.eventManager.register(plugin, LoginRenameListener())
         proxy.eventManager.register(plugin, LoginReUuidListener())
+        proxy.eventManager.register(plugin, LoginVerifyListener())
         proxy.eventManager.register(plugin, PlayerAreaLifecycleListener)
         proxy.eventManager.register(plugin, HyperZonePlayerManager)
 

@@ -28,6 +28,7 @@ import com.velocitypowered.api.event.player.ServerPreConnectEvent
 import com.velocitypowered.api.proxy.Player
 import com.velocitypowered.api.proxy.ProxyServer
 import com.velocitypowered.api.proxy.server.RegisteredServer
+import com.velocitypowered.api.util.GameProfile
 import com.velocitypowered.proxy.connection.client.ConnectedPlayer
 import icu.h2l.api.event.area.PlayerAreaTransitionReason
 import icu.h2l.api.event.vServer.VServerAuthStartEvent
@@ -40,6 +41,7 @@ import icu.h2l.login.listener.PlayerAreaLifecycleListener
 import icu.h2l.login.manager.HyperZonePlayerManager
 import icu.h2l.login.message.MessageKeys
 import icu.h2l.login.player.VelocityHyperZonePlayer
+import icu.h2l.login.util.hasSemanticGameProfileDifference
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
 import java.util.concurrent.ConcurrentHashMap
@@ -65,6 +67,7 @@ class OutPreVServerAuth(
     private val states = ConcurrentHashMap<io.netty.channel.Channel, OutPreState>()
     private val pendingInitialHandlers = ConcurrentHashMap<io.netty.channel.Channel, OutPreAuthSessionHandler>()
     private val initialBridges = ConcurrentHashMap<io.netty.channel.Channel, OutPreBackendBridge>()
+    private val expectedInitialVerifyProfiles = ConcurrentHashMap<io.netty.channel.Channel, GameProfile>()
 
     override fun isEnabled(): Boolean {
         return configuredAuthAddress() != null
@@ -116,10 +119,32 @@ class OutPreVServerAuth(
     fun markInitialFlowReleased(player: ConnectedPlayer) {
         pendingInitialHandlers.remove(player.getChannel())
         initialBridges.remove(player.getChannel())?.disconnect()
+        expectedInitialVerifyProfiles.remove(player.getChannel())
         states.computeIfPresent(player.getChannel()) { _, state ->
             state.initialFlowPending = false
             state
         }
+    }
+
+    internal fun expectInitialVerifyProfile(player: ConnectedPlayer, profile: GameProfile) {
+        expectedInitialVerifyProfiles[player.getChannel()] = profile
+    }
+
+    internal fun clearExpectedInitialVerifyProfile(player: ConnectedPlayer) {
+        expectedInitialVerifyProfiles.remove(player.getChannel())
+    }
+
+    internal fun shouldPassInitialVerifyProfile(
+        channel: io.netty.channel.Channel,
+        incomingProfile: GameProfile,
+    ): Boolean {
+        val expectedProfile = expectedInitialVerifyProfiles[channel] ?: return false
+        if (hasSemanticGameProfileDifference(expectedProfile, incomingProfile)) {
+            return false
+        }
+
+        expectedInitialVerifyProfiles.remove(channel, expectedProfile)
+        return true
     }
 
     fun resolveReleaseTarget(player: ConnectedPlayer, preferredTargetServerName: String?): RegisteredServer? {
@@ -242,6 +267,7 @@ class OutPreVServerAuth(
         states.remove(event.player.getChannel())
         pendingInitialHandlers.remove(event.player.getChannel())
         initialBridges.remove(event.player.getChannel())?.disconnect()
+        expectedInitialVerifyProfiles.remove(event.player.getChannel())
     }
 
     private fun connectToAuthBridge(
@@ -288,6 +314,7 @@ class OutPreVServerAuth(
         val state = states.remove(player.getChannel())
         pendingInitialHandlers.remove(player.getChannel())
         initialBridges.remove(player.getChannel())
+        expectedInitialVerifyProfiles.remove(player.getChannel())
         if (player.isActive) {
             player.disconnect(Component.text(reason ?: "OutPre auth bridge disconnected", NamedTextColor.RED))
         }

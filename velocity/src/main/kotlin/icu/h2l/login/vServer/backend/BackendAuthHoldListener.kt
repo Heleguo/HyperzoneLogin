@@ -304,9 +304,6 @@ class BackendAuthHoldListener(
         return HyperZoneLoginMain.getBackendServerConfig().enableWaitingAreaPlayerInfoCompensation
     }
 
-    override fun needsBackendLoginProfileRewrite(): Boolean {
-        return true
-    }
 
     override fun needsBackendRuntimeProfileSync(): Boolean {
         return HyperZoneLoginMain.getBackendServerConfig().enableRuntimeProfileCompensation

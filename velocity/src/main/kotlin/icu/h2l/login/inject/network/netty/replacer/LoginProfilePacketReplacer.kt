@@ -19,16 +19,16 @@
  *
  */
 
-package icu.h2l.login.vServer.backend.compat
+package icu.h2l.login.inject.network.netty.replacer
 
 import com.velocitypowered.api.network.ProtocolVersion
+import com.velocitypowered.api.proxy.Player
+import com.velocitypowered.api.proxy.ServerConnection
 import com.velocitypowered.api.util.GameProfile
 import com.velocitypowered.proxy.config.PlayerInfoForwarding
 import com.velocitypowered.proxy.config.VelocityConfiguration
 import com.velocitypowered.proxy.connection.MinecraftConnection
 import com.velocitypowered.proxy.connection.PlayerDataForwarding
-import com.velocitypowered.proxy.connection.backend.VelocityServerConnection
-import com.velocitypowered.proxy.connection.client.ConnectedPlayer
 import com.velocitypowered.proxy.protocol.ProtocolUtils
 import com.velocitypowered.proxy.protocol.packet.LoginPluginResponsePacket
 import com.velocitypowered.proxy.protocol.packet.ServerLoginPacket
@@ -38,20 +38,36 @@ import icu.h2l.api.player.HyperZonePlayer
 import icu.h2l.login.HyperZoneLoginMain
 import icu.h2l.login.manager.HyperZonePlayerManager
 import icu.h2l.login.player.ProfileSkinApplySupport
+import icu.h2l.login.util.hasSemanticGameProfileDifference
 import io.netty.buffer.ByteBuf
 import io.netty.channel.Channel
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelOutboundHandlerAdapter
 import io.netty.channel.ChannelPromise
 
-class BackendLoginProfileRewritePacketReplacer(
+internal fun shouldRewriteLoginProfile(currentProfile: GameProfile, expectedProfile: GameProfile): Boolean {
+    return hasSemanticGameProfileDifference(expectedProfile, currentProfile)
+}
+
+/**
+ * 重写发往后端的登录档案包。
+ *
+ * 这里虽然挂在 backend 连接注入点上，但“Velocity 当前持有的玩家档案不再可信”
+ * 并不一定只由 backend 等待区兼容本身造成；像 Floodgate 这类额外渠道/插件，
+ * 也可能让 VC 内部看到的 Profile 与 HZL 自身维护的可信档案发生偏离。
+ *
+ * 因此本处理器会先检查 VC 当前玩家档案是否已经与 HZL 预期档案一致：
+ * - 若一致，说明当前链路无需补丁，立刻自移除；
+ * - 若不一致，再继续拦截并改写登录阶段下发给后端的档案包。
+ */
+class LoginProfilePacketReplacer(
     private val channel: Channel
 ) : ChannelOutboundHandlerAdapter() {
     companion object {
         private const val MODERN_FORWARDING_SIGNATURE_LENGTH = 32
     }
 
-    private lateinit var player: ConnectedPlayer
+    private lateinit var player: Player
     private lateinit var hyperPlayer: HyperZonePlayer
     private lateinit var targetServerName: String
     private lateinit var config: VelocityConfiguration
@@ -171,7 +187,7 @@ class BackendLoginProfileRewritePacketReplacer(
             val replaced = replaceMessage(msg)
             super.write(ctx, replaced, promise)
         } catch (t: Throwable) {
-            error(t) { "BackendLoginProfileRewritePacketReplacer write failed: ${t.message}" }
+            error(t) { "LoginProfilePacketReplacer write failed: ${t.message}" }
             try {
                 ctx.fireExceptionCaught(t)
             } catch (_: Throwable) {
@@ -186,13 +202,29 @@ class BackendLoginProfileRewritePacketReplacer(
         }
 
         val connection = ctx.channel().pipeline().get(MinecraftConnection::class.java) ?: return null
-        val association = connection.association as? VelocityServerConnection ?: return null
+        val association = connection.association as? ServerConnection ?: return null
 
         player = association.player
         targetServerName = association.server.serverInfo.name
         hyperPlayer = HyperZonePlayerManager.getByPlayer(player)
         config = HyperZoneLoginMain.getInstance().proxy.configuration as VelocityConfiguration
+        if (!shouldRewriteLoginProfile(player.gameProfile, resolveExpectedVelocityGameProfile())) {
+            retire()
+            return null
+        }
         return Unit
     }
+
+    private fun resolveExpectedVelocityGameProfile(): GameProfile {
+        if (isLoginServerTarget() || hyperPlayer.isInWaitingArea()) {
+            return hyperPlayer.getTemporaryGameProfile()
+        }
+
+        return requireNotNull(ProfileSkinApplySupport.apply(hyperPlayer)) {
+            "Formal profile is unavailable while resolving expected velocity game profile for clientOriginal=${hyperPlayer.clientOriginalName}"
+        }
+    }
 }
+
+
 

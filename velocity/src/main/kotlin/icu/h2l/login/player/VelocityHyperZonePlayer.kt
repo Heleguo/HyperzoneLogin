@@ -26,6 +26,7 @@ import com.velocitypowered.api.util.GameProfile
 import icu.h2l.api.event.area.PlayerAreaTransitionReason
 import icu.h2l.api.player.HyperZonePlayer
 import icu.h2l.api.profile.HyperZoneCredential
+import icu.h2l.api.util.RemapUtils
 import icu.h2l.login.HyperZoneLoginMain
 import icu.h2l.login.listener.PlayerAreaLifecycleListener
 import icu.h2l.login.manager.HyperZonePlayerManager
@@ -90,10 +91,10 @@ class VelocityHyperZonePlayer(
     /**
      * 等待区转发用的临时档案。
      *
+     * 该档案在当前登录会话创建时即生成完成；
      * 当玩家仍在等待区时，应优先使用该档案而不是正式游戏档案。
      */
-    @Volatile
-    private var temporaryGameProfile: GameProfile? = null
+    private val temporaryGameProfile: GameProfile = RemapUtils.randomProfile()
 
     /**
      * 绑定当前登录会话对应的代理层 Player。
@@ -197,7 +198,6 @@ class VelocityHyperZonePlayer(
 
     override fun getTemporaryGameProfile(): GameProfile {
         return temporaryGameProfile
-            ?: throw IllegalStateException("玩家 $clientOriginalName 尚未生成临时档案，无法在等待区使用可信身份")
     }
 
     override fun getAttachedGameProfile(): GameProfile {
@@ -213,11 +213,6 @@ class VelocityHyperZonePlayer(
             resolvedProfile.name,
             emptyList()
         )
-    }
-
-
-    override fun setTemporaryGameProfile(profile: GameProfile?) {
-        temporaryGameProfile = profile
     }
 
     internal fun onAttachedProfileAvailable() {

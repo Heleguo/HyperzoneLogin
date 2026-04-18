@@ -33,9 +33,6 @@ object FloodgateMessages {
         return render("init-player-failed", "Floodgate 登录失败：登录对象初始化失败。")
     }
 
-    fun temporaryProfileFailed(): Component {
-        return render("temporary-profile-failed", "Floodgate 登录失败：临时档案初始化失败。")
-    }
 
     fun createBlocked(player: HyperZonePlayer): Component {
         return render(

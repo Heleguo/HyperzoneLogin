@@ -98,14 +98,6 @@ interface HyperZoneVServerAdapter {
      */
     fun needsBackendPlayerInfoCompat(): Boolean = false
 
-    /**
-     * 当前等待区实现是否需要 backend 方向的连接登录包/GameProfile 转发兼容。
-     *
-     * 该能力只服务于 backend 模式：Velocity 内部仍持有临时身份，
-     * 需要在连接真实后端服时补写转发档案。
-     * outpre 应在交付给 Velocity 前完成最终可信身份，不应再依赖这层补丁。
-     */
-    fun needsBackendLoginProfileRewrite(): Boolean = false
 
     /**
      * 当前等待区实现是否需要 attach 后的运行时 GameProfile 补偿同步。
