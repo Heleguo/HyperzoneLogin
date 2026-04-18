@@ -28,7 +28,10 @@ import java.net.InetSocketAddress
 @Suppress("ANNOTATION_WILL_BE_APPLIED_ALSO_TO_PROPERTY_OR_FIELD")
 @ConfigSerializable
 data class OutPreConfig(
-    @Comment("outpre 认证服的逻辑名，仅用于日志/状态标识；不需要在 Velocity 中注册")
+    @Comment(
+        """outpre 认证服的逻辑名，仅用于日志/状态标识；不需要在 Velocity 中注册
+如果使用ViaVersion，你需要在Velocity中添加注册条目，如outpre-auth = "127.0.0.1:30066"，但不需要添加到try中"""
+    )
     val authLabel: String = "outpre-auth",
 
     @Comment("outpre 认证服的直连 Host；留空表示禁用 outpre")
