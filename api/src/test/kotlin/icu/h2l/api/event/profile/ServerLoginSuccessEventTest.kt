@@ -23,13 +23,10 @@ package icu.h2l.api.event.profile
 
 import com.velocitypowered.api.util.GameProfile
 import icu.h2l.api.player.HyperZonePlayer
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertNotSame
-import org.junit.jupiter.api.Assertions.assertNull
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import java.lang.reflect.Proxy
-import java.util.UUID
+import java.util.*
 
 class ServerLoginSuccessEventTest {
     @Test

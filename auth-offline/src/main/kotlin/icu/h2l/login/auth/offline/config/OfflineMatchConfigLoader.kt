@@ -22,11 +22,6 @@
 package icu.h2l.login.auth.offline.config
 
 import icu.h2l.api.util.ConfigLoader
-import org.spongepowered.configurate.ConfigurationOptions
-import org.spongepowered.configurate.hocon.HoconConfigurationLoader
-import org.spongepowered.configurate.kotlin.dataClassFieldDiscoverer
-import org.spongepowered.configurate.objectmapping.ObjectMapper
-import java.nio.file.Files
 import java.nio.file.Path
 
 object OfflineMatchConfigLoader {
@@ -35,7 +30,8 @@ object OfflineMatchConfigLoader {
         fun load(dataDirectory: Path) {
                 config = ConfigLoader.loadConfig(
                         dataDirectory = dataDirectory,
-                        fileName = "auth-offline-match.conf",
+                        fileName = "auth-offline.conf",
+                        nodePath = arrayOf("match"),
                         header = "HyperZoneLogin Offline Match Configuration\n",
                         defaultProvider = { OfflineMatchConfig() }
                 )

@@ -27,7 +27,6 @@ import com.velocitypowered.proxy.connection.client.InitialInboundConnection
 import com.velocitypowered.proxy.connection.client.LoginInboundConnection
 import io.netty.channel.Channel
 import net.kyori.adventure.text.Component
-import net.kyori.adventure.text.format.NamedTextColor
 
 private val initialInboundConnectionDelegateField by lazy {
     LoginInboundConnection::class.java.getDeclaredField("delegate").apply {

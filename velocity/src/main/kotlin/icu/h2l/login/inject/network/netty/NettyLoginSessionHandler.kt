@@ -30,7 +30,6 @@ import com.velocitypowered.proxy.VelocityServer
 import com.velocitypowered.proxy.connection.MinecraftConnection
 import com.velocitypowered.proxy.connection.MinecraftSessionHandler
 import com.velocitypowered.proxy.connection.VelocityConstants
-import com.velocitypowered.proxy.connection.client.AuthSessionHandler
 import com.velocitypowered.proxy.connection.client.InitialLoginSessionHandler
 import com.velocitypowered.proxy.connection.client.LoginInboundConnection
 import com.velocitypowered.proxy.crypto.EncryptionUtils

@@ -27,13 +27,13 @@ import icu.h2l.api.log.debug
 import icu.h2l.api.player.HyperZonePlayer
 import icu.h2l.api.profile.HyperZoneProfileService
 import icu.h2l.api.profile.HyperZoneProfileServiceProvider
-import icu.h2l.login.auth.floodgate.config.FloodgateAuthConfig
-import icu.h2l.login.auth.floodgate.db.FloodgateAuthRepository
 import icu.h2l.login.auth.floodgate.FloodgateMessages
+import icu.h2l.login.auth.floodgate.config.FloodgateAuthConfig
 import icu.h2l.login.auth.floodgate.credential.FloodgateHyperZoneCredential
+import icu.h2l.login.auth.floodgate.db.FloodgateAuthRepository
 import io.netty.channel.Channel
 import net.kyori.adventure.text.Component
-import java.util.UUID
+import java.util.*
 
 class FloodgateAuthService(
     private val api: HyperZoneApi,

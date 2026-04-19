@@ -19,7 +19,6 @@
  *
  */
 
-import org.gradle.api.publish.maven.MavenPublication
 import org.gradle.jvm.tasks.Jar
 
 plugins {

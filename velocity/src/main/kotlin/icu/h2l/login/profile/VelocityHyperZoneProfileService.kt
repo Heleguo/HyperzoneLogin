@@ -31,7 +31,7 @@ import icu.h2l.api.util.RemapUtils
 import icu.h2l.login.HyperZoneLoginMain
 import icu.h2l.login.database.DatabaseHelper
 import icu.h2l.login.player.VelocityHyperZonePlayer
-import java.util.UUID
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
 /**

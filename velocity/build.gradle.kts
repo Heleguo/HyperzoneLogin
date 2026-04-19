@@ -21,8 +21,6 @@
 
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import icu.h2l.gradle.needPackageCompileOnly
-import org.gradle.api.file.DuplicatesStrategy
-import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.jvm.tasks.Jar
 
 plugins {

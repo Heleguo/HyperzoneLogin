@@ -24,6 +24,8 @@ package icu.h2l.login.dependency;
 import icu.h2l.api.dependency.HyperDependency;
 import icu.h2l.api.dependency.HyperDependencyDownloadException;
 import icu.h2l.api.dependency.HyperDependencyPathProcessor;
+import me.lucko.jarrelocator.JarRelocator;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -32,7 +34,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import me.lucko.jarrelocator.JarRelocator;
 
 public final class RelocatingDependencyPathProcessor implements HyperDependencyPathProcessor {
     private final List<Rule> rules;

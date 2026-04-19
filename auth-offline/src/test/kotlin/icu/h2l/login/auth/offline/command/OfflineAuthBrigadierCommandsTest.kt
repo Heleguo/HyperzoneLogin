@@ -24,11 +24,7 @@ package icu.h2l.login.auth.offline.command
 import com.mojang.brigadier.CommandDispatcher
 import com.mojang.brigadier.tree.CommandNode
 import com.velocitypowered.api.command.CommandSource
-import icu.h2l.api.command.HyperChatBrigadierContext
-import icu.h2l.api.command.HyperChatBrigadierRegistration
-import icu.h2l.api.command.HyperChatCommandExecutor
-import icu.h2l.api.command.HyperChatCommandInvocation
-import icu.h2l.api.command.HyperChatCommandRegistration
+import icu.h2l.api.command.*
 import io.mockk.mockk
 import org.junit.jupiter.api.Assertions.assertArrayEquals
 import org.junit.jupiter.api.Assertions.assertEquals

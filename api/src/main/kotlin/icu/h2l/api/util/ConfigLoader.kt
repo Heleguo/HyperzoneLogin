@@ -34,6 +34,7 @@ object ConfigLoader {
      * Unified configuration loader for HOCON files.
      * @param dataDirectory The directory containing the configuration file
      * @param fileName The name of the configuration file (e.g., "remap.conf")
+     * @param nodePath The path within the configuration file. Use an array of keys for nested structures.
      * @param header Intended header for the file
      * @param defaultProvider Provides the default config object if reading fails or file empty
      * @param postLoadHook A hook that gets invoked immediately after loading/getting the config. Returning a non-null instance overrides the default/loaded result.
@@ -42,13 +43,14 @@ object ConfigLoader {
     inline fun <reified T : Any> loadConfig(
         dataDirectory: Path,
         fileName: String,
+        nodePath: Array<String> = emptyArray(),
         header: String = "",
         defaultProvider: () -> T,
         noinline postLoadHook: ((ConfigurationNode, T, Boolean) -> T)? = null,
         noinline forceSaveHook: ((ConfigurationNode, Boolean) -> Boolean) = { _, firstCreation -> firstCreation }
     ): T {
         val path = dataDirectory.resolve(fileName)
-        val firstCreation = Files.notExists(path)
+        val fileNotExists = Files.notExists(path)
         val loader = HoconConfigurationLoader.builder()
             .defaultOptions { opts: ConfigurationOptions ->
                 opts.shouldCopyDefaults(true)
@@ -62,16 +64,19 @@ object ConfigLoader {
             .path(path)
             .build()
         val node = loader.load()
-        val loaded = runCatching { node.get(T::class.java) }.getOrNull() ?: defaultProvider()
+        val targetNode = if (nodePath.isEmpty()) node else node.node(*nodePath)
 
-        val finalConfig = postLoadHook?.invoke(node, loaded, firstCreation) ?: loaded
-        val shouldSave = forceSaveHook(node, firstCreation)
+        val firstCreation = fileNotExists || targetNode.virtual()
+
+        val loaded = runCatching { targetNode.get(T::class.java) }.getOrNull() ?: defaultProvider()
+
+        val finalConfig = postLoadHook?.invoke(targetNode, loaded, firstCreation) ?: loaded
+        val shouldSave = forceSaveHook(targetNode, firstCreation)
 
         if (shouldSave) {
-            node.set(finalConfig)
+            targetNode.set(finalConfig)
             loader.save(node)
         }
         return finalConfig
     }
 }
-

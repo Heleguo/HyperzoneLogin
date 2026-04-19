@@ -21,7 +21,7 @@
 
 package icu.h2l.login.auth.offline.service
 
-import java.util.UUID
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
 /**

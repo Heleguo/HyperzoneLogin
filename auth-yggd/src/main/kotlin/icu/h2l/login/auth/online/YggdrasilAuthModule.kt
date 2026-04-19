@@ -21,8 +21,8 @@
 
 package icu.h2l.login.auth.online
 
-import com.velocitypowered.api.proxy.ProxyServer
 import com.velocitypowered.api.proxy.Player
+import com.velocitypowered.api.proxy.ProxyServer
 import com.velocitypowered.api.util.GameProfile
 import com.velocitypowered.proxy.VelocityServer
 import icu.h2l.api.db.HyperZoneDatabaseManager
@@ -46,9 +46,8 @@ import icu.h2l.login.auth.online.req.*
 import kotlinx.coroutines.*
 import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
-import java.nio.charset.StandardCharsets
-import java.util.Base64
 import java.net.http.HttpClient
+import java.nio.charset.StandardCharsets
 import java.time.Duration
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap

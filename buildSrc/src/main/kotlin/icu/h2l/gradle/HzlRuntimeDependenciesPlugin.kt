@@ -21,9 +21,6 @@
 
 package icu.h2l.gradle
 
-import java.security.MessageDigest
-import java.util.Base64
-import java.util.Properties
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Configuration
@@ -31,7 +28,8 @@ import org.gradle.api.artifacts.ResolvedArtifact
 import org.gradle.api.attributes.Attribute
 import org.gradle.api.tasks.Copy
 import org.gradle.kotlin.dsl.named
-import org.gradle.kotlin.dsl.register
+import java.security.MessageDigest
+import java.util.*
 
 class HzlRuntimeDependenciesPlugin : Plugin<Project> {
     override fun apply(project: Project) {

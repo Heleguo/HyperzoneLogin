@@ -22,6 +22,8 @@
 package icu.h2l.api.profile.skin
 
 import com.velocitypowered.api.util.GameProfile
+import icu.h2l.api.profile.skin.ProfileSkinModel.CLASSIC
+import icu.h2l.api.profile.skin.ProfileSkinModel.SLIM
 
 /**
  * 支持的皮肤模型常量与归一化工具。

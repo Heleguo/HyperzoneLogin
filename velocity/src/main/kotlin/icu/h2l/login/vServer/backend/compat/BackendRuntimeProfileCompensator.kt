@@ -35,8 +35,7 @@ import icu.h2l.login.util.buildDeliveredGameProfile
 import icu.h2l.login.util.executeOnPlayerEventLoop
 import icu.h2l.login.util.setConnectedPlayerGameProfile
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger
-import java.util.Locale
-import java.util.UUID
+import java.util.*
 
 class BackendRuntimeProfileCompensator(
     private val profileService: VelocityHyperZoneProfileService,

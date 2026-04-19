@@ -24,7 +24,7 @@ package icu.h2l.api.event.profile
 import com.velocitypowered.api.event.annotation.AwaitingEvent
 import com.velocitypowered.api.util.GameProfile
 import icu.h2l.api.player.HyperZonePlayer
-import java.util.UUID
+import java.util.*
 
 /**
  * 在代理层即将向客户端写出登录成功包时触发。

@@ -459,19 +459,19 @@ class OutPreVServerAuth(
     }
 
     private fun configuredAuthAddress(): java.net.InetSocketAddress? {
-        return HyperZoneLoginMain.getOutPreConfig().resolveAuthAddress()
+        return HyperZoneLoginMain.getVServerConfig().outpre.resolveOutpreAuthAddress()
     }
 
     private fun configuredAuthTargetLabel(): String {
-        return HyperZoneLoginMain.getOutPreConfig().authTargetLabel()
+        return HyperZoneLoginMain.getVServerConfig().outpre.outpreAuthTargetLabel()
     }
 
     private fun rememberRequestedServerDuringAuth(): Boolean {
-        return HyperZoneLoginMain.getOutPreConfig().rememberRequestedServerDuringAuth
+        return HyperZoneLoginMain.getVServerConfig().rememberRequestedServerDuringAuth
     }
 
     private fun resolveFallbackTargetServerName(authServerName: String): String? {
-        val directConfiguredTarget = HyperZoneLoginMain.getOutPreConfig().postAuthDefaultServer
+        val directConfiguredTarget = HyperZoneLoginMain.getVServerConfig().postAuthDefaultServer
             .trim()
             .takeUnless { it.isBlank() || it.equals(authServerName, ignoreCase = true) }
             ?.takeIf { server.getServer(it).isPresent }

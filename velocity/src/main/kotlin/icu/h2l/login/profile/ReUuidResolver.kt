@@ -22,7 +22,7 @@
 package icu.h2l.login.profile
 
 import icu.h2l.api.util.RemapUtils
-import java.util.UUID
+import java.util.*
 
 internal object ReUuidResolver {
     private const val RANDOM_UUID_ATTEMPTS = 32

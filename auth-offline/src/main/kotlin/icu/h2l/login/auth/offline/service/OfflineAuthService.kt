@@ -21,14 +21,14 @@
 
 package icu.h2l.login.auth.offline.service
 
-import com.velocitypowered.api.proxy.ProxyServer
 import com.velocitypowered.api.proxy.Player
+import com.velocitypowered.api.proxy.ProxyServer
 import icu.h2l.api.event.auth.AuthenticationFailureEvent
 import icu.h2l.api.player.HyperZonePlayerAccessor
 import icu.h2l.api.profile.HyperZoneProfileService
 import icu.h2l.login.auth.offline.OfflineAuthMessages
-import icu.h2l.login.auth.offline.config.OfflineAuthConfigLoader
 import icu.h2l.login.auth.offline.api.db.OfflineAuthEntry
+import icu.h2l.login.auth.offline.config.OfflineAuthConfigLoader
 import icu.h2l.login.auth.offline.db.OfflineAuthRepository
 import icu.h2l.login.auth.offline.mail.OfflineAuthEmailSender
 import icu.h2l.login.auth.offline.totp.OfflineTotpAuthenticator
@@ -37,8 +37,7 @@ import net.kyori.adventure.text.Component
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.security.SecureRandom
-import java.util.Locale
-import java.util.UUID
+import java.util.*
 
 class OfflineAuthService(
     private val repository: OfflineAuthRepository,

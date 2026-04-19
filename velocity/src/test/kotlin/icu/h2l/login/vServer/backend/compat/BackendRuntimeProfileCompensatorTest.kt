@@ -25,13 +25,9 @@ import com.velocitypowered.api.util.GameProfile
 import icu.h2l.api.db.Profile
 import icu.h2l.login.util.buildAttachedIdentityGameProfile
 import icu.h2l.login.util.buildDeliveredGameProfile
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertSame
-import org.junit.jupiter.api.Assertions.assertThrows
-import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
-import java.util.UUID
+import java.util.*
 
 class BackendRuntimeProfileCompensatorTest {
     @Test

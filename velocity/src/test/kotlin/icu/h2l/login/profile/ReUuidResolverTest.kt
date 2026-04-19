@@ -22,12 +22,9 @@
 package icu.h2l.login.profile
 
 import icu.h2l.api.util.RemapUtils
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertNull
-import org.junit.jupiter.api.Assertions.assertSame
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
-import java.util.ArrayDeque
-import java.util.UUID
+import java.util.*
 
 class ReUuidResolverTest {
     @Test

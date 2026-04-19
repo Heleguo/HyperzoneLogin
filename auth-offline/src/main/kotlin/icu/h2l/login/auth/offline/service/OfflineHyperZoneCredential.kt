@@ -24,7 +24,7 @@ package icu.h2l.login.auth.offline.service
 import icu.h2l.api.profile.HyperZoneCredential
 import icu.h2l.login.auth.offline.db.OfflineAuthRepository
 import icu.h2l.login.auth.offline.util.ExtraUuidUtils
-import java.util.UUID
+import java.util.*
 
 class OfflineHyperZoneCredential(
     private val repository: OfflineAuthRepository,

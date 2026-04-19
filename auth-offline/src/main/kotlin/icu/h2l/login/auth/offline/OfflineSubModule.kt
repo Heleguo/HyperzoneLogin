@@ -30,18 +30,18 @@ import icu.h2l.api.profile.HyperZoneProfileServiceProvider
 import icu.h2l.login.auth.offline.command.OfflineAuthCommandRegistrar
 import icu.h2l.login.auth.offline.config.OfflineAuthConfigLoader
 import icu.h2l.login.auth.offline.config.OfflineAuthMessageResourceLoader
+import icu.h2l.login.auth.offline.config.OfflineMatchConfigLoader
 import icu.h2l.login.auth.offline.db.OfflineAuthRepository
 import icu.h2l.login.auth.offline.db.OfflineAuthTableManager
+import icu.h2l.login.auth.offline.listener.OfflinePreLoginListener
+import icu.h2l.login.auth.offline.listener.OfflineSessionAuthListener
 import icu.h2l.login.auth.offline.mail.JakartaMailOfflineAuthEmailSender
 import icu.h2l.login.auth.offline.mail.LoggingOfflineAuthEmailSender
 import icu.h2l.login.auth.offline.mail.OfflineAuthEmailSender
 import icu.h2l.login.auth.offline.service.OfflineAuthService
 import icu.h2l.login.auth.offline.service.PendingOfflineRegistrationManager
-import icu.h2l.login.auth.offline.config.OfflineMatchConfigLoader
-import icu.h2l.login.auth.offline.listener.OfflinePreLoginListener
-import icu.h2l.login.auth.offline.listener.OfflineSessionAuthListener
 import icu.h2l.login.auth.offline.totp.OfflineTotpAuthenticator
-import java.util.Locale
+import java.util.*
 
 class OfflineSubModule : HyperSubModule {
     lateinit var offlineAuthTableManager: OfflineAuthTableManager

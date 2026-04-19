@@ -22,11 +22,6 @@
 package icu.h2l.login.profile.skin.config
 
 import icu.h2l.api.util.ConfigLoader
-import org.spongepowered.configurate.ConfigurationOptions
-import org.spongepowered.configurate.hocon.HoconConfigurationLoader
-import org.spongepowered.configurate.kotlin.dataClassFieldDiscoverer
-import org.spongepowered.configurate.objectmapping.ObjectMapper
-import java.nio.file.Files
 import java.nio.file.Path
 
 object ProfileSkinConfigLoader {

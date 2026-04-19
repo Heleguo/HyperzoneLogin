@@ -23,9 +23,7 @@ package icu.h2l.login.profile.skin
 
 import icu.h2l.api.profile.skin.ProfileSkinTextures
 import icu.h2l.login.profile.skin.service.parseRestoredMineSkinTextures
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertThrows
-import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 
 class MineSkinResponseParsingTest {

@@ -28,11 +28,7 @@ import com.velocitypowered.api.plugin.Plugin
 import com.velocitypowered.api.plugin.annotation.DataDirectory
 import com.velocitypowered.api.proxy.ProxyServer
 import icu.h2l.api.HyperZoneApiProvider
-import icu.h2l.api.dependency.HyperDependencyManifest
-import icu.h2l.api.dependency.HyperDependencyManager
-import icu.h2l.api.dependency.HyperDependencyProgressListener
-import icu.h2l.api.dependency.HyperDependencyRepository
-import icu.h2l.api.dependency.VelocityHyperDependencyClassPathAppender
+import icu.h2l.api.dependency.*
 import java.nio.file.Path
 
 @Plugin(id = "hzl-auth-offline", name = "HyperZoneLogin - Auth Offline")

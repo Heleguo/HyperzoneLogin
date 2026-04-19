@@ -40,7 +40,7 @@ import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.lang.reflect.Proxy
 import java.nio.file.Files
-import java.util.UUID
+import java.util.*
 
 class YggdrasilAuthModuleTest {
     private lateinit var entryConfigManager: EntryConfigManager

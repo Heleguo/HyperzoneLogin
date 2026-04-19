@@ -23,7 +23,7 @@ package icu.h2l.login.auth.online
 
 import icu.h2l.api.profile.HyperZoneCredential
 import icu.h2l.login.auth.online.db.EntryDatabaseHelper
-import java.util.UUID
+import java.util.*
 
 class YggdrasilHyperZoneCredential(
     private val entryDatabaseHelper: EntryDatabaseHelper,

@@ -25,7 +25,7 @@ import com.velocitypowered.api.util.GameProfile
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import java.util.UUID
+import java.util.*
 
 class VelocityGameProfileSupportTest {
     @Test

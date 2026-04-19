@@ -26,7 +26,7 @@ import icu.h2l.api.log.warn
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.update
-import java.util.UUID
+import java.util.*
 
 class ProfileSkinProfileRepository(
     private val databaseManager: HyperZoneDatabaseManager,

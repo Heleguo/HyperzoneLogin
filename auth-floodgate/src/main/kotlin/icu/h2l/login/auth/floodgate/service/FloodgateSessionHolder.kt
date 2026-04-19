@@ -22,7 +22,7 @@
 package icu.h2l.login.auth.floodgate.service
 
 import io.netty.channel.Channel
-import java.util.UUID
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
 class FloodgateSessionHolder {

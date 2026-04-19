@@ -22,15 +22,11 @@
 package icu.h2l.login.auth.offline.mail
 
 import icu.h2l.login.auth.offline.config.OfflineAuthConfig
-import jakarta.mail.Authenticator
-import jakarta.mail.Message
-import jakarta.mail.PasswordAuthentication
-import jakarta.mail.Session
-import jakarta.mail.Transport
+import jakarta.mail.*
 import jakarta.mail.internet.InternetAddress
 import jakarta.mail.internet.MimeMessage
 import java.nio.charset.StandardCharsets
-import java.util.Properties
+import java.util.*
 
 class JakartaMailOfflineAuthEmailSender(
     private val config: OfflineAuthConfig.SmtpConfig,

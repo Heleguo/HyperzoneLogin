@@ -23,7 +23,7 @@ package icu.h2l.login.auth.floodgate.db
 
 import icu.h2l.api.db.table.ProfileTable
 import org.jetbrains.exposed.sql.Table
-import java.util.UUID
+import java.util.*
 
 data class FloodgateAuthEntry(
     val id: Int,

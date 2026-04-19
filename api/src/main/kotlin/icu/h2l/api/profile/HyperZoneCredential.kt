@@ -21,7 +21,7 @@
 
 package icu.h2l.api.profile
 
-import java.util.UUID
+import java.util.*
 
 /**
  * 认证子模块向登录核心提交的可信凭证。

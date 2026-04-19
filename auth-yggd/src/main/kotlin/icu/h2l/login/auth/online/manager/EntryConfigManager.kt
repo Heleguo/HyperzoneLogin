@@ -29,10 +29,6 @@ import icu.h2l.api.log.info
 import icu.h2l.api.util.ConfigLoader
 import icu.h2l.login.auth.online.config.entry.EntryConfig
 import icu.h2l.login.auth.online.events.EntryRegisterEvent
-import org.spongepowered.configurate.ConfigurationOptions
-import org.spongepowered.configurate.hocon.HoconConfigurationLoader
-import org.spongepowered.configurate.kotlin.dataClassFieldDiscoverer
-import org.spongepowered.configurate.objectmapping.ObjectMapper
 import java.nio.file.Files
 import java.nio.file.Path
 import kotlin.io.path.isDirectory

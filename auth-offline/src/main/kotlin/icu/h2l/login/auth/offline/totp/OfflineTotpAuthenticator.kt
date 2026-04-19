@@ -24,8 +24,7 @@ package icu.h2l.login.auth.offline.totp
 import com.warrenstrange.googleauth.GoogleAuthenticator
 import com.warrenstrange.googleauth.GoogleAuthenticatorKey
 import com.warrenstrange.googleauth.GoogleAuthenticatorQRGenerator
-import java.util.Locale
-import java.util.UUID
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
 class OfflineTotpAuthenticator(

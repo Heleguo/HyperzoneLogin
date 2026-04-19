@@ -27,7 +27,7 @@ import com.velocitypowered.proxy.connection.client.ConnectedPlayer
 import com.velocitypowered.proxy.server.VelocityRegisteredServer
 import icu.h2l.api.db.Profile
 import java.lang.reflect.Field
-import java.util.UUID
+import java.util.*
 import java.util.concurrent.CompletableFuture
 
 internal fun buildDeliveredGameProfile(

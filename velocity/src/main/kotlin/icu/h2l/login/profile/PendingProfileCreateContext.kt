@@ -22,7 +22,7 @@
 package icu.h2l.login.profile
 
 import icu.h2l.api.profile.HyperZoneCredential
-import java.util.UUID
+import java.util.*
 
 data class PendingProfileCreateContext(
     val suggestedUuid: UUID?,

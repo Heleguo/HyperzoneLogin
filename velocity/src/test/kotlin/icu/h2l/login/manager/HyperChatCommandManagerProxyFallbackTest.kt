@@ -27,11 +27,7 @@ import com.mojang.brigadier.tree.CommandNode
 import com.velocitypowered.api.command.BrigadierCommand
 import com.velocitypowered.api.command.CommandSource
 import com.velocitypowered.proxy.command.VelocityCommands
-import icu.h2l.api.command.HyperChatBrigadierContext
-import icu.h2l.api.command.HyperChatBrigadierRegistration
-import icu.h2l.api.command.HyperChatCommandExecutor
-import icu.h2l.api.command.HyperChatCommandInvocation
-import icu.h2l.api.command.HyperChatCommandRegistration
+import icu.h2l.api.command.*
 import icu.h2l.login.command.BindCodeBrigadierCommands
 import icu.h2l.login.command.ReUuidCommand
 import icu.h2l.login.command.RenameCommand

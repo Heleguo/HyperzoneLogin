@@ -25,7 +25,7 @@ import org.geysermc.floodgate.api.FloodgateApi
 import org.geysermc.floodgate.api.player.FloodgatePlayer
 import org.geysermc.floodgate.api.player.PropertyKey
 import java.net.InetSocketAddress
-import java.util.UUID
+import java.util.*
 
 open class FloodgateApiHolder(
     private val api: FloodgateApi = FloodgateApi.getInstance()

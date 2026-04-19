@@ -21,14 +21,14 @@
 
 package icu.h2l.login.auth.offline.listener
 
-import com.velocitypowered.api.event.Subscribe
-import icu.h2l.api.event.connection.OpenPreLoginEvent
 // HyperZonePlayerManager.create(...) belongs to core pre-login initialization and is intentionally
 // kept in the core `velocity` EventListener. Do not initialize channel here to avoid ordering issues.
-import icu.h2l.login.auth.offline.util.ExtraUuidUtils
-import icu.h2l.login.auth.offline.type.OfflineUUIDType
-import icu.h2l.login.auth.offline.config.OfflineMatchConfigLoader
+import com.velocitypowered.api.event.Subscribe
+import icu.h2l.api.event.connection.OpenPreLoginEvent
 import icu.h2l.api.log.info
+import icu.h2l.login.auth.offline.config.OfflineMatchConfigLoader
+import icu.h2l.login.auth.offline.type.OfflineUUIDType
+import icu.h2l.login.auth.offline.util.ExtraUuidUtils
 
 class OfflinePreLoginListener {
     @Subscribe

@@ -26,8 +26,9 @@ import com.google.inject.Guice;
 import com.velocitypowered.api.plugin.annotation.DataDirectory;
 import com.velocitypowered.api.proxy.ProxyServer;
 import icu.h2l.login.libs.bstats.velocity.Metrics;
-import java.nio.file.Path;
 import org.slf4j.Logger;
+
+import java.nio.file.Path;
 
 public final class BStatsMetricsBootstrap {
     private BStatsMetricsBootstrap() {

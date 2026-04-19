@@ -28,12 +28,10 @@ import icu.h2l.api.profile.HyperZoneProfileService
 import icu.h2l.login.database.BindingCodeStore
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import java.util.UUID
+import java.util.*
 
 class ProfileBindingCodeServiceTest {
     private lateinit var repository: FakeBindingCodeStore

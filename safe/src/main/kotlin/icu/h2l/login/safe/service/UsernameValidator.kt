@@ -21,8 +21,8 @@
 
 package icu.h2l.login.safe.service
 
-import icu.h2l.login.safe.config.SafeConfig
 import icu.h2l.login.safe.SafeMessages
+import icu.h2l.login.safe.config.SafeConfig
 import net.kyori.adventure.text.Component
 
 class UsernameValidator(

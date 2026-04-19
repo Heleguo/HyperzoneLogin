@@ -21,6 +21,7 @@
 
 package icu.h2l.login.vServer.outpre
 
+import com.google.common.io.ByteStreams
 import com.velocitypowered.api.network.HandshakeIntent
 import com.velocitypowered.api.network.ProtocolVersion
 import com.velocitypowered.api.proxy.Player
@@ -42,11 +43,10 @@ import com.velocitypowered.proxy.protocol.packet.config.FinishedUpdatePacket
 import icu.h2l.login.HyperZoneLoginMain
 import io.netty.buffer.Unpooled
 import io.netty.channel.ChannelFutureListener
-import com.google.common.io.ByteStreams
 import java.net.InetSocketAddress
+import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CopyOnWriteArrayList
-import java.util.Optional
 
 class OutPreBackendBridge(
     val proxyServer: VelocityServer,
@@ -192,13 +192,13 @@ class OutPreBackendBridge(
 
     private fun startHandshake(connection: MinecraftConnection) {
         val protocolVersion: ProtocolVersion = player.protocolVersion
-        val outPreConfig = HyperZoneLoginMain.getOutPreConfig()
+        val vServerConfig = HyperZoneLoginMain.getVServerConfig()
         val targetAddress = targetAddress()
         val handshake = HandshakePacket()
         handshake.setIntent(HandshakeIntent.LOGIN)
         handshake.protocolVersion = protocolVersion
-        handshake.serverAddress = outPreConfig.resolvePresentedHost(targetAddress)
-        handshake.port = outPreConfig.resolvePresentedPort(targetAddress)
+        handshake.serverAddress = vServerConfig.outpre.resolveOutprePresentedHost(targetAddress)
+        handshake.port = vServerConfig.outpre.resolveOutprePresentedPort(targetAddress)
         connection.delayedWrite(handshake)
         connection.protocolVersion = protocolVersion
         connection.setActiveSessionHandler(StateRegistry.LOGIN)

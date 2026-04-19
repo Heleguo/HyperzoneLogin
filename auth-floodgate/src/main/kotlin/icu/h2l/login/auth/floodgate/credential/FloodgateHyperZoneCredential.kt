@@ -23,7 +23,7 @@ package icu.h2l.login.auth.floodgate.credential
 
 import icu.h2l.api.profile.HyperZoneCredential
 import icu.h2l.login.auth.floodgate.db.FloodgateAuthRepository
-import java.util.UUID
+import java.util.*
 
 class FloodgateHyperZoneCredential(
     private val repository: FloodgateAuthRepository,

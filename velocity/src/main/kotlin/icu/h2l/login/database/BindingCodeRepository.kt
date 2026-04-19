@@ -27,7 +27,7 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
-import java.util.UUID
+import java.util.*
 
 class BindingCodeRepository(
     private val databaseManager: DatabaseManager,

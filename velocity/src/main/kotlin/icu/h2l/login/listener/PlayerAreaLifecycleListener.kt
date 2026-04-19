@@ -22,14 +22,9 @@
 package icu.h2l.login.listener
 
 import com.velocitypowered.api.event.Subscribe
-import com.velocitypowered.api.event.player.ServerConnectedEvent
 import com.velocitypowered.api.event.player.ServerPostConnectEvent
 import com.velocitypowered.api.proxy.Player
-import icu.h2l.api.event.area.GameAreaEnterEvent
-import icu.h2l.api.event.area.GameAreaLeaveEvent
-import icu.h2l.api.event.area.PlayerAreaTransitionReason
-import icu.h2l.api.event.area.WaitingAreaEnterEvent
-import icu.h2l.api.event.area.WaitingAreaLeaveEvent
+import icu.h2l.api.event.area.*
 import icu.h2l.api.event.vServer.VServerJoinEvent
 import icu.h2l.api.player.HyperZonePlayer
 import icu.h2l.api.player.getChannel

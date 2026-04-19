@@ -23,8 +23,7 @@ package icu.h2l.api.util
 
 import com.velocitypowered.api.util.GameProfile
 import java.nio.charset.StandardCharsets
-import java.util.Collections
-import java.util.UUID
+import java.util.*
 import kotlin.random.Random
 
 /**

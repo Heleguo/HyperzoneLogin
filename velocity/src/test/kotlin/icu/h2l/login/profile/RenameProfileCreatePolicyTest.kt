@@ -25,7 +25,7 @@ import icu.h2l.api.db.Profile
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
-import java.util.UUID
+import java.util.*
 
 class RenameProfileCreatePolicyTest {
     @Test

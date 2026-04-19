@@ -30,7 +30,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Test
 import java.net.InetSocketAddress
-import java.util.UUID
+import java.util.*
 
 class FloodgateApiHolderTest {
     @Test

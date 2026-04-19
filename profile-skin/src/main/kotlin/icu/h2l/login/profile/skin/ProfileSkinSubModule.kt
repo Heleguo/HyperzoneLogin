@@ -29,11 +29,7 @@ import icu.h2l.api.message.HyperZoneModuleMessageResources
 import icu.h2l.api.module.HyperSubModule
 import icu.h2l.api.profile.HyperZoneProfileServiceProvider
 import icu.h2l.login.profile.skin.config.ProfileSkinConfigLoader
-import icu.h2l.login.profile.skin.db.ProfileSkinCacheRepository
-import icu.h2l.login.profile.skin.db.ProfileSkinCacheTable
-import icu.h2l.login.profile.skin.db.ProfileSkinCacheTableManager
-import icu.h2l.login.profile.skin.db.ProfileSkinProfileRepository
-import icu.h2l.login.profile.skin.db.ProfileSkinProfileTable
+import icu.h2l.login.profile.skin.db.*
 import icu.h2l.login.profile.skin.service.ProfileSkinSelfReplayService
 import icu.h2l.login.profile.skin.service.ProfileSkinService
 

@@ -96,7 +96,7 @@ class LoginProfilePacketReplacer(
     }
 
     private fun isLoginServerTarget(): Boolean {
-        val loginServerName = HyperZoneLoginMain.getBackendServerConfig().fallbackAuthServer.trim()
+        val loginServerName = HyperZoneLoginMain.getVServerConfig().backend.fallbackAuthServer.trim()
         if (loginServerName.isBlank()) {
             return false
         }

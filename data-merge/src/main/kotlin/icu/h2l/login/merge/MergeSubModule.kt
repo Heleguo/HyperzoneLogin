@@ -24,19 +24,15 @@ package icu.h2l.login.merge
 import icu.h2l.api.HyperZoneApi
 import icu.h2l.api.db.HyperZoneDatabaseManager
 import icu.h2l.api.log.info
-import icu.h2l.api.message.HyperZoneModuleMessageResources
 import icu.h2l.api.log.warn
+import icu.h2l.api.message.HyperZoneModuleMessageResources
 import icu.h2l.api.module.HyperSubModule
+import icu.h2l.api.util.ConfigLoader
 import icu.h2l.login.merge.command.MergeCommand
 import icu.h2l.login.merge.config.MergeAmConfig
 import icu.h2l.login.merge.config.MergeMlConfig
 import icu.h2l.login.merge.service.AmDataMigrator
 import icu.h2l.login.merge.service.MlDataMigrator
-import icu.h2l.api.util.ConfigLoader
-import org.spongepowered.configurate.ConfigurationOptions
-import org.spongepowered.configurate.hocon.HoconConfigurationLoader
-import org.spongepowered.configurate.kotlin.dataClassFieldDiscoverer
-import org.spongepowered.configurate.objectmapping.ObjectMapper
 import java.nio.file.Files
 import java.nio.file.Path
 

@@ -22,17 +22,17 @@
 package icu.h2l.login.manager
 
 import com.mojang.brigadier.Command
-import com.mojang.brigadier.tree.LiteralCommandNode
-import com.mojang.brigadier.tree.RootCommandNode
 import com.mojang.brigadier.arguments.StringArgumentType
 import com.mojang.brigadier.builder.LiteralArgumentBuilder
+import com.mojang.brigadier.tree.LiteralCommandNode
+import com.mojang.brigadier.tree.RootCommandNode
 import com.velocitypowered.api.command.BrigadierCommand
 import com.velocitypowered.api.command.CommandSource
 import com.velocitypowered.api.proxy.Player
 import com.velocitypowered.api.proxy.ProxyServer
 import com.velocitypowered.proxy.command.VelocityCommands
-import com.velocitypowered.proxy.protocol.packet.AvailableCommandsPacket
 import com.velocitypowered.proxy.command.brigadier.VelocityArgumentBuilder
+import com.velocitypowered.proxy.protocol.packet.AvailableCommandsPacket
 import icu.h2l.api.command.HyperChatBrigadierContext
 import icu.h2l.api.command.HyperChatCommandInvocation
 import icu.h2l.api.command.HyperChatCommandManager

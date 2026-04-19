@@ -22,11 +22,9 @@
 package icu.h2l.login.player
 
 import icu.h2l.api.util.RemapUtils
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertSame
-import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
-import java.util.UUID
+import java.util.*
 
 class VelocityHyperZonePlayerTest {
     @Test

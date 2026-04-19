@@ -31,21 +31,12 @@ import icu.h2l.login.auth.floodgate.config.FloodgateAuthConfig
 import icu.h2l.login.auth.floodgate.credential.FloodgateHyperZoneCredential
 import icu.h2l.login.auth.floodgate.db.FloodgateAuthEntry
 import icu.h2l.login.auth.floodgate.db.FloodgateAuthRepository
-import io.mockk.every
-import io.mockk.just
-import io.mockk.mockk
-import io.mockk.runs
-import io.mockk.verify
+import io.mockk.*
 import io.netty.channel.Channel
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertNotNull
-import org.junit.jupiter.api.Assertions.assertNull
-import org.junit.jupiter.api.Assertions.assertSame
-import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import java.util.UUID
+import java.util.*
 
 class FloodgateAuthServiceTest {
     private lateinit var api: HyperZoneApi

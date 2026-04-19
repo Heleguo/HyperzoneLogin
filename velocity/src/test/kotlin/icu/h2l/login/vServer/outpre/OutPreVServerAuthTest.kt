@@ -28,7 +28,7 @@ import com.velocitypowered.proxy.connection.client.ConnectedPlayer
 import icu.h2l.api.HyperZoneApi
 import icu.h2l.api.event.vServer.VServerAuthStartEvent
 import icu.h2l.login.HyperZoneLoginMain
-import icu.h2l.login.config.OutPreConfig
+import icu.h2l.login.config.VServerConfig
 import icu.h2l.login.database.DatabaseConfig
 import icu.h2l.login.database.DatabaseHelper
 import icu.h2l.login.manager.HyperZonePlayerManager
@@ -45,7 +45,7 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.nio.file.Paths
-import java.util.UUID
+import java.util.*
 import java.util.concurrent.CompletableFuture
 
 class OutPreVServerAuthTest {
@@ -107,7 +107,7 @@ class OutPreVServerAuthTest {
             main.activeVServerAdapter = outPre
             main.profileService = createProfileService(proxyServer)
             main.messageService = MessageService(main.dataDirectory, main.logger)
-            setStaticField("outPreConfig", OutPreConfig())
+            setStaticField("vServerConfig", VServerConfig())
         }
     }
 

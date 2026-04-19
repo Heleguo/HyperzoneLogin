@@ -22,11 +22,6 @@
 package icu.h2l.login.auth.offline.config
 
 import icu.h2l.api.util.ConfigLoader
-import org.spongepowered.configurate.ConfigurationOptions
-import org.spongepowered.configurate.hocon.HoconConfigurationLoader
-import org.spongepowered.configurate.kotlin.dataClassFieldDiscoverer
-import org.spongepowered.configurate.objectmapping.ObjectMapper
-import java.nio.file.Files
 import java.nio.file.Path
 
 object OfflineAuthConfigLoader {
@@ -35,8 +30,9 @@ object OfflineAuthConfigLoader {
     fun load(dataDirectory: Path) {
         config = ConfigLoader.loadConfig(
             dataDirectory = dataDirectory,
-            fileName = "auth-offline-main.conf",
-            header = "HyperZoneLogin Offline Auth Configuration\n这里集中管理离线注册/登录保护、邮箱找回与提示行为\n",
+            fileName = "auth-offline.conf",
+            nodePath = arrayOf("main"),
+            header = "HyperZoneLogin Offline Auth Configuration\nThis file contains all offline auth module settings.\n",
             defaultProvider = { OfflineAuthConfig() }
         )
     }

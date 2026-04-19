@@ -19,10 +19,7 @@
  *
  */
 
-import org.gradle.api.tasks.Sync
 import org.gradle.jvm.tasks.Jar
-import org.gradle.language.jvm.tasks.ProcessResources
-import java.io.File
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.temporal.WeekFields

@@ -23,8 +23,8 @@ package icu.h2l.login.manager
 
 import com.velocitypowered.api.event.Subscribe
 import com.velocitypowered.api.event.connection.DisconnectEvent
-import icu.h2l.api.event.connection.OpenPreLoginEvent
 import com.velocitypowered.api.proxy.Player
+import icu.h2l.api.event.connection.OpenPreLoginEvent
 import icu.h2l.api.player.HyperZonePlayer
 import icu.h2l.api.player.HyperZonePlayerAccessor
 import icu.h2l.api.player.getChannel

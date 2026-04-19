@@ -21,61 +21,46 @@
 
 package icu.h2l.login
 
+// Module implementations (auth-offline, auth-yggd, data-merge) are now separate plugins
+// and will register themselves with the main plugin at runtime. Do not import them here.
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent
 import com.velocitypowered.api.proxy.ProxyServer
 import icu.h2l.api.HyperZoneApi
 import icu.h2l.api.command.HyperChatCommandManager
 import icu.h2l.api.command.HyperChatCommandRegistration
 import icu.h2l.api.message.HyperZoneMessageServiceProvider
-import icu.h2l.api.profile.HyperZoneProfileServiceProvider
-import icu.h2l.api.vServer.HyperZoneVServerAdapter
 import icu.h2l.api.module.HyperSubModule
 import icu.h2l.api.player.HyperZonePlayerAccessor
-// Module implementations (auth-offline, auth-yggd, data-merge) are now separate plugins
-// and will register themselves with the main plugin at runtime. Do not import them here.
+import icu.h2l.api.profile.HyperZoneProfileServiceProvider
+import icu.h2l.api.util.ConfigLoader
+import icu.h2l.api.vServer.HyperZoneVServerAdapter
 import icu.h2l.login.command.BindCodeCommandRegistrar
 import icu.h2l.login.command.HyperZoneLoginCommand
-import icu.h2l.login.command.RenameCommand
 import icu.h2l.login.command.ReUuidCommand
+import icu.h2l.login.command.RenameCommand
+import icu.h2l.login.config.*
 import icu.h2l.login.database.BindingCodeRepository
-import icu.h2l.login.config.BackendServerConfig
-import icu.h2l.login.config.DatabaseSourceConfig
-import icu.h2l.login.config.DebugConfig
-import icu.h2l.login.config.MessagesConfig
-import icu.h2l.login.config.MiscConfig
-import icu.h2l.login.config.ModulesConfig
-import icu.h2l.login.config.OutPreConfig
-import icu.h2l.login.config.RemapConfig
 import icu.h2l.login.database.DatabaseConfig
 import icu.h2l.login.database.DatabaseHelper
 import icu.h2l.login.inject.network.VelocityNetworkModule
-import icu.h2l.login.vServer.backend.BackendAuthHoldListener
-import icu.h2l.login.vServer.outpre.OutPreVServerAuth
-import icu.h2l.login.vServer.command.ExitVServerCommand
-import icu.h2l.login.vServer.command.OverVServerCommand
-import icu.h2l.login.listener.PlayerAreaLifecycleListener
+import icu.h2l.login.listener.*
 import icu.h2l.login.manager.HyperChatCommandManagerImpl
 import icu.h2l.login.manager.HyperZonePlayerManager
 import icu.h2l.login.message.MessageKeys
 import icu.h2l.login.message.MessageService
-import icu.h2l.login.listener.LoginRenameListener
-import icu.h2l.login.listener.LoginReUuidListener
-import icu.h2l.login.listener.LoginVerifyListener
-import icu.h2l.login.listener.AttachedProfileInitialGameProfileListener
 import icu.h2l.login.module.EmbeddedModuleRegistry
 import icu.h2l.login.module.EmbeddedModuleSpec
 import icu.h2l.login.profile.ProfileBindingCodeService
-import icu.h2l.login.vServer.backend.compat.BackendRuntimeProfileCompensator
-import icu.h2l.login.vServer.backend.compat.BackendProfileLayerCompatListener
 import icu.h2l.login.profile.VelocityHyperZoneProfileService
 import icu.h2l.login.util.registerApiLogger
-import icu.h2l.api.util.ConfigLoader
+import icu.h2l.login.vServer.backend.BackendAuthHoldListener
+import icu.h2l.login.vServer.backend.compat.BackendProfileLayerCompatListener
+import icu.h2l.login.vServer.backend.compat.BackendRuntimeProfileCompensator
+import icu.h2l.login.vServer.command.ExitVServerCommand
+import icu.h2l.login.vServer.command.OverVServerCommand
+import icu.h2l.login.vServer.outpre.OutPreVServerAuth
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger
 import org.spongepowered.configurate.ConfigurationNode
-import org.spongepowered.configurate.ConfigurationOptions
-import org.spongepowered.configurate.hocon.HoconConfigurationLoader
-import org.spongepowered.configurate.kotlin.dataClassFieldDiscoverer
-import org.spongepowered.configurate.objectmapping.ObjectMapper
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -115,8 +100,7 @@ class HyperZoneLoginMain(
         private lateinit var miscConfig: MiscConfig
         private lateinit var debugConfig: DebugConfig
         private lateinit var modulesConfig: ModulesConfig
-        private lateinit var backendServerConfig: BackendServerConfig
-        private lateinit var outPreConfig: OutPreConfig
+                        private lateinit var vServerConfig: VServerConfig
         private lateinit var messagesConfig: MessagesConfig
 
         @JvmStatic
@@ -131,11 +115,9 @@ class HyperZoneLoginMain(
         @JvmStatic
         fun getDebugConfig(): DebugConfig = debugConfig
 
-        @JvmStatic
-        fun getBackendServerConfig(): BackendServerConfig = backendServerConfig
 
         @JvmStatic
-        fun getOutPreConfig(): OutPreConfig = outPreConfig
+        fun getVServerConfig(): VServerConfig = vServerConfig
 
         @JvmStatic
         fun getMessagesConfig(): MessagesConfig = messagesConfig
@@ -153,8 +135,7 @@ class HyperZoneLoginMain(
         loadMiscConfig()
         loadDebugConfig()
         loadModulesConfig()
-        loadBackendServerConfig()
-        loadOutPreConfig()
+        loadVServerConfig()
         loadMessagesConfig()
         messageService = MessageService(dataDirectory, logger)
         messageService.load(messagesConfig)
@@ -172,14 +153,14 @@ class HyperZoneLoginMain(
 
         activeVServerAdapter = null
 
-        val configuredMode = normalizeVServerMode(backendServerConfig.vServerMode)
-        val configuredFallback = backendServerConfig.fallbackAuthServer.trim()
-        val configuredOutPreAuthAddress = outPreConfig.resolveAuthAddress()
+        val configuredMode = normalizeVServerMode(vServerConfig.mode)
+        val configuredFallback = vServerConfig.backend.fallbackAuthServer.trim()
+        val configuredOutPreAuthAddress = vServerConfig.outpre.resolveOutpreAuthAddress()
         if (configuredOutPreAuthAddress != null && configuredMode == "outpre") {
             activeVServerAdapter = OutPreVServerAuth(server)
             logger.info(
                 "Using outpre waiting-area adapter on direct auth endpoint '{}' ({})",
-                outPreConfig.authTargetLabel(),
+                vServerConfig.outpre.outpreAuthTargetLabel(),
                 configuredOutPreAuthAddress,
             )
         } else if (configuredFallback.isNotBlank() && configuredMode == "backend") {
@@ -335,8 +316,7 @@ class HyperZoneLoginMain(
         loadMiscConfig()
         loadDebugConfig()
         loadModulesConfig()
-        loadBackendServerConfig()
-        loadOutPreConfig()
+        loadVServerConfig()
         loadMessagesConfig()
         if (::messageService.isInitialized) {
             messageService.load(messagesConfig)
@@ -362,7 +342,8 @@ class HyperZoneLoginMain(
     private fun loadDatabaseConfig() {
         val config = ConfigLoader.loadConfig<DatabaseSourceConfig>(
             dataDirectory = dataDirectory,
-            fileName = "core-database.conf",
+            fileName = "core.conf",
+            nodePath = arrayOf("database"),
             header = "HyperZoneLogin Database Configuration | by ksqeib\n",
             defaultProvider = { DatabaseSourceConfig() }
         )
@@ -372,7 +353,8 @@ class HyperZoneLoginMain(
     private fun loadRemapConfig() {
         val config = ConfigLoader.loadConfig<RemapConfig>(
             dataDirectory = dataDirectory,
-            fileName = "core-remap.conf",
+            fileName = "core.conf",
+            nodePath = arrayOf("remap"),
             header = "HyperZoneLogin Remap Configuration | by ksqeib\n",
             defaultProvider = { RemapConfig() }
         )
@@ -382,7 +364,8 @@ class HyperZoneLoginMain(
     private fun loadMiscConfig() {
         miscConfig = ConfigLoader.loadConfig<MiscConfig>(
             dataDirectory = dataDirectory,
-            fileName = "core-misc.conf",
+            fileName = "core.conf",
+            nodePath = arrayOf("misc"),
             header = "HyperZoneLogin Misc Configuration | by ksqeib\n",
             defaultProvider = { MiscConfig() },
             postLoadHook = { node, loaded, _ -> readMiscConfig(node) },
@@ -418,7 +401,8 @@ class HyperZoneLoginMain(
     private fun loadDebugConfig() {
         debugConfig = ConfigLoader.loadConfig<DebugConfig>(
             dataDirectory = dataDirectory,
-            fileName = "core-debug.conf",
+            fileName = "core.conf",
+            nodePath = arrayOf("debug"),
             header = "HyperZoneLogin Debug Configuration | by ksqeib\n包含 debug 日志与慢测试功能开关。\n",
             defaultProvider = { DebugConfig() },
             postLoadHook = { node, _, _ -> readDebugConfig(node) }
@@ -438,37 +422,31 @@ class HyperZoneLoginMain(
     private fun loadModulesConfig() {
         val config = ConfigLoader.loadConfig<ModulesConfig>(
             dataDirectory = dataDirectory,
-            fileName = "core-modules.conf",
+            fileName = "core.conf",
+            nodePath = arrayOf("modules"),
             header = "HyperZoneLogin Embedded Modules Configuration | by ksqeib\n在单文件版中控制内置模块是否启用；若同名外部插件已安装，则自动跳过内置版本。\n",
             defaultProvider = { ModulesConfig() }
         )
         modulesConfig = config
     }
 
-    private fun loadBackendServerConfig() {
-        val config = ConfigLoader.loadConfig<BackendServerConfig>(
+    private fun loadVServerConfig() {
+        val config = ConfigLoader.loadConfig<VServerConfig>(
             dataDirectory = dataDirectory,
-            fileName = "core-backend-server.conf",
+            fileName = "core.conf",
+            nodePath = arrayOf("vServer"),
             header = "HyperZoneLogin Backend Server Configuration | by ksqeib\n",
-            defaultProvider = { BackendServerConfig() }
+            defaultProvider = { VServerConfig() }
         )
-        backendServerConfig = config
+        vServerConfig = config
     }
 
-    private fun loadOutPreConfig() {
-        val config = ConfigLoader.loadConfig<OutPreConfig>(
-            dataDirectory = dataDirectory,
-            fileName = "core-vserver-outpre.conf",
-            header = "HyperZoneLogin OutPre Configuration | by ksqeib\noutpre 模式的认证服、认证后目标服，以及对认证服暴露的 Host / Port / Player IP 都只在这里配置。\n",
-            defaultProvider = { OutPreConfig() }
-        )
-        outPreConfig = config
-    }
 
     private fun loadMessagesConfig() {
         val config = ConfigLoader.loadConfig<MessagesConfig>(
             dataDirectory = dataDirectory,
-            fileName = "core-messages.conf",
+            fileName = "core.conf",
+            nodePath = arrayOf("messages"),
             header = "HyperZoneLogin Messages Configuration | by ksqeib\n具体文案文件位于 messages/ 目录，可分别编辑 en_us.conf / zh_cn.conf / ru_ru.conf。\n",
             defaultProvider = { MessagesConfig() }
         )

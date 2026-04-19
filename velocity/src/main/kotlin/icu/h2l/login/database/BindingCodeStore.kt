@@ -21,7 +21,7 @@
 
 package icu.h2l.login.database
 
-import java.util.UUID
+import java.util.*
 
 interface BindingCodeStore {
     fun createOrReplace(code: String, profileId: UUID, createdAt: Long): Boolean

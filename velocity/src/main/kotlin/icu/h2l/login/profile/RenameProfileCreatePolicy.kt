@@ -22,7 +22,7 @@
 package icu.h2l.login.profile
 
 import icu.h2l.api.db.Profile
-import java.util.UUID
+import java.util.*
 
 internal object RenameProfileCreatePolicy {
     fun getBlockedReason(

@@ -29,7 +29,7 @@ import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.update
-import java.util.UUID
+import java.util.*
 
 data class ProfileSkinCacheRecord(
     val skinId: UUID,

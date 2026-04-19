@@ -50,8 +50,8 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import java.lang.reflect.Method
 import java.nio.file.Paths
+import java.util.*
 import java.util.concurrent.CompletableFuture
-import java.util.UUID
 
 class AttachedProfileInitialGameProfileListenerTest {
     private val listener = AttachedProfileInitialGameProfileListener()

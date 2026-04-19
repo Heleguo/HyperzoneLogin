@@ -29,14 +29,7 @@ import com.velocitypowered.proxy.connection.client.ConnectedPlayer
 import com.velocitypowered.proxy.protocol.MinecraftPacket
 import com.velocitypowered.proxy.protocol.ProtocolUtils
 import com.velocitypowered.proxy.protocol.StateRegistry
-import com.velocitypowered.proxy.protocol.packet.ClientSettingsPacket
-import com.velocitypowered.proxy.protocol.packet.KeepAlivePacket
-import com.velocitypowered.proxy.protocol.packet.LoginPluginResponsePacket
-import com.velocitypowered.proxy.protocol.packet.PingIdentifyPacket
-import com.velocitypowered.proxy.protocol.packet.PluginMessagePacket
-import com.velocitypowered.proxy.protocol.packet.ResourcePackResponsePacket
-import com.velocitypowered.proxy.protocol.packet.ServerboundCookieResponsePacket
-import com.velocitypowered.proxy.protocol.packet.ServerboundCustomClickActionPacket
+import com.velocitypowered.proxy.protocol.packet.*
 import com.velocitypowered.proxy.protocol.packet.chat.ChatAcknowledgementPacket
 import com.velocitypowered.proxy.protocol.packet.chat.PlayerChatCompletionPacket
 import com.velocitypowered.proxy.protocol.packet.chat.keyed.KeyedPlayerChatPacket
@@ -49,6 +42,7 @@ import com.velocitypowered.proxy.protocol.packet.config.CodeOfConductAcceptPacke
 import com.velocitypowered.proxy.protocol.packet.config.FinishedUpdatePacket
 import com.velocitypowered.proxy.protocol.packet.config.KnownPacksPacket
 import com.velocitypowered.proxy.protocol.packet.config.StartUpdatePacket
+import com.velocitypowered.proxy.protocol.util.PluginMessageUtil
 import icu.h2l.login.inject.network.NettyReflectionHelper
 import icu.h2l.login.inject.network.NettyReflectionHelper.reflectedTeardown
 import icu.h2l.login.manager.HyperChatCommandManagerImpl
@@ -56,8 +50,7 @@ import io.netty.buffer.ByteBuf
 import io.netty.buffer.Unpooled
 import io.netty.util.ReferenceCountUtil
 import io.netty.util.ReferenceCounted
-import java.util.ArrayDeque
-import com.velocitypowered.proxy.protocol.util.PluginMessageUtil
+import java.util.*
 
 class OutPreClientBridgeSessionHandler(
     private val player: ConnectedPlayer,

@@ -41,8 +41,6 @@ import icu.h2l.login.auth.offline.totp.OfflineTotpAuthenticator
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
-import java.nio.file.Path
-import java.util.UUID
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils
 import org.jetbrains.exposed.sql.insert
@@ -50,6 +48,8 @@ import org.jetbrains.exposed.sql.transactions.transaction
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import java.nio.file.Path
+import java.util.*
 
 class LoginCommandTest {
     @TempDir

@@ -22,11 +22,9 @@
 package icu.h2l.login.player
 
 import com.velocitypowered.api.util.GameProfile
-import org.junit.jupiter.api.Assertions.assertEquals
-import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertNotNull
+import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
-import java.util.UUID
+import java.util.*
 
 class ProfileSkinApplySupportTest {
     @Test

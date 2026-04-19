@@ -31,25 +31,21 @@ import icu.h2l.api.HyperZoneApi;
 import icu.h2l.api.HyperZoneApiProvider;
 import icu.h2l.api.command.HyperChatCommandManager;
 import icu.h2l.api.db.HyperZoneDatabaseManager;
-import icu.h2l.api.dependency.HyperDependency;
-import icu.h2l.api.dependency.HyperDependencyManifest;
-import icu.h2l.api.dependency.HyperDependencyManager;
-import icu.h2l.api.dependency.HyperDependencyProgressListener;
-import icu.h2l.api.dependency.HyperDependencyRepository;
-import icu.h2l.api.dependency.VelocityHyperDependencyClassPathAppender;
+import icu.h2l.api.dependency.*;
 import icu.h2l.api.module.HyperSubModule;
 import icu.h2l.api.player.HyperZonePlayerAccessor;
 import icu.h2l.api.vServer.HyperZoneVServerAdapter;
 import icu.h2l.login.dependency.RelocatingDependencyPathProcessor;
 import icu.h2l.login.metrics.BStatsMetricsBootstrap;
 import icu.h2l.login.metrics.BStatsMetricsHandle;
+import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
+import org.slf4j.Logger;
+
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import net.kyori.adventure.text.logger.slf4j.ComponentLogger;
-import org.slf4j.Logger;
 
 public final class HyperZoneLoginBootstrap implements HyperZoneApi {
     private static final int BSTATS_PLUGIN_ID = 30691;

@@ -40,7 +40,7 @@ import icu.h2l.login.listener.PlayerAreaLifecycleListener
 import icu.h2l.login.manager.HyperZonePlayerManager
 import icu.h2l.login.message.MessageKeys
 import icu.h2l.login.player.VelocityHyperZonePlayer
-import java.util.Locale
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -246,7 +246,7 @@ class BackendAuthHoldListener(
             return directTarget
         }
 
-        val configuredDefaultTarget = HyperZoneLoginMain.getBackendServerConfig().postAuthDefaultServer
+        val configuredDefaultTarget = HyperZoneLoginMain.getVServerConfig().postAuthDefaultServer
             .trim()
             .takeUnless { it.isBlank() || it.equals(authServerName, ignoreCase = true) }
             ?.takeIf { server.getServer(it).isPresent }
@@ -301,12 +301,12 @@ class BackendAuthHoldListener(
     }
 
     override fun needsBackendPlayerInfoCompat(): Boolean {
-        return HyperZoneLoginMain.getBackendServerConfig().enableWaitingAreaPlayerInfoCompensation
+        return HyperZoneLoginMain.getVServerConfig().backend.enablePlayerInfoCompensation
     }
 
 
     override fun needsBackendRuntimeProfileSync(): Boolean {
-        return HyperZoneLoginMain.getBackendServerConfig().enableRuntimeProfileCompensation
+        return HyperZoneLoginMain.getVServerConfig().backend.enableProfileCompensation
     }
 
     override fun needsBackendInitialProfileCompat(): Boolean {
@@ -370,11 +370,11 @@ class BackendAuthHoldListener(
     }
 
     private fun configuredAuthServerName(): String {
-        return HyperZoneLoginMain.getBackendServerConfig().fallbackAuthServer.trim()
+        return HyperZoneLoginMain.getVServerConfig().backend.fallbackAuthServer.trim()
     }
 
     private fun rememberRequestedServerDuringAuth(): Boolean {
-        return HyperZoneLoginMain.getBackendServerConfig().rememberRequestedServerDuringAuth
+        return HyperZoneLoginMain.getVServerConfig().rememberRequestedServerDuringAuth
     }
 
     private fun beginBackendAuthHold(player: Player, authServerName: String, targetServerName: String?): BackendHoldState {
@@ -434,7 +434,7 @@ class BackendAuthHoldListener(
     }
 
     private fun resolveFallbackTargetServerName(player: Player, authServerName: String): String? {
-        val directConfiguredTarget = HyperZoneLoginMain.getBackendServerConfig().postAuthDefaultServer
+        val directConfiguredTarget = HyperZoneLoginMain.getVServerConfig().postAuthDefaultServer
             .trim()
             .takeUnless { it.isBlank() || it.equals(authServerName, ignoreCase = true) }
             ?.takeIf { server.getServer(it).isPresent }
