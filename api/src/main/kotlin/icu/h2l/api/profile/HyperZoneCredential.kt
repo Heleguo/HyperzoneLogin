@@ -56,14 +56,16 @@ interface HyperZoneCredential {
     }
 
     /**
-     * 登录等待阶段发生 `/rename` 时，允许凭证同步更新其内部待绑定状态。
+     * 返回该凭证对应的注册名（即建档时应使用的玩家名称）。
      *
-     * 该回调只用于“尚未完成绑定的当前会话临时状态”；
-     * 已落库的正式绑定关系不得因为 rename 被静默改写。
+     * 实现类应覆盖此方法以提供注册名，使得核心层可以通过凭证完成建档操作，
+     * 而无需调用方裸露地传递玩家名称字符串。
      *
-     * @param newRegistrationName 当前会话更新后的注册名
+     * 返回 null 表示该凭证不携带注册名，此时凭证不能直接用于 [HyperZoneProfileService.canCreate] /
+     * [HyperZoneProfileService.create] 的凭证重载。
      */
-    fun onRegistrationNameChanged(newRegistrationName: String) {
+    fun getRegistrationName(): String? {
+        return null
     }
 
     /**
@@ -86,4 +88,3 @@ interface HyperZoneCredential {
      */
     fun bind(profileId: UUID): Boolean
 }
-

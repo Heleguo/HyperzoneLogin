@@ -23,8 +23,8 @@ package icu.h2l.login.listener
 
 import com.velocitypowered.api.event.Subscribe
 import icu.h2l.api.event.auth.LoginReUuidEvent
+import icu.h2l.api.profile.CredentialChannelRegistryProvider
 import icu.h2l.login.HyperZoneLoginMain
-import icu.h2l.login.profile.resolvePendingProfileCreateContext
 
 class LoginReUuidListener {
     @Subscribe
@@ -34,20 +34,24 @@ class LoginReUuidListener {
             return
         }
 
-        val pendingContext = resolvePendingProfileCreateContext(player.getSubmittedCredentials()) ?: return
-        if (!pendingContext.hasUnboundCredentials) {
-            return
+        val credentials = player.getSubmittedCredentials()
+        val credential = credentials.singleOrNull { it.getBoundProfileId() == null } ?: return
+
+        // 检查凭证渠道能力：若禁止注册则抛出异常，通知调用方（如 /reuuid 命令）
+        val channelAbility = CredentialChannelRegistryProvider.getOrNull()?.getChannelAbility(credential.channelId)
+        if (channelAbility?.canRegister == false) {
+            throw IllegalStateException("当前渠道 [${credential.channelId}] 已被管理员禁止新玩家注册")
         }
 
         val profileService = HyperZoneLoginMain.getInstance().profileService
-        if (!profileService.canCreateWithReUuid(player.registrationName)) {
+        val registrationName = credential.getRegistrationName() ?: player.clientOriginalName
+        if (!profileService.canCreateWithReUuid(registrationName)) {
             return
         }
 
-        val createdProfile = profileService.createWithReUuid(player.registrationName)
+        val createdProfile = profileService.createWithReUuid(registrationName)
         profileService.bindSubmittedCredentials(player, createdProfile.id)
         profileService.attachProfile(player, createdProfile.id)
             ?: throw IllegalStateException("reUUID 后 attach Profile 失败: ${createdProfile.id}")
     }
 }
-

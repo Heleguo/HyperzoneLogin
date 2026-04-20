@@ -92,7 +92,6 @@ class LoginCommandTest {
         invocation = mockk()
 
         every { hyperZonePlayer.clientOriginalName } returns USERNAME
-        every { hyperZonePlayer.registrationName } returns USERNAME
         every { hyperZonePlayer.getSubmittedCredentials() } returns emptyList()
 
         val service = OfflineAuthService(

@@ -88,36 +88,47 @@ class OfflineHyperZoneCredentialTest {
     }
 
     @Test
-    fun `rename updates pending registration name used during bind`() {
-        credential.onRegistrationNameChanged("Alice_Renamed")
+    fun `withNewName updates pending registration name used during bind`() {
+        val renamed = credential.withNewName("Alice_Renamed")
         assertEquals("alice_renamed", pendingRegistrations.get(pendingRegistrationId)?.normalizedName)
 
-        val bindResult = credential.bind(profileId)
+        val bindResult = renamed.bind(profileId)
 
         assertTrue(bindResult)
         assertEquals(profileId, repository.getByName("alice_renamed")?.profileId)
     }
 
     @Test
-    fun `bind consumes renamed pending registration data`() {
-        credential.onRegistrationNameChanged("alice_new")
+    fun `withNewName bind consumes renamed pending registration data`() {
+        val renamed = credential.withNewName("alice_new")
 
-        assertNull(credential.getBoundProfileId())
-        assertTrue(credential.bind(profileId))
+        assertNull(renamed.getBoundProfileId())
+        assertTrue(renamed.bind(profileId))
         assertNull(pendingRegistrations.get(pendingRegistrationId))
         assertEquals(profileId, repository.getByName("alice_new")?.profileId)
     }
 
     @Test
-    fun `suggested profile create uuid follows current registration name when passthrough is enabled`() {
+    fun `suggested profile create uuid follows current registration name after withNewName`() {
         assertEquals(ExtraUuidUtils.getNormalOfflineUUID("Alice"), credential.getSuggestedProfileCreateUuid())
 
-        credential.onRegistrationNameChanged("Alice_Renamed")
+        val renamed = credential.withNewName("Alice_Renamed")
 
         assertEquals(
             ExtraUuidUtils.getNormalOfflineUUID("Alice_Renamed"),
-            credential.getSuggestedProfileCreateUuid()
+            renamed.getSuggestedProfileCreateUuid()
         )
+        // Original credential remains unchanged
+        assertEquals(ExtraUuidUtils.getNormalOfflineUUID("Alice"), credential.getSuggestedProfileCreateUuid())
+    }
+
+    @Test
+    fun `withReUuid returns credential with no suggested uuid`() {
+        assertNotNull(credential.getSuggestedProfileCreateUuid())
+        val reUuided = credential.withReUuid()
+        assertNull(reUuided.getSuggestedProfileCreateUuid())
+        // Original credential remains unchanged
+        assertNotNull(credential.getSuggestedProfileCreateUuid())
     }
 
     @Test
@@ -134,9 +145,3 @@ class OfflineHyperZoneCredentialTest {
         assertNull(disabledCredential.getSuggestedProfileCreateUuid())
     }
 }
-
-
-
-
-
-

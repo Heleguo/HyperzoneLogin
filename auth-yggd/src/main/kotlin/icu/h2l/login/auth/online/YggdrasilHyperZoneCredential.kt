@@ -36,6 +36,8 @@ class YggdrasilHyperZoneCredential(
     override val channelId: String = CHANNEL_ID
     override val credentialId: String = "$entryId:$authenticatedUUID"
 
+    override fun getRegistrationName(): String = authenticatedName
+
     override fun getBoundProfileId(): UUID? {
         return knownProfileId ?: entryDatabaseHelper.findEntryByUuid(entryId, authenticatedUUID)
     }
@@ -58,6 +60,23 @@ class YggdrasilHyperZoneCredential(
             name = authenticatedName,
             uuid = authenticatedUUID,
             pid = profileId
+        )
+    }
+
+    /**
+     * 创建一个更新了建议 UUID 的凭证副本，用于 ReUuid 流程。
+     *
+     * Yggdrasil 认证名与 UUID 由 Mojang 认证，不受 rename 影响；
+     * 仅更新向 Profile 服务建议的建档 UUID（传入 null 表示由核心 ReUuid 逻辑自行决定）。
+     */
+    fun withNewSuggestedUuid(newSuggestedUuid: UUID?): YggdrasilHyperZoneCredential {
+        return YggdrasilHyperZoneCredential(
+            entryDatabaseHelper = entryDatabaseHelper,
+            entryId = entryId,
+            authenticatedName = authenticatedName,
+            authenticatedUUID = authenticatedUUID,
+            suggestedProfileCreateUuid = newSuggestedUuid,
+            knownProfileId = knownProfileId
         )
     }
 

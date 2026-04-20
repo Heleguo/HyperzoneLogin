@@ -53,6 +53,8 @@ object OfflineAuthMessages {
     val PROFILE_ATTACH_FAILED_AFTER_LOGIN: Component
         get() = render("common.profile-attach-failed-after-login", "§c离线认证成功，但 Profile 绑定失败")
 
+    val REGISTER_DISABLED: Component
+        get() = render("register.disabled", "${PREFIX}§c当前认证渠道已被管理员禁止新玩家注册")
     val REGISTER_SUCCESS: Component
         get() = render("register.success", "${PREFIX}§a已成功注册，已为你自动登录")
     val REGISTER_FAILED: Component

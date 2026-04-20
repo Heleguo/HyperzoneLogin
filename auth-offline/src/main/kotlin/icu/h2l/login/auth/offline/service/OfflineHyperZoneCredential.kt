@@ -29,7 +29,7 @@ import java.util.*
 class OfflineHyperZoneCredential(
     private val repository: OfflineAuthRepository,
     private val pendingRegistrations: PendingOfflineRegistrationManager,
-    private var registrationName: String,
+    private val registrationName: String,
     private val normalizedName: String,
     private val knownProfileId: UUID? = null,
     private val pendingRegistrationId: UUID? = null,
@@ -37,6 +37,8 @@ class OfflineHyperZoneCredential(
 ) : HyperZoneCredential {
     override val channelId: String = CHANNEL_ID
     override val credentialId: String = pendingRegistrationId?.toString() ?: normalizedName
+
+    override fun getRegistrationName(): String = registrationName
 
     override fun getBoundProfileId(): UUID? {
         return knownProfileId ?: repository.getByName(effectiveNormalizedName())?.profileId
@@ -101,10 +103,42 @@ class OfflineHyperZoneCredential(
         return repository.getByName(effectiveNormalizedName())?.profileId == profileId
     }
 
-    override fun onRegistrationNameChanged(newRegistrationName: String) {
-        registrationName = newRegistrationName
-        val registrationId = pendingRegistrationId ?: return
-        pendingRegistrations.rename(registrationId, newRegistrationName.lowercase())
+    /**
+     * 创建一个新名称的凭证副本，同时同步更新 [PendingOfflineRegistrationManager] 中的待绑定数据。
+     *
+     * 旧凭证保持不变；调用方应先销毁旧凭证，再提交返回的新凭证。
+     */
+    fun withNewName(newName: String): OfflineHyperZoneCredential {
+        val newNormalizedName = newName.lowercase()
+        pendingRegistrationId?.let { id ->
+            pendingRegistrations.rename(id, newNormalizedName)
+        }
+        return OfflineHyperZoneCredential(
+            repository = repository,
+            pendingRegistrations = pendingRegistrations,
+            registrationName = newName,
+            normalizedName = newNormalizedName,
+            knownProfileId = knownProfileId,
+            pendingRegistrationId = pendingRegistrationId,
+            passProfileCreateUuid = passProfileCreateUuid
+        )
+    }
+
+    /**
+     * 创建一个关闭 UUID 建议的凭证副本，用于 ReUuid 流程。
+     *
+     * 凭证不再建议特定 UUID，交由核心 ReUuid 逻辑选取新 UUID。
+     */
+    fun withReUuid(): OfflineHyperZoneCredential {
+        return OfflineHyperZoneCredential(
+            repository = repository,
+            pendingRegistrations = pendingRegistrations,
+            registrationName = registrationName,
+            normalizedName = normalizedName,
+            knownProfileId = knownProfileId,
+            pendingRegistrationId = pendingRegistrationId,
+            passProfileCreateUuid = false
+        )
     }
 
     @Suppress("unused")
@@ -126,5 +160,3 @@ class OfflineHyperZoneCredential(
         private const val CHANNEL_ID = "offline"
     }
 }
-
-

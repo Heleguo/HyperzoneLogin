@@ -36,6 +36,8 @@ class FloodgateHyperZoneCredential(
     override val channelId: String = CHANNEL_ID
     override val credentialId: String = trustedUuid.toString()
 
+    override fun getRegistrationName(): String = trustedName
+
     override fun getBoundProfileId(): UUID? {
         return knownProfileId ?: repository.findProfileIdByXuid(xuid)
     }
@@ -58,6 +60,23 @@ class FloodgateHyperZoneCredential(
 
     fun matches(uuid: UUID): Boolean {
         return trustedUuid == uuid
+    }
+
+    /**
+     * 创建一个新显示名称的凭证副本，用于 Rename 流程。
+     *
+     * Floodgate UUID 由 Mojang 分配，不受 rename 影响；
+     * 仅更新显示给 Profile 服务的注册名。
+     */
+    fun withNewName(newName: String): FloodgateHyperZoneCredential {
+        return FloodgateHyperZoneCredential(
+            repository = repository,
+            trustedName = newName,
+            trustedUuid = trustedUuid,
+            xuid = xuid,
+            suggestedProfileCreateUuid = suggestedProfileCreateUuid,
+            knownProfileId = knownProfileId
+        )
     }
 
     companion object {

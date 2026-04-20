@@ -56,15 +56,6 @@ interface HyperZonePlayer {
      */
     val clientOriginalUUID: UUID
 
-    /**
-     * 当前登录会话用于“创建新 Profile / 初次注册”的候选名称。
-     *
-     * 该值与 [clientOriginalName] 严格区分：
-     * - `clientOriginalName` 始终保留客户端最初上报值，绝不改写；
-     * - `registrationName` 仅表示当前等待区会话后续若要建档时应使用的注册名，
-     *   可在名称冲突等待阶段通过 `/rename` 明确修改。
-     */
-    var registrationName: String
 
     /**
      * 当前连接在预登录阶段最终判定出的在线模式。
@@ -83,12 +74,27 @@ interface HyperZonePlayer {
     /**
      * 向当前登录会话提交一个已认证凭证。
      *
-     * 子模块应在“认证成功后、调用 overVerify() 前”提交凭证，
+     * 子模块应在"认证成功后、调用 overVerify() 前"提交凭证，
      * 由核心在完成验证时统一根据凭证 attach 正式 Profile。
      *
+     * 每个玩家同一时刻只能持有一个凭证。若当前会话已存在任意凭证，
+     * 则必须先调用 [destroyCredential] 移除旧凭证，再提交新凭证；
+     * 直接重复提交将抛出 [IllegalStateException]。
+     *
      * @param credential 要提交到当前会话的可信凭证
+     * @throws IllegalStateException 若当前会话已存在凭证
      */
     fun submitCredential(credential: HyperZoneCredential)
+
+    /**
+     * 销毁当前会话中指定渠道的凭证。
+     *
+     * 子模块在响应 rename / reuuid 事件时，应先销毁旧凭证，
+     * 再以新状态重新提交，确保凭证始终保持不可变性。
+     *
+     * @param channelId 要销毁的凭证所属渠道标识
+     */
+    fun destroyCredential(channelId: String) {}
 
     /**
      * 获取当前会话已提交的全部凭证快照。

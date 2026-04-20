@@ -26,6 +26,7 @@ import icu.h2l.api.command.HyperChatCommandManagerProvider
 import icu.h2l.api.db.HyperZoneDatabaseManager
 import icu.h2l.api.module.HyperSubModule
 import icu.h2l.api.player.HyperZonePlayerAccessorProvider
+import icu.h2l.api.profile.CredentialChannelRegistry
 import icu.h2l.api.vServer.HyperZoneVServerProvider
 import java.nio.file.Path
 
@@ -54,6 +55,13 @@ interface HyperZoneApi :
      */
     val databaseManager: HyperZoneDatabaseManager
 
+    /**
+     * 凭证渠道注册表。
+     *
+     * 子模块注册时，核心层会将 [HyperSubModule.credentialChannelIds] 中的渠道 ID 自动写入此注册表。
+     * 外部插件也可以通过此入口主动注册自定义凭证渠道。
+     */
+    val credentialChannelRegistry: CredentialChannelRegistry
 
     /**
      * 注册一个子模块到当前核心运行时。
@@ -87,4 +95,3 @@ object HyperZoneApiProvider {
      */
     fun getOrNull(): HyperZoneApi? = api
 }
-

@@ -74,7 +74,9 @@ class ReUuidCommand : HyperChatCommandExecutor {
             return
         }
 
-        val createBlockedReason = main.profileService.getReUuidBlockedReason(hyperZonePlayer.registrationName)
+        val registrationName = hyperZonePlayer.getSubmittedCredentials().firstOrNull()?.getRegistrationName()
+            ?: hyperZonePlayer.clientOriginalName
+        val createBlockedReason = main.profileService.getReUuidBlockedReason(registrationName)
         if (createBlockedReason != null) {
             messages.send(
                 source,

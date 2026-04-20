@@ -35,6 +35,8 @@ class YggdrasilSubModule : HyperSubModule {
     lateinit var entryTableManager: EntryTableManager
     lateinit var yggdrasilAuthModule: YggdrasilAuthModule
 
+    override val credentialChannelIds: Set<String> = setOf("yggdrasil")
+
     override fun register(api: HyperZoneApi) {
         val proxy = api.proxy
         val dataDirectory = api.dataDirectory
@@ -63,6 +65,7 @@ class YggdrasilSubModule : HyperSubModule {
         val yggdrasilEventListener = YggdrasilEventListener(yggdrasilAuthModule)
 
         proxy.eventManager.register(api, yggdrasilEventListener)
+        proxy.eventManager.register(api, YggdrasilReUuidListener())
 
         this.entryConfigManager = entryConfigManager
         this.entryTableManager = entryTableManager

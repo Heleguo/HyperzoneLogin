@@ -69,7 +69,9 @@ class RenameCommand : HyperChatCommandExecutor {
 
         val newRegistrationName = args[0].trim()
 
-        if (newRegistrationName.equals(hyperZonePlayer.registrationName, ignoreCase = true)) {
+        val currentRegistrationName = hyperZonePlayer.getSubmittedCredentials().firstOrNull()
+            ?.getRegistrationName() ?: hyperZonePlayer.clientOriginalName
+        if (newRegistrationName.equals(currentRegistrationName, ignoreCase = true)) {
             messages.send(source, MessageKeys.Rename.SAME_AS_CURRENT)
             return
         }
@@ -95,14 +97,8 @@ class RenameCommand : HyperChatCommandExecutor {
             return
         }
 
-        val oldRegistrationName = hyperZonePlayer.registrationName
-        hyperZonePlayer.registrationName = newRegistrationName
-        hyperZonePlayer.getSubmittedCredentials().forEach { credential ->
-            credential.onRegistrationNameChanged(newRegistrationName)
-        }
-
         runCatching {
-            main.proxy.eventManager.fire(LoginRenameEvent(hyperZonePlayer)).join()
+            main.proxy.eventManager.fire(LoginRenameEvent(hyperZonePlayer, newRegistrationName)).join()
         }.onSuccess {
             messages.send(
                 source,
@@ -134,10 +130,6 @@ class RenameCommand : HyperChatCommandExecutor {
                 )
             }
         }.onFailure { throwable ->
-            hyperZonePlayer.registrationName = oldRegistrationName
-            hyperZonePlayer.getSubmittedCredentials().forEach { credential ->
-                credential.onRegistrationNameChanged(oldRegistrationName)
-            }
             messages.send(
                 source,
                 MessageKeys.Rename.EVENT_FAILED,
@@ -166,5 +158,3 @@ class RenameCommand : HyperChatCommandExecutor {
         }
     }
 }
-
-

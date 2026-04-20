@@ -19,20 +19,21 @@
  *
  */
 
-package icu.h2l.api.event.auth
-
-import icu.h2l.api.player.HyperZonePlayer
+package icu.h2l.api.profile
 
 /**
- * 等待区中的登录会话主动修改"建档注册名"后触发。
+ * 凭证渠道能力描述。
  *
- * 事件只携带当前事件发起者本身；
- * 各监听器必须仅处理该玩家当前会话，不得影响其他等待区玩家。
+ * 当凭证渠道通过 [CredentialChannelRegistry.registerChannel] 注册时，
+ * 核心层会根据当前配置计算出该渠道的能力集合并返回。
+ * 子模块可据此决定在各自业务流程中应当开放还是禁止特定操作。
  *
- * @property hyperZonePlayer 发起 rename 的当前登录态玩家
- * @property newRegistrationName 更新后的注册名（即玩家希望使用的新建档名称）
+ * @property channelId   对应的凭证渠道唯一标识
+ * @property canRegister 该渠道是否允许通过凭证注册（建档）新玩家档案。
+ *                       若为 `false`，子模块不应调用 [HyperZoneProfileService.create] 等新建档案接口。
  */
-class LoginRenameEvent(
-    val hyperZonePlayer: HyperZonePlayer,
-    val newRegistrationName: String
+data class CredentialChannelAbility(
+    val channelId: String,
+    val canRegister: Boolean,
 )
+

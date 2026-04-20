@@ -148,9 +148,9 @@ class ProfileBindingCodeServiceTest {
             return attachProfileResult
         }
 
-        override fun canCreate(userName: String, uuid: UUID?): Boolean = true
+        override fun canCreate(credential: HyperZoneCredential): Boolean = true
 
-        override fun create(userName: String, uuid: UUID?): Profile {
+        override fun create(credential: HyperZoneCredential): Profile {
             error("not used in this test")
         }
 
@@ -165,7 +165,6 @@ class ProfileBindingCodeServiceTest {
     private class FakeHyperZonePlayer : HyperZonePlayer {
         override val clientOriginalName: String = "Alice"
         override val clientOriginalUUID: UUID = UUID.fromString("33333333-3333-3333-3333-333333333333")
-        override var registrationName: String = clientOriginalName
         override val isOnlinePlayer: Boolean = true
         val credentials = mutableListOf<HyperZoneCredential>()
         var verified: Boolean = false

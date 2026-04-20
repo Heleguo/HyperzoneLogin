@@ -25,6 +25,7 @@ import com.velocitypowered.api.proxy.Player
 import com.velocitypowered.api.proxy.ProxyServer
 import icu.h2l.api.event.auth.AuthenticationFailureEvent
 import icu.h2l.api.player.HyperZonePlayerAccessor
+import icu.h2l.api.profile.CredentialChannelRegistryProvider
 import icu.h2l.api.profile.HyperZoneProfileService
 import icu.h2l.login.auth.offline.OfflineAuthMessages
 import icu.h2l.login.auth.offline.api.db.OfflineAuthEntry
@@ -32,7 +33,6 @@ import icu.h2l.login.auth.offline.config.AuthOfflineConfigLoader
 import icu.h2l.login.auth.offline.db.OfflineAuthRepository
 import icu.h2l.login.auth.offline.mail.OfflineAuthEmailSender
 import icu.h2l.login.auth.offline.totp.OfflineTotpAuthenticator
-import icu.h2l.login.auth.offline.util.ExtraUuidUtils
 import net.kyori.adventure.text.Component
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
@@ -56,7 +56,15 @@ class OfflineAuthService(
 
     fun register(player: Player, password: String): Result {
         val hyperZonePlayer = playerAccessor.getByPlayer(player)
-        val username = hyperZonePlayer.registrationName
+
+        // 检查凭证渠道能力：若该渠道已禁用注册，直接返回错误
+        val channelAbility = CredentialChannelRegistryProvider.getOrNull()?.getChannelAbility("offline")
+        if (channelAbility?.canRegister == false) {
+            return Result(false, OfflineAuthMessages.REGISTER_DISABLED)
+        }
+
+        val username = hyperZonePlayer.getSubmittedCredentials().filterIsInstance<OfflineHyperZoneCredential>()
+            .firstOrNull()?.getRegistrationName() ?: hyperZonePlayer.clientOriginalName
         val normalizedName = username.lowercase()
         if (repository.getByName(normalizedName) != null) {
             return Result(false, OfflineAuthMessages.OFFLINE_PASSWORD_ALREADY_SET)
@@ -71,10 +79,11 @@ class OfflineAuthService(
             return bindExistingProfile(player, hyperZonePlayer, attachedProfile, username, normalizedName, password)
         }
 
-        val profileCreateUuid = resolveProfileCreateUuid(username)
-        if (profileService.canCreate(username, profileCreateUuid)) {
+        // 使用凭证探针与 ProfileService 交互，避免裸露传递注册名与 UUID
+        val probeCredential = offlineCredential(normalizedName = normalizedName, registrationName = username)
+        if (profileService.canCreate(probeCredential)) {
             val profile = try {
-                profileService.create(username, profileCreateUuid)
+                profileService.create(probeCredential)
             } catch (throwable: IllegalStateException) {
                 return Result(false, componentFromThrowable(throwable, OfflineAuthMessages.REGISTER_FAILED))
             }
@@ -556,7 +565,8 @@ class OfflineAuthService(
         val prompts = ArrayList<Component>()
 
         if (entry == null) {
-            val registrationName = hyperPlayer.registrationName
+            val registrationName = hyperPlayer.getSubmittedCredentials().filterIsInstance<OfflineHyperZoneCredential>()
+                .firstOrNull()?.getRegistrationName() ?: hyperPlayer.clientOriginalName
             val normalizedName = registrationName.lowercase()
             val hasPendingOfflineRegistration = hyperPlayer.getSubmittedCredentials()
                 .asSequence()
@@ -733,12 +743,12 @@ class OfflineAuthService(
         normalizedName: String,
         password: String
     ): OfflineHyperZoneCredential {
-        val pendingRegistrationId = hyperZonePlayer.getSubmittedCredentials()
-            .asSequence()
+        // With single-credential semantics, reuse the existing pending registration UUID if
+        // the player already holds an offline credential for the same name; otherwise create new.
+        val existingOffline = hyperZonePlayer.getSubmittedCredentials()
             .filterIsInstance<OfflineHyperZoneCredential>()
             .firstOrNull { it.pendingRegistrationIdOrNull() != null && it.matchesNormalizedName(normalizedName) }
-            ?.pendingRegistrationIdOrNull()
-            ?: UUID.randomUUID()
+        val pendingRegistrationId = existingOffline?.pendingRegistrationIdOrNull() ?: UUID.randomUUID()
 
         pendingRegistrations.put(
             PendingOfflineRegistrationManager.PendingOfflineRegistration(
@@ -756,13 +766,6 @@ class OfflineAuthService(
         )
     }
 
-    private fun resolveProfileCreateUuid(registrationName: String): UUID? {
-        return if (AuthOfflineConfigLoader.getConfig().main.passOfflineUuidToProfileResolve) {
-            ExtraUuidUtils.getNormalOfflineUUID(registrationName)
-        } else {
-            null
-        }
-    }
 
     private fun normalizeEmail(email: String): String? {
         val candidate = email.trim().lowercase(Locale.ROOT)

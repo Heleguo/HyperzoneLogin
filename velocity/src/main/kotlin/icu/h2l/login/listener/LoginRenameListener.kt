@@ -23,8 +23,8 @@ package icu.h2l.login.listener
 
 import com.velocitypowered.api.event.Subscribe
 import icu.h2l.api.event.auth.LoginRenameEvent
+import icu.h2l.api.profile.CredentialChannelRegistryProvider
 import icu.h2l.login.HyperZoneLoginMain
-import icu.h2l.login.profile.resolvePendingProfileCreateContext
 
 class LoginRenameListener {
     @Subscribe
@@ -34,20 +34,23 @@ class LoginRenameListener {
             return
         }
 
-        val pendingContext = resolvePendingProfileCreateContext(player.getSubmittedCredentials()) ?: return
-        if (!pendingContext.hasUnboundCredentials) {
-            return
+        val credentials = player.getSubmittedCredentials()
+        val credential = credentials.singleOrNull { it.getBoundProfileId() == null } ?: return
+
+        // 检查凭证渠道能力：若禁止注册则抛出异常，通知调用方（如 /rename 命令）
+        val channelAbility = CredentialChannelRegistryProvider.getOrNull()?.getChannelAbility(credential.channelId)
+        if (channelAbility?.canRegister == false) {
+            throw IllegalStateException("当前渠道 [${credential.channelId}] 已被管理员禁止新玩家注册")
         }
 
         val profileService = HyperZoneLoginMain.getInstance().profileService
-        if (!profileService.canCreate(player.registrationName, pendingContext.suggestedUuid)) {
+        if (!profileService.canCreate(credential)) {
             return
         }
 
-        val createdProfile = profileService.create(player.registrationName, pendingContext.suggestedUuid)
+        val createdProfile = profileService.create(credential)
         profileService.bindSubmittedCredentials(player, createdProfile.id)
         profileService.attachProfile(player, createdProfile.id)
             ?: throw IllegalStateException("rename 后 attach Profile 失败: ${createdProfile.id}")
     }
 }
-

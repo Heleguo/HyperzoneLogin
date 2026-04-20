@@ -34,6 +34,14 @@ object FloodgateMessages {
     }
 
 
+    fun registrationDisabled(player: HyperZonePlayer): Component {
+        return render(
+            player,
+            "registration-disabled",
+            "Floodgate 已完成可信认证，但当前渠道已被管理员禁止新玩家注册。若你已有档案，请使用 /bindcode use [绑定码]。"
+        )
+    }
+
     fun createBlocked(player: HyperZonePlayer): Component {
         return render(
             player,

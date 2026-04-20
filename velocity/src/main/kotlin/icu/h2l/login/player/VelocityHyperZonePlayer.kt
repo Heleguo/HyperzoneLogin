@@ -67,7 +67,6 @@ class VelocityHyperZonePlayer(
 
     private var proxyPlayer: Player? = null
     private val hasBoundProxyPlayer = AtomicBoolean(false)
-    private val registrationNameState = AtomicReference(clientOriginalName)
 
     /**
      * 认证链路状态，仅表示子模块是否认可本次登录。
@@ -130,17 +129,19 @@ class VelocityHyperZonePlayer(
         return HyperZoneLoginMain.getInstance().profileService.hasAttachedProfile(this)
     }
 
-    override var registrationName: String
-        get() = registrationNameState.get()
-        set(value) {
-            registrationNameState.set(value)
-        }
 
     override fun submitCredential(credential: HyperZoneCredential) {
-        submittedCredentials.removeIf {
-            it.channelId == credential.channelId && it.credentialId == credential.credentialId
+        if (submittedCredentials.isNotEmpty()) {
+            throw IllegalStateException(
+                "玩家 $clientOriginalName 已存在凭证 ${submittedCredentials.first().channelId}，" +
+                    "必须先调用 destroyCredential() 移除旧凭证后再提交新凭证"
+            )
         }
         submittedCredentials += credential
+    }
+
+    override fun destroyCredential(channelId: String) {
+        submittedCredentials.removeIf { it.channelId == channelId }
     }
 
     override fun getSubmittedCredentials(): List<HyperZoneCredential> {

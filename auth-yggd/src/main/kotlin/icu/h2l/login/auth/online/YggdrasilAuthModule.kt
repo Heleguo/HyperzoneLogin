@@ -34,6 +34,7 @@ import icu.h2l.api.log.error
 import icu.h2l.api.log.info
 import icu.h2l.api.player.HyperZonePlayer
 import icu.h2l.api.player.HyperZonePlayerAccessor
+import icu.h2l.api.profile.CredentialChannelRegistryProvider
 import icu.h2l.api.profile.HyperZoneProfileService
 import icu.h2l.api.profile.skin.ProfileSkinModel
 import icu.h2l.api.profile.skin.ProfileSkinSource
@@ -273,9 +274,24 @@ class YggdrasilAuthModule(
 
         val profileResolveUuid = resolveProfileResolveUuid(result)
 
-        if (profileService.canCreate(handler.registrationName, profileResolveUuid)) {
+        // 使用凭证探针与 ProfileService 交互，避免裸露传递注册名与 UUID
+        val probeCredential = yggdrasilCredential(
+            entryId = result.entryId,
+            authenticatedName = result.profile.name,
+            authenticatedUuid = result.profile.id,
+            suggestedProfileCreateUuid = profileResolveUuid
+        )
+
+        // 检查凭证渠道能力：若该渠道已禁用注册，提交无绑定凭证后返回错误提示
+        val channelAbility = CredentialChannelRegistryProvider.getOrNull()?.getChannelAbility("yggdrasil")
+        if (channelAbility?.canRegister == false) {
+            handler.submitCredential(probeCredential)
+            return YggdrasilMessages.registrationDisabledReason(handler)
+        }
+
+        if (profileService.canCreate(probeCredential)) {
             val createdProfile = try {
-                profileService.create(handler.registrationName, profileResolveUuid)
+                profileService.create(probeCredential)
             } catch (throwable: IllegalStateException) {
                 return throwable.message ?: "创建 Profile 失败"
             }

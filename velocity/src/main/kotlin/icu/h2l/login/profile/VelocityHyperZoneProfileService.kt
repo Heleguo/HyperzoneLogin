@@ -26,6 +26,7 @@ import icu.h2l.api.event.profile.ProfileAttachedEvent
 import icu.h2l.api.log.HyperZoneDebugType
 import icu.h2l.api.log.debug
 import icu.h2l.api.player.HyperZonePlayer
+import icu.h2l.api.profile.HyperZoneCredential
 import icu.h2l.api.profile.HyperZoneProfileService
 import icu.h2l.api.util.RemapUtils
 import icu.h2l.login.HyperZoneLoginMain
@@ -80,11 +81,28 @@ class VelocityHyperZoneProfileService(
             ?: throw IllegalStateException("未找到 Profile: $profileId")
     }
 
-    override fun canCreate(userName: String, uuid: UUID?): Boolean {
+    override fun canCreate(credential: HyperZoneCredential): Boolean {
+        val name = credential.getRegistrationName()
+            ?: throw IllegalStateException(
+                "凭证 ${credential.channelId}:${credential.credentialId} 未提供注册名，无法调用 canCreate"
+            )
+        return getCreateBlockedReason(name, credential.getSuggestedProfileCreateUuid()) == null
+    }
+
+    override fun create(credential: HyperZoneCredential): Profile {
+        val name = credential.getRegistrationName()
+            ?: throw IllegalStateException(
+                "凭证 ${credential.channelId}:${credential.credentialId} 未提供注册名，无法调用 create"
+            )
+        val resolvedUuid = resolveRequestedUuid(name, credential.getSuggestedProfileCreateUuid())
+        return createTrustedProfile(name, resolvedUuid)
+    }
+
+    fun canCreate(userName: String, uuid: UUID? = null): Boolean {
         return getCreateBlockedReason(userName, uuid) == null
     }
 
-    override fun create(userName: String, uuid: UUID?): Profile {
+    fun create(userName: String, uuid: UUID? = null): Profile {
         val resolvedUuid = resolveRequestedUuid(userName, uuid)
         return createTrustedProfile(userName, resolvedUuid)
     }

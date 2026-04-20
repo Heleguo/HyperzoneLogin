@@ -219,14 +219,20 @@ class YggdrasilAuthModuleTest {
 
         override fun attachProfile(player: HyperZonePlayer, profileId: UUID): Profile? = null
 
-        override fun canCreate(userName: String, uuid: UUID?): Boolean {
-            val request = ResolveRequest(userName, uuid)
+        override fun canCreate(credential: HyperZoneCredential): Boolean {
+            val request = ResolveRequest(
+                credential.getRegistrationName() ?: error("No registration name"),
+                credential.getSuggestedProfileCreateUuid()
+            )
             canCreateCalls += request
             return allowedResolutions.containsKey(request)
         }
 
-        override fun create(userName: String, uuid: UUID?): Profile {
-            val request = ResolveRequest(userName, uuid)
+        override fun create(credential: HyperZoneCredential): Profile {
+            val request = ResolveRequest(
+                credential.getRegistrationName() ?: error("No registration name"),
+                credential.getSuggestedProfileCreateUuid()
+            )
             createCalls += request
             return allowedResolutions[request]
                 ?: throw IllegalStateException("Unexpected resolve request: $request")
@@ -245,7 +251,6 @@ class YggdrasilAuthModuleTest {
     ) : HyperZonePlayer {
         private val submittedCredentials = mutableListOf<HyperZoneCredential>()
         private val temporaryProfile: GameProfile = GameProfile(UUID.randomUUID(), "temp", emptyList())
-        override var registrationName: String = clientOriginalName
 
         override val isOnlinePlayer: Boolean = false
 
@@ -253,6 +258,10 @@ class YggdrasilAuthModuleTest {
 
         override fun submitCredential(credential: HyperZoneCredential) {
             submittedCredentials += credential
+        }
+
+        override fun destroyCredential(channelId: String) {
+            submittedCredentials.removeIf { it.channelId == channelId }
         }
 
         override fun getSubmittedCredentials(): List<HyperZoneCredential> = submittedCredentials.toList()

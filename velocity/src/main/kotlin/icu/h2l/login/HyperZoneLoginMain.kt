@@ -31,6 +31,7 @@ import icu.h2l.api.command.HyperChatCommandRegistration
 import icu.h2l.api.message.HyperZoneMessageServiceProvider
 import icu.h2l.api.module.HyperSubModule
 import icu.h2l.api.player.HyperZonePlayerAccessor
+import icu.h2l.api.profile.CredentialChannelRegistryProvider
 import icu.h2l.api.profile.HyperZoneProfileServiceProvider
 import icu.h2l.api.util.ConfigCommentTranslatorProvider
 import icu.h2l.api.util.ConfigFormat
@@ -54,6 +55,7 @@ import icu.h2l.login.message.MessageKeys
 import icu.h2l.login.message.MessageService
 import icu.h2l.login.module.EmbeddedModuleRegistry
 import icu.h2l.login.module.EmbeddedModuleSpec
+import icu.h2l.login.profile.CredentialChannelRegistryImpl
 import icu.h2l.login.profile.ProfileBindingCodeService
 import icu.h2l.login.profile.VelocityHyperZoneProfileService
 import icu.h2l.login.util.registerApiLogger
@@ -87,6 +89,7 @@ class HyperZoneLoginMain(
     lateinit var databaseHelper: DatabaseHelper
     lateinit var profileService: VelocityHyperZoneProfileService
     lateinit var backendRuntimeProfileCompensator: BackendRuntimeProfileCompensator
+    lateinit var credentialChannelRegistry: CredentialChannelRegistryImpl
     lateinit var bindingCodeService: ProfileBindingCodeService
     lateinit var messageService: MessageService
     val serverAdapter: HyperZoneVServerAdapter?
@@ -135,6 +138,7 @@ class HyperZoneLoginMain(
         // ── 第三步：根据 start.conf 中的 language 初始化配置注释 i18n 服务 ──────────
         ConfigCommentTranslatorProvider.bind(ConfigCommentI18nService(logger, startConfig.language))
         loadCoreConfig()
+        credentialChannelRegistry = CredentialChannelRegistryImpl(coreConfig.auth)
         messageService = MessageService(dataDirectory, logger)
         messageService.load(coreConfig.messages)
         HyperZoneMessageServiceProvider.bind(messageService)
@@ -148,6 +152,7 @@ class HyperZoneLoginMain(
             profileService
         )
         HyperZoneProfileServiceProvider.bind(profileService)
+        CredentialChannelRegistryProvider.bind(credentialChannelRegistry)
 
         activeVServerAdapter = null
 
@@ -231,6 +236,15 @@ class HyperZoneLoginMain(
 
     fun registerModule(module: HyperSubModule, api: HyperZoneApi) {
         try {
+            module.credentialChannelIds.forEach { channelId ->
+                val ability = credentialChannelRegistry.registerChannel(channelId)
+                logger.info(
+                    "凭证渠道已注册: {} (模块: {}) [canRegister={}]",
+                    channelId,
+                    module.javaClass.simpleName,
+                    ability.canRegister
+                )
+            }
             module.register(api)
             logger.info("模块加载成功: ${module.javaClass.name}")
         } catch (e: Exception) {

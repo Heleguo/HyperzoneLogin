@@ -73,15 +73,24 @@ interface HyperZoneProfileService {
     }
 
     /**
-     * 登录流程中的“create”语义必须明确等价于“以指定注册名尝试新建档案”，
-     * 严禁在 create 内夹带 resolve / rename / 回退匹配等不相干流程。
+     * 基于凭证判断是否允许建档。
+     *
+     * 凭证必须通过 [HyperZoneCredential.getRegistrationName] 提供注册名；
+     * 建档时建议 UUID 取自 [HyperZoneCredential.getSuggestedProfileCreateUuid]。
+     *
+     * @throws IllegalStateException 若凭证未提供注册名
      */
-    fun canCreate(userName: String, uuid: UUID? = null): Boolean
+    fun canCreate(credential: HyperZoneCredential): Boolean
 
     /**
-     * 以指定注册名新建一个正式 [Profile]。
+     * 基于凭证新建一个正式 [Profile]。
+     *
+     * 凭证必须通过 [HyperZoneCredential.getRegistrationName] 提供注册名；
+     * 建档时建议 UUID 取自 [HyperZoneCredential.getSuggestedProfileCreateUuid]。
+     *
+     * @throws IllegalStateException 若凭证未提供注册名，或建档失败
      */
-    fun create(userName: String, uuid: UUID? = null): Profile
+    fun create(credential: HyperZoneCredential): Profile
 
     /**
      * 根据玩家当前已提交且已验证的凭证，自动解析并 attach 对应档案。
@@ -118,4 +127,3 @@ object HyperZoneProfileServiceProvider {
      */
     fun getOrNull(): HyperZoneProfileService? = service
 }
-

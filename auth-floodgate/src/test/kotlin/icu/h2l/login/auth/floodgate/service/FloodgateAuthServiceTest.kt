@@ -160,7 +160,6 @@ class FloodgateAuthServiceTest {
         floodgateApiHolder.trustedUuids += userUuid
         every { playerAccessor.create(channel, "BedrockUser", userUuid, any()) } returns hyperPlayer
         every { hyperPlayer.clientOriginalName } returns "BedrockUser"
-        every { hyperPlayer.registrationName } returns "BedrockUser"
         every { hyperPlayer.isInWaitingArea() } returns true
         every { hyperPlayer.isVerified() } returns false
         every { hyperPlayer.getSubmittedCredentials() } answers { submittedCredentials.toList() }
@@ -169,8 +168,13 @@ class FloodgateAuthServiceTest {
         }
         every { hyperPlayer.overVerify() } just runs
         every { profileService.getAttachedProfile(hyperPlayer) } returns null
-        every { profileService.canCreate("BedrockUser", userUuid) } returns true
-        every { profileService.create("BedrockUser", userUuid) } returns resolvedProfile
+        // 服务现在通过凭证与 ProfileService 交互；按凭证渠道参数匹配模拟行为
+        every { profileService.canCreate(match<HyperZoneCredential> {
+            it.getRegistrationName() == "BedrockUser" && it.getSuggestedProfileCreateUuid() == userUuid
+        }) } returns true
+        every { profileService.create(match<HyperZoneCredential> {
+            it.getRegistrationName() == "BedrockUser" && it.getSuggestedProfileCreateUuid() == userUuid
+        }) } returns resolvedProfile
 
         val acceptResult = service.acceptInitialProfile(channel, ".BedrockUser", userUuid, xuid)
 
@@ -187,8 +191,12 @@ class FloodgateAuthServiceTest {
         assertTrue(credential.matches(userUuid))
         verify(exactly = 1) { hyperPlayer.overVerify() }
         assertEquals(profileId, repository.findProfileIdByXuid(xuid))
-        verify(exactly = 1) { profileService.canCreate("BedrockUser", userUuid) }
-        verify(exactly = 1) { profileService.create("BedrockUser", userUuid) }
+        verify(exactly = 1) { profileService.canCreate(match<HyperZoneCredential> {
+            it.getRegistrationName() == "BedrockUser" && it.getSuggestedProfileCreateUuid() == userUuid
+        }) }
+        verify(exactly = 1) { profileService.create(match<HyperZoneCredential> {
+            it.getRegistrationName() == "BedrockUser" && it.getSuggestedProfileCreateUuid() == userUuid
+        }) }
     }
 
     @Test
@@ -213,7 +221,6 @@ class FloodgateAuthServiceTest {
         floodgateApiHolder.trustedUuids += userUuid
         every { playerAccessor.create(channel, "BedrockUser", userUuid, any()) } returns hyperPlayer
         every { hyperPlayer.clientOriginalName } returns "BedrockUser"
-        every { hyperPlayer.registrationName } returns "BedrockUser"
         every { hyperPlayer.isInWaitingArea() } returns true
         every { hyperPlayer.isVerified() } returns false
         every { hyperPlayer.getSubmittedCredentials() } answers { submittedCredentials.toList() }
@@ -222,8 +229,13 @@ class FloodgateAuthServiceTest {
         }
         every { hyperPlayer.overVerify() } just runs
         every { profileService.getAttachedProfile(hyperPlayer) } returns null
-        every { profileService.canCreate("BedrockUser", null) } returns true
-        every { profileService.create("BedrockUser", null) } returns resolvedProfile
+        // 服务现在通过凭证与 ProfileService 交互；uuid passthrough 关闭时凭证建议 UUID 应为 null
+        every { profileService.canCreate(match<HyperZoneCredential> {
+            it.getRegistrationName() == "BedrockUser" && it.getSuggestedProfileCreateUuid() == null
+        }) } returns true
+        every { profileService.create(match<HyperZoneCredential> {
+            it.getRegistrationName() == "BedrockUser" && it.getSuggestedProfileCreateUuid() == null
+        }) } returns resolvedProfile
 
         val acceptResult = disabledService.acceptInitialProfile(channel, ".BedrockUser", userUuid, xuid)
 
@@ -233,9 +245,15 @@ class FloodgateAuthServiceTest {
         assertTrue(result.handled)
         assertTrue(result.passed)
         assertEquals(profileId, repository.findProfileIdByXuid(xuid))
-        verify(exactly = 1) { profileService.canCreate("BedrockUser", null) }
-        verify(exactly = 1) { profileService.create("BedrockUser", null) }
-        verify(exactly = 0) { profileService.create("BedrockUser", userUuid) }
+        verify(exactly = 1) { profileService.canCreate(match<HyperZoneCredential> {
+            it.getSuggestedProfileCreateUuid() == null
+        }) }
+        verify(exactly = 1) { profileService.create(match<HyperZoneCredential> {
+            it.getSuggestedProfileCreateUuid() == null
+        }) }
+        verify(exactly = 0) { profileService.create(match<HyperZoneCredential> {
+            it.getSuggestedProfileCreateUuid() == userUuid
+        }) }
     }
 
     @Test
@@ -250,7 +268,6 @@ class FloodgateAuthServiceTest {
         floodgateApiHolder.trustedUuids += userUuid
         every { playerAccessor.create(channel, "BedrockUser", userUuid, any()) } returns hyperPlayer
         every { hyperPlayer.clientOriginalName } returns "BedrockUser"
-        every { hyperPlayer.registrationName } returns "BedrockUser"
         every { hyperPlayer.isInWaitingArea() } returns true
         every { hyperPlayer.isVerified() } returns false
         every { hyperPlayer.getSubmittedCredentials() } answers { submittedCredentials.toList() }
@@ -271,7 +288,7 @@ class FloodgateAuthServiceTest {
         assertEquals(profileId, (submittedCredentials.single() as FloodgateHyperZoneCredential).getBoundProfileId())
         assertEquals(profileId, repository.findProfileIdByXuid(xuid))
         assertEquals("bedrockuser", repository.getByXuid(xuid)?.name)
-        verify(exactly = 0) { profileService.create(any(), any()) }
+        verify(exactly = 0) { profileService.create(any<HyperZoneCredential>()) }
     }
 
     @Test

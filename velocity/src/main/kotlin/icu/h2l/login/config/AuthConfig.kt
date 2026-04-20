@@ -19,20 +19,16 @@
  *
  */
 
-package icu.h2l.api.event.auth
+package icu.h2l.login.config
 
-import icu.h2l.api.player.HyperZonePlayer
+import org.spongepowered.configurate.objectmapping.ConfigSerializable
+import org.spongepowered.configurate.objectmapping.meta.Comment
 
-/**
- * 等待区中的登录会话主动修改"建档注册名"后触发。
- *
- * 事件只携带当前事件发起者本身；
- * 各监听器必须仅处理该玩家当前会话，不得影响其他等待区玩家。
- *
- * @property hyperZonePlayer 发起 rename 的当前登录态玩家
- * @property newRegistrationName 更新后的注册名（即玩家希望使用的新建档名称）
- */
-class LoginRenameEvent(
-    val hyperZonePlayer: HyperZonePlayer,
-    val newRegistrationName: String
+@Suppress("ANNOTATION_WILL_BE_APPLIED_ALSO_TO_PROPERTY_OR_FIELD")
+@ConfigSerializable
+data class AuthConfig(
+    @JvmField
+    @Comment("config.core.auth.disableRegistration")
+    val disableRegistration: List<String> = emptyList(),
 )
+

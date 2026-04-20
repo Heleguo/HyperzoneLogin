@@ -25,6 +25,7 @@ import icu.h2l.api.HyperZoneApi
 import icu.h2l.api.log.HyperZoneDebugType
 import icu.h2l.api.log.debug
 import icu.h2l.api.player.HyperZonePlayer
+import icu.h2l.api.profile.CredentialChannelRegistryProvider
 import icu.h2l.api.profile.HyperZoneProfileService
 import icu.h2l.api.profile.HyperZoneProfileServiceProvider
 import icu.h2l.login.auth.floodgate.FloodgateMessages
@@ -124,7 +125,19 @@ class FloodgateAuthService(
             if (session != null && findCredential(hyperZonePlayer, session.userUUID) == null) {
                 val suggestedProfileCreateUuid = resolveProfileUuid(session.userUUID)
                 val knownProfileId = resolveKnownProfileId(hyperZonePlayer, session)
-                    ?: createAndBindProfileIfAllowed(hyperZonePlayer, session, suggestedProfileCreateUuid)
+                    ?: run {
+                        // 在尝试建档之前检查渠道能力
+                        val channelAbility = CredentialChannelRegistryProvider.getOrNull()?.getChannelAbility("floodgate")
+                        if (channelAbility?.canRegister == false) {
+                            return CompleteResult(
+                                handled = true,
+                                passed = false,
+                                disconnectOnFailure = false,
+                                userMessage = FloodgateMessages.registrationDisabled(hyperZonePlayer)
+                            )
+                        }
+                        createAndBindProfileIfAllowed(hyperZonePlayer, session, suggestedProfileCreateUuid)
+                    }
                 trace(
                     "complete preparing credential channel=$channel player=${hyperZonePlayer.clientOriginalName} sessionName=${session.userName} sessionUuid=${session.userUUID} xuid=${session.xuid} suggestedProfileCreateUuid=$suggestedProfileCreateUuid knownProfileId=$knownProfileId"
                 )
@@ -201,11 +214,19 @@ class FloodgateAuthService(
         session: FloodgateSessionHolder.FloodgateSession,
         suggestedProfileCreateUuid: UUID?,
     ): UUID? {
-        if (!profileService.canCreate(hyperZonePlayer.registrationName, suggestedProfileCreateUuid)) {
+        // 使用凭证与 ProfileService 交互，避免裸露传递注册名与 UUID
+        val candidateCredential = FloodgateHyperZoneCredential(
+            repository = repository,
+            trustedName = session.userName,
+            trustedUuid = session.userUUID,
+            xuid = session.xuid,
+            suggestedProfileCreateUuid = suggestedProfileCreateUuid
+        )
+        if (!profileService.canCreate(candidateCredential)) {
             return null
         }
 
-        val createdProfile = profileService.create(hyperZonePlayer.registrationName, suggestedProfileCreateUuid)
+        val createdProfile = profileService.create(candidateCredential)
         if (!repository.createOrUpdate(session.userName, session.xuid, createdProfile.id)) {
             throw IllegalStateException(
                 "Floodgate 玩家 ${session.userName}(${session.xuid}) Profile 已创建，但模块绑定写入失败"
