@@ -22,66 +22,101 @@
 package icu.h2l.api.connection
 
 import com.velocitypowered.api.proxy.InboundConnection
-import com.velocitypowered.proxy.connection.MinecraftConnection
-import com.velocitypowered.proxy.connection.client.InitialInboundConnection
-import com.velocitypowered.proxy.connection.client.LoginInboundConnection
 import io.netty.channel.Channel
 import net.kyori.adventure.text.Component
+import java.lang.reflect.Field
+import java.lang.reflect.Method
 
-private val initialInboundConnectionDelegateField by lazy {
-    LoginInboundConnection::class.java.getDeclaredField("delegate").apply {
-        isAccessible = true
+// ── 通过 Class.forName 懒加载 velocityProxy 内部类 ────────────────────────────
+// 运行时这些类必定存在（插件跑在 Velocity 进程内）；但 api 模块编译期不依赖 velocityProxy。
+
+private val initialInboundConnectionClass: Class<*>? by lazy {
+    runCatching { Class.forName("com.velocitypowered.proxy.connection.client.InitialInboundConnection") }.getOrNull()
+}
+
+private val loginInboundConnectionClass: Class<*>? by lazy {
+    runCatching { Class.forName("com.velocitypowered.proxy.connection.client.LoginInboundConnection") }.getOrNull()
+}
+
+/** LoginInboundConnection.delegate 字段（持有 InitialInboundConnection） */
+private val loginInboundDelegateField: Field? by lazy {
+    loginInboundConnectionClass?.let { clazz ->
+        runCatching {
+            clazz.getDeclaredField("delegate").also { it.isAccessible = true }
+        }.getOrNull()
     }
 }
 
-private val delegateGetConnectionMethod by lazy {
-    initialInboundConnectionDelegateField.type.getDeclaredMethod("getConnection").apply {
-        isAccessible = true
+/** InitialInboundConnection/delegate.getConnection() → MinecraftConnection */
+private val delegateGetConnectionMethod: Method? by lazy {
+    loginInboundDelegateField?.type?.let { delegateType ->
+        runCatching {
+            delegateType.getDeclaredMethod("getConnection").also { it.isAccessible = true }
+        }.getOrNull()
     }
 }
+
+// ── 获取 MinecraftConnection.channel ──────────────────────────────────────────
+
+private fun getMinecraftConnectionChannel(mcConnection: Any): Channel {
+    // 优先：按类型扫描字段
+    val field = generateSequence<Class<*>>(mcConnection.javaClass) { it.superclass }
+        .firstNotNullOfOrNull { cls ->
+            cls.declaredFields.firstOrNull { Channel::class.java.isAssignableFrom(it.type) }
+                ?.also { it.isAccessible = true }
+        }
+    if (field != null) return field.get(mcConnection) as Channel
+    // 回退：方法
+    return mcConnection.javaClass.getMethod("channel").invoke(mcConnection) as Channel
+}
+
+// ── 公开扩展 API ───────────────────────────────────────────────────────────────
 
 /**
- * 向当前入站连接发送断开消息。
- *
- * 该扩展会兼容 Velocity 在不同登录阶段使用的不同连接实现。
+ * 向当前入站连接发送断开消息，兼容 Velocity 不同登录阶段的连接实现。
  */
 fun InboundConnection.disconnectWithMessage(userMessage: Component) {
+    // disconnect(Component) 是内部类方法，通过反射调用
+    fun Any.reflectDisconnect() =
+        javaClass.getMethod("disconnect", Component::class.java).invoke(this, userMessage)
 
-    if (this is InitialInboundConnection) {
-        this.disconnect(userMessage)
-        return
-    } else if (this is LoginInboundConnection) {
-        this.getDelegate().disconnect(userMessage)
-        return
+    when {
+        initialInboundConnectionClass?.isInstance(this) == true ->
+            reflectDisconnect()
+
+        loginInboundConnectionClass?.isInstance(this) == true -> {
+            val delegate = loginInboundDelegateField?.get(this)
+                ?: throw IllegalStateException("Cannot get delegate from LoginInboundConnection instance ${javaClass.name}")
+            delegate.reflectDisconnect()
+        }
+
+        else -> throw IllegalStateException("未知InboundConnection类型 ${javaClass.name}")
     }
-    throw IllegalStateException("未知InboundConnection类型${this.javaClass}")
-}
-
-/**
- * 读取 [LoginInboundConnection] 内部持有的 [InitialInboundConnection] 委托对象。
- */
-fun LoginInboundConnection.getDelegate(): InitialInboundConnection = this.let { loginInboundConnection ->
-    val delegate = initialInboundConnectionDelegateField.get(loginInboundConnection) as InitialInboundConnection
-    delegate
-}
-
-/**
- * 获取登录阶段连接所对应的 Netty [Channel]。
- */
-fun LoginInboundConnection.getLoginInbondNettyChannel(): Channel = this.let { loginInboundConnection ->
-    val delegate = initialInboundConnectionDelegateField.get(loginInboundConnection)
-    val minecraftConnection = delegateGetConnectionMethod.invoke(delegate) as MinecraftConnection
-    minecraftConnection.channel
 }
 
 /**
  * 获取当前入站连接底层使用的 Netty [Channel]。
  */
 fun InboundConnection.getNettyChannel(): Channel {
-    if (this is InitialInboundConnection) {
-        return this.connection.channel
-    } else if (this is LoginInboundConnection) {
-        return this.getLoginInbondNettyChannel()
+    when {
+        initialInboundConnectionClass?.isInstance(this) == true -> {
+            // InitialInboundConnection 有 getConnection() 返回 MinecraftConnection
+            val mc = generateSequence<Class<*>>(javaClass) { it.superclass }
+                .firstNotNullOfOrNull { cls ->
+                    runCatching { cls.getDeclaredMethod("getConnection").also { it.isAccessible = true } }.getOrNull()
+                }?.invoke(this)
+                ?: throw IllegalStateException("Cannot get MinecraftConnection from ${javaClass.name}")
+            return getMinecraftConnectionChannel(mc)
+        }
+
+        loginInboundConnectionClass?.isInstance(this) == true -> {
+            val delegate = loginInboundDelegateField?.get(this)
+                ?: throw IllegalStateException("Cannot get delegate field from ${javaClass.name}")
+            val mc = delegateGetConnectionMethod?.invoke(delegate)
+                ?: throw IllegalStateException("Cannot invoke getConnection on ${delegate.javaClass.name}")
+            return getMinecraftConnectionChannel(mc)
+        }
+
+        else -> throw IllegalStateException("未知InboundConnection类型 ${javaClass.name}")
     }
-    throw IllegalStateException("未知InboundConnection类型${this.javaClass}")
 }

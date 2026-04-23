@@ -28,6 +28,7 @@ import icu.h2l.api.log.error
 import icu.h2l.login.HyperZoneLoginMain
 import icu.h2l.login.inject.network.ChatSessionUpdatePacketIdResolver
 import icu.h2l.login.manager.HyperZonePlayerManager
+import icu.h2l.login.reflect.VelocityInternalAccess
 import icu.h2l.login.vServer.outpre.OutPreBackendBridge
 import io.netty.buffer.ByteBuf
 import io.netty.channel.Channel
@@ -93,7 +94,7 @@ class ChatSessionKillerPacketReplacer(
 
         val duplicate = msg.duplicate()
         return runCatching {
-            com.velocitypowered.proxy.protocol.ProtocolUtils.readVarInt(duplicate)
+            VelocityInternalAccess.readVarInt(duplicate)
         }.getOrNull()
     }
 

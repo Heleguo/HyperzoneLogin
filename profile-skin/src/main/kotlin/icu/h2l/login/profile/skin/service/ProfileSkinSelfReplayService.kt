@@ -25,8 +25,8 @@ import com.velocitypowered.api.event.Subscribe
 import com.velocitypowered.api.event.connection.DisconnectEvent
 import com.velocitypowered.api.event.player.configuration.PlayerFinishConfigurationEvent
 import com.velocitypowered.api.network.ProtocolVersion
+import com.velocitypowered.api.proxy.Player
 import com.velocitypowered.api.util.GameProfile
-import com.velocitypowered.proxy.connection.client.ConnectedPlayer
 import com.velocitypowered.proxy.protocol.packet.LegacyPlayerListItemPacket
 import com.velocitypowered.proxy.protocol.packet.UpsertPlayerInfoPacket
 import icu.h2l.api.event.profile.ProfileSkinPreprocessEvent
@@ -41,10 +41,41 @@ import icu.h2l.api.profile.skin.ProfileSkinTextures
 import icu.h2l.login.profile.skin.config.ProfileSkinConfig
 import icu.h2l.login.profile.skin.db.ProfileSkinCacheRepository
 import icu.h2l.login.profile.skin.db.ProfileSkinProfileRepository
+import io.netty.channel.EventLoop
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
+
+// ── MinecraftConnection 反射工具（避免直接 import ConnectedPlayer）─────────────
+
+private val connectionFieldCache = java.util.concurrent.ConcurrentHashMap<Class<*>, java.lang.reflect.Field>()
+
+/**
+ * 从 [Player] 实例中反射获取内部 `MinecraftConnection` 对象。
+ * 结果按类型缓存，避免重复查找。
+ */
+private fun Player.minecraftConnection(): Any {
+    val field = connectionFieldCache.getOrPut(javaClass) {
+        generateSequence<Class<*>>(javaClass) { it.superclass }
+            .firstNotNullOfOrNull { cls ->
+                runCatching { cls.getDeclaredField("connection").also { it.isAccessible = true } }.getOrNull()
+            } ?: error("Cannot find 'connection' field in ${javaClass.name}")
+    }
+    return field.get(this)
+}
+
+private fun Any.mcIsClosed(): Boolean =
+    javaClass.getMethod("isClosed").invoke(this) as Boolean
+
+private fun Any.mcEventLoop(): EventLoop =
+    javaClass.getMethod("eventLoop").invoke(this) as EventLoop
+
+private fun Any.mcWrite(packet: Any) {
+    javaClass.getMethod("write", Any::class.java).invoke(this, packet)
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 private class SelfSkinReplayState {
     val selfAddPlayerSent = AtomicBoolean(false)
@@ -87,14 +118,14 @@ class ProfileSkinSelfReplayService(
             return
         }
 
-        val connectedPlayer = event.hyperZonePlayer.getProxyPlayerOrNull() as? ConnectedPlayer ?: return
+        val player = event.hyperZonePlayer.getProxyPlayerOrNull() as? Player ?: return
         sendSelfAddPlayer(
             hyperZonePlayer = event.hyperZonePlayer,
-            connectedPlayer = connectedPlayer,
+            player = player,
             textures = textures,
             forceReplay = false,
             failureLabel = "Preprocess",
-            state = state
+            state = state,
         )
     }
 
@@ -110,39 +141,32 @@ class ProfileSkinSelfReplayService(
         ) ?: return
         state.latestTextures.set(textures)
 
-        val connectedPlayer = event.player() as? ConnectedPlayer ?: return
+        val player = event.player() as? Player ?: return
         sendSelfAddPlayer(
             hyperZonePlayer = hyperZonePlayer,
-            connectedPlayer = connectedPlayer,
+            player = player,
             textures = textures,
             forceReplay = true,
             failureLabel = "Post-configuration replay",
-            state = state
+            state = state,
         )
     }
 
     @Subscribe
     fun onDisconnect(event: DisconnectEvent) {
-        runCatching {
-            playerAccessor.getByPlayer(event.player)
-        }.getOrNull()?.let {
-            replayStates.remove(it)
-        }
+        runCatching { playerAccessor.getByPlayer(event.player) }
+            .getOrNull()?.let { replayStates.remove(it) }
     }
 
-
-    private fun stateFor(hyperZonePlayer: HyperZonePlayer): SelfSkinReplayState {
-        return replayStates.computeIfAbsent(hyperZonePlayer) { SelfSkinReplayState() }
-    }
+    private fun stateFor(hyperZonePlayer: HyperZonePlayer): SelfSkinReplayState =
+        replayStates.computeIfAbsent(hyperZonePlayer) { SelfSkinReplayState() }
 
     private fun resolveReplayTextures(
         hyperZonePlayer: HyperZonePlayer,
-        preferredTextures: ProfileSkinTextures?
+        preferredTextures: ProfileSkinTextures?,
     ): ProfileSkinTextures? {
         val preferred = preferredTextures?.takeIf(::canReplayTextures)
-        if (preferred != null) {
-            return preferred
-        }
+        if (preferred != null) return preferred
 
         val profileId = profileService.getAttachedProfile(hyperZonePlayer)?.id ?: return null
         val skinId = profileRepository.findSkinIdByProfileId(profileId) ?: return null
@@ -153,24 +177,21 @@ class ProfileSkinSelfReplayService(
         return cached
     }
 
-    private fun canReplayTextures(textures: ProfileSkinTextures): Boolean {
-        return textures.value.isNotBlank() && textures.toPropertyOrNull() != null
-    }
+    private fun canReplayTextures(textures: ProfileSkinTextures): Boolean =
+        textures.value.isNotBlank() && textures.toPropertyOrNull() != null
 
     private fun sendSelfAddPlayer(
         hyperZonePlayer: HyperZonePlayer,
-        connectedPlayer: ConnectedPlayer,
+        player: Player,
         textures: ProfileSkinTextures,
         forceReplay: Boolean,
         failureLabel: String,
-        state: SelfSkinReplayState
+        state: SelfSkinReplayState,
     ) {
-        if (!forceReplay && state.selfAddPlayerSent.get()) {
-            return
-        }
-        if (!connectedPlayer.isActive || connectedPlayer.connection.isClosed) {
-            return
-        }
+        if (!forceReplay && state.selfAddPlayerSent.get()) return
+
+        val connection = runCatching { player.minecraftConnection() }.getOrNull() ?: return
+        if (!player.isActive || connection.mcIsClosed()) return
 
         val property = textures.toPropertyOrNull() ?: run {
             warn {
@@ -179,31 +200,24 @@ class ProfileSkinSelfReplayService(
             return
         }
 
-        if (!forceReplay && !state.selfAddPlayerSent.compareAndSet(false, true)) {
-            return
-        }
+        if (!forceReplay && !state.selfAddPlayerSent.compareAndSet(false, true)) return
 
         val replayProfile = GameProfile(
             hyperZonePlayer.clientOriginalUUID,
             hyperZonePlayer.clientOriginalName,
-            listOf(property)
+            listOf(property),
         )
 
-        connectedPlayer.connection.eventLoop().execute {
+        connection.mcEventLoop().execute {
             try {
-                if (!connectedPlayer.isActive || connectedPlayer.connection.isClosed) {
-                    if (!forceReplay) {
-                        state.selfAddPlayerSent.set(false)
-                    }
+                if (!player.isActive || connection.mcIsClosed()) {
+                    if (!forceReplay) state.selfAddPlayerSent.set(false)
                     return@execute
                 }
-
-                SelfPlayerInfoSkinSender.sendAddPlayer(connectedPlayer, replayProfile)
+                SelfPlayerInfoSkinSender.sendAddPlayer(player, replayProfile, connection)
                 state.selfAddPlayerSent.set(true)
             } catch (throwable: Throwable) {
-                if (!forceReplay) {
-                    state.selfAddPlayerSent.set(false)
-                }
+                if (!forceReplay) state.selfAddPlayerSent.set(false)
                 error(throwable) {
                     "$failureLabel self ADD_PLAYER failed for clientOriginal=${hyperZonePlayer.clientOriginalName}: ${throwable.message}"
                 }
@@ -213,20 +227,21 @@ class ProfileSkinSelfReplayService(
 }
 
 private object SelfPlayerInfoSkinSender {
-    fun sendAddPlayer(player: ConnectedPlayer, profile: GameProfile) {
+    /**
+     * @param connection 已通过反射获取的 MinecraftConnection 实例
+     */
+    fun sendAddPlayer(player: Player, profile: GameProfile, connection: Any) {
         val protocolVersion = player.protocolVersion
-        if (protocolVersion.noLessThan(ProtocolVersion.MINECRAFT_1_19_3)) {
-            player.connection.write(createModernAddPlayer(profile))
-            return
-        }
+        when {
+            protocolVersion.noLessThan(ProtocolVersion.MINECRAFT_1_19_3) ->
+                connection.mcWrite(createModernAddPlayer(profile))
 
-        if (protocolVersion.noLessThan(ProtocolVersion.MINECRAFT_1_8)) {
-            player.connection.write(createLegacyAddPlayer(profile))
-            return
-        }
+            protocolVersion.noLessThan(ProtocolVersion.MINECRAFT_1_8) ->
+                connection.mcWrite(createLegacyAddPlayer(profile))
 
-        debug(HyperZoneDebugType.PROFILE_SKIN) {
-            "[ProfileSkinFlow] self ADD_PLAYER skipped: unsupported protocol for skin properties, player=${player.username}, protocol=$protocolVersion"
+            else -> debug(HyperZoneDebugType.PROFILE_SKIN) {
+                "[ProfileSkinFlow] self ADD_PLAYER skipped: unsupported protocol for skin properties, player=${player.username}, protocol=$protocolVersion"
+            }
         }
     }
 
@@ -239,9 +254,9 @@ private object SelfPlayerInfoSkinSender {
             EnumSet.of(
                 UpsertPlayerInfoPacket.Action.ADD_PLAYER,
                 UpsertPlayerInfoPacket.Action.UPDATE_LATENCY,
-                UpsertPlayerInfoPacket.Action.UPDATE_LISTED
+                UpsertPlayerInfoPacket.Action.UPDATE_LISTED,
             ),
-            listOf(entry)
+            listOf(entry),
         )
     }
 
@@ -254,4 +269,3 @@ private object SelfPlayerInfoSkinSender {
         return LegacyPlayerListItemPacket(LegacyPlayerListItemPacket.ADD_PLAYER, listOf(item))
     }
 }
-

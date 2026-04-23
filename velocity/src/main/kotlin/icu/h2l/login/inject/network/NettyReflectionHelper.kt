@@ -21,10 +21,8 @@
 
 package icu.h2l.login.inject.network
 
-import com.velocitypowered.api.network.HandshakeIntent
 import com.velocitypowered.api.permission.PermissionFunction
 import com.velocitypowered.api.permission.PermissionProvider
-import com.velocitypowered.api.proxy.crypto.IdentifiedKey
 import com.velocitypowered.api.util.GameProfile
 import com.velocitypowered.proxy.VelocityServer
 import com.velocitypowered.proxy.connection.MinecraftConnection
@@ -34,159 +32,78 @@ import com.velocitypowered.proxy.connection.client.ConnectedPlayer
 import com.velocitypowered.proxy.connection.client.InitialConnectSessionHandler
 import com.velocitypowered.proxy.connection.client.LoginInboundConnection
 import icu.h2l.login.HyperZoneLoginMain
-import java.net.InetSocketAddress
+import icu.h2l.login.reflect.VelocityInternalAccess
 
-private fun interface AuthSessionHandlerConstructor {
-    fun create(
-        server: VelocityServer?,
-        inbound: LoginInboundConnection?,
-        profile: GameProfile?,
-        onlineMode: Boolean,
-        serverIdHash: String,
-    ): AuthSessionHandler
-}
-
-private fun interface ConnectedPlayerConstructor {
-    fun create(
-        server: VelocityServer,
-        profile: GameProfile,
-        inbound: LoginInboundConnection,
-        onlineMode: Boolean,
-    ): ConnectedPlayer
-}
-
-private fun interface InitialConnectSessionHandlerConstructor {
-    fun create(player: ConnectedPlayer, server: VelocityServer): InitialConnectSessionHandler
-}
-
-@Suppress("ObjectPrivatePropertyName")
+/**
+ * Velocity 内部反射访问的门面，保持与旧版调用方兼容的扩展函数 API。
+ *
+ * 内部实现已全部委托给 [VelocityInternalAccess]，后者负责跨版本模糊定位与 ASM 加速。
+ */
 object NettyReflectionHelper {
 
-    private val `LoginInboundConnection$fireLogin` by lazy {
-        LoginInboundConnection::class.java.getDeclaredMethod("loginEventFired", Runnable::class.java)
-            .also { it.isAccessible = true }
-    }
-
-    private val `LoginInboundConnection$delegatedConnection` by lazy {
-        LoginInboundConnection::class.java.getDeclaredMethod("delegatedConnection")
-            .also { it.isAccessible = true }
-    }
-
-    private val `LoginInboundConnection$cleanup` by lazy {
-        LoginInboundConnection::class.java.getDeclaredMethod("cleanup")
-            .also { it.isAccessible = true }
-    }
-
-    private val `ConnectedPlayer$teardown` by lazy {
-        ConnectedPlayer::class.java.getDeclaredMethod("teardown")
-            .also { it.isAccessible = true }
-    }
-
     fun LoginInboundConnection.fireLogin(action: Runnable) {
-        `LoginInboundConnection$fireLogin`.invoke(this@fireLogin, action)
+        VelocityInternalAccess.fireLogin(this, action)
     }
 
     fun LoginInboundConnection.reflectedDelegatedConnection(): MinecraftConnection {
-        return `LoginInboundConnection$delegatedConnection`.invoke(this@reflectedDelegatedConnection) as MinecraftConnection
+        return VelocityInternalAccess.delegatedConnection(this)
     }
 
     fun LoginInboundConnection.reflectedCleanup() {
-        `LoginInboundConnection$cleanup`.invoke(this@reflectedCleanup)
+        VelocityInternalAccess.cleanup(this)
     }
 
     fun ConnectedPlayer.reflectedTeardown() {
-        `ConnectedPlayer$teardown`.invoke(this@reflectedTeardown)
+        VelocityInternalAccess.teardown(this)
     }
 
-    private val `ConnectedPlayer$init`: ConnectedPlayerConstructor by lazy {
-        val ctor = ConnectedPlayer::class.java.getDeclaredConstructor(
-            VelocityServer::class.java,
-            GameProfile::class.java,
-            MinecraftConnection::class.java,
-            InetSocketAddress::class.java,
-            String::class.java,
-            Boolean::class.javaPrimitiveType,
-            HandshakeIntent::class.java,
-            IdentifiedKey::class.java,
-        ).also { it.isAccessible = true }
-
-        ConnectedPlayerConstructor { server, profile, inbound, onlineMode ->
-            ctor.newInstance(
-                server,
-                profile,
-                inbound.reflectedDelegatedConnection(),
-                inbound.virtualHost.orElse(null),
-                inbound.rawVirtualHost.orElse(null),
-                onlineMode,
-                inbound.handshakeIntent,
-                inbound.identifiedKey,
-            )
+    fun createConnectedPlayer(
+        server: VelocityServer,
+        inbound: LoginInboundConnection,
+        profile: GameProfile,
+        onlineMode: Boolean,
+    ): ConnectedPlayer {
+        return runCatching {
+            VelocityInternalAccess.createConnectedPlayer(server, inbound, profile, onlineMode)
+        }.getOrElse { ex ->
+            HyperZoneLoginMain.getInstance().logger.error("反射创建 ConnectedPlayer 失败。", ex)
+            throw ex
         }
     }
 
-    private val connectedPlayerDefaultPermissionsField by lazy {
-        ConnectedPlayer::class.java.getDeclaredField("DEFAULT_PERMISSIONS").also { it.isAccessible = true }
+    fun defaultPermissions(): PermissionProvider {
+        return VelocityInternalAccess.defaultPermissions()
     }
 
-    private val connectedPlayerSetPermissionFunctionMethod by lazy {
-        ConnectedPlayer::class.java.getDeclaredMethod(
-            "setPermissionFunction",
-            PermissionFunction::class.java,
-        ).also { it.isAccessible = true }
-    }
-
-    private val connectedPlayerConnectionInFlightField by lazy {
-        ConnectedPlayer::class.java.getDeclaredField("connectionInFlight").also { it.isAccessible = true }
-    }
-
-    private val connectedPlayerProfileField by lazy {
-        ConnectedPlayer::class.java.getDeclaredField("profile").also { it.isAccessible = true }
-    }
-
-    private val `InitialConnectSessionHandler$init`: InitialConnectSessionHandlerConstructor by lazy {
-        val ctor = InitialConnectSessionHandler::class.java.getDeclaredConstructor(
-            ConnectedPlayer::class.java,
-            VelocityServer::class.java,
-        ).also { it.isAccessible = true }
-
-        InitialConnectSessionHandlerConstructor { player, server ->
-            ctor.newInstance(player, server)
-        }
-    }
-
-    private val `AuthSessionHandler$init`: AuthSessionHandlerConstructor by lazy {
+    fun setPermissionFunction(player: ConnectedPlayer, function: PermissionFunction) {
         runCatching {
-            val ctor = AuthSessionHandler::class.java.getDeclaredConstructor(
-                VelocityServer::class.java,
-                LoginInboundConnection::class.java,
-                GameProfile::class.java,
-                Boolean::class.javaPrimitiveType,
-            ).also { it.isAccessible = true }
+            VelocityInternalAccess.setPermissionFunction(player, function)
+        }.getOrElse { ex ->
+            HyperZoneLoginMain.getInstance().logger.error("反射设置 ConnectedPlayer 权限函数失败。", ex)
+            throw ex
+        }
+    }
 
-            AuthSessionHandlerConstructor { server: VelocityServer?,
-                                            inbound: LoginInboundConnection?,
-                                            profile: GameProfile?,
-                                            onlineMode: Boolean,
-                                            serverIdHash: String ->
-                ctor.newInstance(server, inbound, profile, onlineMode)
-            }
-        }.recoverCatching {
-            val ctor = AuthSessionHandler::class.java.getDeclaredConstructor(
-                VelocityServer::class.java,
-                LoginInboundConnection::class.java,
-                GameProfile::class.java,
-                Boolean::class.javaPrimitiveType,
-                String::class.java,
-            ).also { it.isAccessible = true }
+    fun setConnectionInFlight(player: ConnectedPlayer, serverConnection: VelocityServerConnection?) {
+        runCatching {
+            VelocityInternalAccess.setConnectionInFlight(player, serverConnection)
+        }.getOrElse { ex ->
+            HyperZoneLoginMain.getInstance().logger.error(
+                "反射设置 ConnectedPlayer.connectionInFlight 失败。", ex
+            )
+            throw ex
+        }
+    }
 
-            AuthSessionHandlerConstructor { server: VelocityServer?,
-                                            inbound: LoginInboundConnection?,
-                                            profile: GameProfile?,
-                                            onlineMode: Boolean,
-                                            serverIdHash: String ->
-                ctor.newInstance(server, inbound, profile, onlineMode, serverIdHash)
-            }
-        }.getOrThrow()
+    fun setGameProfile(player: ConnectedPlayer, profile: GameProfile) {
+        runCatching {
+            VelocityInternalAccess.setConnectedPlayerProfile(player, profile)
+        }.getOrElse { ex ->
+            HyperZoneLoginMain.getInstance().logger.error(
+                "反射设置 ConnectedPlayer.profile 失败。", ex
+            )
+            throw ex
+        }
     }
 
     fun createAuthSessionHandler(
@@ -197,70 +114,10 @@ object NettyReflectionHelper {
         serverIdHash: String,
     ): AuthSessionHandler {
         return runCatching {
-            `AuthSessionHandler$init`.create(server, inbound, profile, onlineMode, serverIdHash)
-        }.getOrElse { reflectionException ->
-            HyperZoneLoginMain.getInstance().logger.error(
-                "反射创建 AuthSessionHandler 失败。",
-                reflectionException
-            )
-            throw reflectionException
-        }
-    }
-
-    fun createConnectedPlayer(
-        server: VelocityServer,
-        inbound: LoginInboundConnection,
-        profile: GameProfile,
-        onlineMode: Boolean,
-    ): ConnectedPlayer {
-        return runCatching {
-            `ConnectedPlayer$init`.create(server, profile, inbound, onlineMode)
-        }.getOrElse { reflectionException ->
-            HyperZoneLoginMain.getInstance().logger.error(
-                "反射创建 ConnectedPlayer 失败。",
-                reflectionException
-            )
-            throw reflectionException
-        }
-    }
-
-    fun defaultPermissions(): PermissionProvider {
-        return connectedPlayerDefaultPermissionsField.get(null) as PermissionProvider
-    }
-
-    fun setPermissionFunction(player: ConnectedPlayer, function: PermissionFunction) {
-        runCatching {
-            connectedPlayerSetPermissionFunctionMethod.invoke(player, function)
-        }.getOrElse { reflectionException ->
-            HyperZoneLoginMain.getInstance().logger.error(
-                "反射设置 ConnectedPlayer 权限函数失败。",
-                reflectionException
-            )
-            throw reflectionException
-        }
-    }
-
-    fun setConnectionInFlight(player: ConnectedPlayer, serverConnection: VelocityServerConnection?) {
-        runCatching {
-            connectedPlayerConnectionInFlightField.set(player, serverConnection)
-        }.getOrElse { reflectionException ->
-            HyperZoneLoginMain.getInstance().logger.error(
-                "反射设置 ConnectedPlayer.connectionInFlight 失败。",
-                reflectionException
-            )
-            throw reflectionException
-        }
-    }
-
-    fun setGameProfile(player: ConnectedPlayer, profile: GameProfile) {
-        runCatching {
-            connectedPlayerProfileField.set(player, profile)
-        }.getOrElse { reflectionException ->
-            HyperZoneLoginMain.getInstance().logger.error(
-                "反射设置 ConnectedPlayer.profile 失败。",
-                reflectionException
-            )
-            throw reflectionException
+            VelocityInternalAccess.createAuthSessionHandler(server, inbound, profile, onlineMode, serverIdHash)
+        }.getOrElse { ex ->
+            HyperZoneLoginMain.getInstance().logger.error("反射创建 AuthSessionHandler 失败。", ex)
+            throw ex
         }
     }
 
@@ -269,13 +126,12 @@ object NettyReflectionHelper {
         server: VelocityServer,
     ): InitialConnectSessionHandler {
         return runCatching {
-            `InitialConnectSessionHandler$init`.create(player, server)
-        }.getOrElse { reflectionException ->
+            VelocityInternalAccess.createInitialConnectSessionHandler(player, server)
+        }.getOrElse { ex ->
             HyperZoneLoginMain.getInstance().logger.error(
-                "反射创建 InitialConnectSessionHandler 失败。",
-                reflectionException
+                "反射创建 InitialConnectSessionHandler 失败。", ex
             )
-            throw reflectionException
+            throw ex
         }
     }
 }

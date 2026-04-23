@@ -89,6 +89,9 @@ dependencies {
     needPackageCompileOnly(libs.googleAuth)
     needPackageCompileOnly(libs.h2)
 //    ====
+    needPackageCompileOnly(libs.asm)
+    needPackageCompileOnly(libs.asmCommons)
+
     compileOnly(libs.nettyAll)
     compileOnly(libs.gson)
     compileOnly(libs.log4jApi)
@@ -105,7 +108,9 @@ dependencies {
     testImplementation(platform(libs.junitBom))
     testImplementation(libs.junitJupiter)
     testImplementation(libs.velocityApi)
-    testImplementation(libs.velocityProxy)
+    testImplementation(libs.velocityProxy) {
+        exclude(group = "com.velocitypowered", module = "velocity-proxy-log4j2-plugin")
+    }
     testImplementation(libs.nettyAll)
     testImplementation(libs.adventureTextLoggerSlf4j)
     testImplementation(libs.adventureTextMinimessage)

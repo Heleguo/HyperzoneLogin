@@ -22,6 +22,9 @@
 package icu.h2l.login.inject.network
 
 import com.velocitypowered.api.network.ProtocolVersion
+import icu.h2l.login.reflect.ProtocolVersionCompat
+import icu.h2l.login.reflect.ProtocolVersionCompat.noGreaterThanCompat
+import icu.h2l.login.reflect.ProtocolVersionCompat.noLessThanCompat
 
 object ChatSessionUpdatePacketIdResolver {
     fun resolve(protocolVersion: ProtocolVersion): Int? {
@@ -33,13 +36,28 @@ object ChatSessionUpdatePacketIdResolver {
 
             protocolVersion == ProtocolVersion.MINECRAFT_1_20_5 -> 0x07
 
+            // 1.21.2 ≤ v < 1.21.6 → 0x08
             protocolVersion.noLessThan(ProtocolVersion.MINECRAFT_1_21_2)
-                && protocolVersion.noGreaterThan(ProtocolVersion.MINECRAFT_1_21_6) -> 0x08
+                && protocolVersion.noGreaterThanCompat(
+                    ProtocolVersionCompat.MINECRAFT_1_21_6,
+                    ProtocolVersionCompat.RAW_1_21_6,
+                ) -> 0x08
 
-            protocolVersion.noLessThan(ProtocolVersion.MINECRAFT_1_21_6)
-                    && protocolVersion.noGreaterThan(ProtocolVersion.MINECRAFT_1_21_11) -> 0x09
+            // 1.21.6 ≤ v < 26.1 → 0x09
+            protocolVersion.noLessThanCompat(
+                ProtocolVersionCompat.MINECRAFT_1_21_6,
+                ProtocolVersionCompat.RAW_1_21_6,
+            ) && protocolVersion.noGreaterThanCompat(
+                ProtocolVersionCompat.MINECRAFT_1_21_11,
+                ProtocolVersionCompat.RAW_1_21_11,
+            ) -> 0x09
 
-            protocolVersion.noLessThan(ProtocolVersion.MINECRAFT_26_1) -> 0x0A
+            // v ≥ 26.1 → 0x0A
+            protocolVersion.noLessThanCompat(
+                ProtocolVersionCompat.MINECRAFT_26_1,
+                ProtocolVersionCompat.RAW_26_1,
+            ) -> 0x0A
+
             else -> null
         }
     }
@@ -48,4 +66,3 @@ object ChatSessionUpdatePacketIdResolver {
         return resolve(protocolVersion) == packetId
     }
 }
-

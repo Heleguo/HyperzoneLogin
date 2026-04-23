@@ -28,7 +28,6 @@ dependencies {
     compileOnly(project(":api"))
 //    VC
     compileOnly(libs.velocityApi)
-    compileOnly(libs.velocityProxy) // From Elytrium Repo.
     compileOnly(libs.nettyAll)
 // Exposed ORM
     compileOnly(libs.exposedCore)
@@ -40,7 +39,7 @@ dependencies {
     testImplementation(libs.junitJupiter)
     testImplementation(project(":api"))
     testImplementation(libs.velocityApi)
-    testImplementation(libs.velocityProxy)
+    testImplementation(libs.nettyAll)
     testImplementation(libs.exposedCore)
     testImplementation(libs.configurateHocon)
     testImplementation(libs.configurateExtraKotlin)

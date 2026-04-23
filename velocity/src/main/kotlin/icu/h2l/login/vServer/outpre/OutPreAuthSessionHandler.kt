@@ -40,7 +40,6 @@ import com.velocitypowered.proxy.connection.MinecraftSessionHandler
 import com.velocitypowered.proxy.connection.client.AuthSessionHandler
 import com.velocitypowered.proxy.connection.client.ConnectedPlayer
 import com.velocitypowered.proxy.connection.client.LoginInboundConnection
-import com.velocitypowered.proxy.crypto.IdentifiedKeyImpl
 import com.velocitypowered.proxy.protocol.StateRegistry
 import com.velocitypowered.proxy.protocol.packet.LoginAcknowledgedPacket
 import com.velocitypowered.proxy.protocol.packet.ServerLoginSuccessPacket
@@ -55,6 +54,7 @@ import icu.h2l.login.inject.network.NettyReflectionHelper.reflectedDelegatedConn
 import icu.h2l.login.inject.network.NettyReflectionHelper.reflectedTeardown
 import icu.h2l.login.manager.HyperZonePlayerManager
 import icu.h2l.login.player.ProfileSkinApplySupport
+import icu.h2l.login.reflect.VelocityInternalAccess
 import icu.h2l.login.util.buildAttachedIdentityGameProfile
 import icu.h2l.login.util.describeGameProfileBrief
 import icu.h2l.login.util.hasSemanticGameProfileDifference
@@ -158,8 +158,8 @@ class OutPreAuthSessionHandler(
     private fun validateIdentifiedKey(player: ConnectedPlayer, playerUniqueId: UUID) {
         val playerKey: IdentifiedKey = player.identifiedKey ?: return
         if (playerKey.signatureHolder == null) {
-            if (playerKey is IdentifiedKeyImpl) {
-                if (!playerKey.internalAddHolder(player.uniqueId)) {
+            if (VelocityInternalAccess.isIdentifiedKeyImpl(playerKey)) {
+                if (!VelocityInternalAccess.identifiedKeyImplInternalAddHolder(playerKey, player.uniqueId)) {
                     if (onlineMode) {
                         inbound.disconnect(Component.translatable("multiplayer.disconnect.invalid_public_key"))
                     } else {
@@ -254,7 +254,7 @@ class OutPreAuthSessionHandler(
                         NettyReflectionHelper.setPermissionFunction(player, function)
                     }
 
-                    server.eventManager.fire(LoginEvent(player, serverIdHash)).thenAcceptAsync({ loginEvent ->
+                    server.eventManager.fire(LoginEvent(player)).thenAcceptAsync({ loginEvent ->
                         if (mcConnection.isClosed) {
                             server.eventManager.fireAndForget(
                                 DisconnectEvent(player, DisconnectEvent.LoginStatus.CANCELLED_BY_USER_BEFORE_COMPLETE),

@@ -24,9 +24,8 @@ package icu.h2l.login.util
 import com.velocitypowered.api.util.GameProfile
 import com.velocitypowered.proxy.VelocityServer
 import com.velocitypowered.proxy.connection.client.ConnectedPlayer
-import com.velocitypowered.proxy.server.VelocityRegisteredServer
 import icu.h2l.api.db.Profile
-import java.lang.reflect.Field
+import icu.h2l.login.reflect.VelocityInternalAccess
 import java.util.*
 import java.util.concurrent.CompletableFuture
 
@@ -87,7 +86,7 @@ private data class NormalizedGameProfileProperty(
 )
 
 internal fun setConnectedPlayerGameProfile(player: ConnectedPlayer, profile: GameProfile) {
-    VelocityGameProfileReflection.profileField.set(player, profile)
+    VelocityInternalAccess.setConnectedPlayerProfile(player, profile)
 }
 
 internal fun <T> executeOnPlayerEventLoop(player: ConnectedPlayer, action: () -> T): T {
@@ -105,32 +104,18 @@ internal fun <T> executeOnPlayerEventLoop(player: ConnectedPlayer, action: () ->
     return future.join()
 }
 
+/**
+ * Velocity 内部玩家数据反射访问，所有字段查找已委托给 [VelocityInternalAccess]。
+ */
 internal object VelocityGameProfileReflection {
-    val profileField: Field = ConnectedPlayer::class.java.getDeclaredField("profile").apply {
-        isAccessible = true
-    }
-    private val connectionsByNameField: Field = VelocityServer::class.java.getDeclaredField("connectionsByName").apply {
-        isAccessible = true
-    }
-    private val connectionsByUuidField: Field = VelocityServer::class.java.getDeclaredField("connectionsByUuid").apply {
-        isAccessible = true
-    }
-    private val registeredServerPlayersField: Field = VelocityRegisteredServer::class.java.getDeclaredField("players").apply {
-        isAccessible = true
-    }
+
+    fun connectionsByName(server: VelocityServer): MutableMap<String, ConnectedPlayer> =
+        VelocityInternalAccess.connectionsByName(server)
+
+    fun connectionsByUuid(server: VelocityServer): MutableMap<UUID, ConnectedPlayer> =
+        VelocityInternalAccess.connectionsByUuid(server)
 
     @Suppress("UNCHECKED_CAST")
-    fun connectionsByName(server: VelocityServer): MutableMap<String, ConnectedPlayer> {
-        return connectionsByNameField.get(server) as MutableMap<String, ConnectedPlayer>
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    fun connectionsByUuid(server: VelocityServer): MutableMap<UUID, ConnectedPlayer> {
-        return connectionsByUuidField.get(server) as MutableMap<UUID, ConnectedPlayer>
-    }
-
-    @Suppress("UNCHECKED_CAST")
-    fun players(server: VelocityRegisteredServer): MutableMap<UUID, ConnectedPlayer> {
-        return registeredServerPlayersField.get(server) as MutableMap<UUID, ConnectedPlayer>
-    }
+    fun players(registeredServer: Any): MutableMap<UUID, ConnectedPlayer> =
+        VelocityInternalAccess.registeredServerPlayers(registeredServer)
 }

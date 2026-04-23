@@ -24,7 +24,8 @@ package icu.h2l.login.auth.online
 import com.velocitypowered.api.proxy.Player
 import com.velocitypowered.api.proxy.ProxyServer
 import com.velocitypowered.api.util.GameProfile
-import com.velocitypowered.proxy.VelocityServer
+import com.google.gson.Gson
+import icu.h2l.login.auth.online.gson.VelocityGson
 import icu.h2l.api.db.HyperZoneDatabaseManager
 import icu.h2l.api.event.auth.AuthenticationFailureEvent
 import icu.h2l.api.event.profile.ProfileSkinPreprocessEvent
@@ -69,7 +70,7 @@ class YggdrasilAuthModule(
         .connectTimeout(Duration.ofSeconds(5))
         .build()
 
-    private val gson = VelocityServer.GENERAL_GSON
+    private val gson: Gson = VelocityGson.INSTANCE
 
     /**
      * 存储验证结果

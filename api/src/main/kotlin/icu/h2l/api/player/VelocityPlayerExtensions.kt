@@ -22,9 +22,32 @@
 package icu.h2l.api.player
 
 import com.velocitypowered.api.proxy.Player
-import com.velocitypowered.proxy.connection.client.ConnectedPlayer
+import io.netty.channel.Channel
+import java.lang.reflect.Field
 
 /**
  * 获取当前代理层 [Player] 连接对应的 Netty channel。
+ *
+ * 通过反射访问 `ConnectedPlayer.connection`（MinecraftConnection）内部字段，
+ * 避免在 api 模块静态依赖 velocityProxy 内部类。
  */
-fun Player.getChannel() = (this as ConnectedPlayer).connection.channel
+fun Player.getChannel(): Channel {
+    // 1. 在类层次中找到名为 "connection" 的字段
+    val connectionField: Field = generateSequence<Class<*>>(javaClass) { it.superclass }
+        .firstNotNullOfOrNull { cls ->
+            runCatching { cls.getDeclaredField("connection").also { it.isAccessible = true } }.getOrNull()
+        } ?: error("Cannot find 'connection' field in ${javaClass.name}")
+
+    val connection = connectionField.get(this)
+
+    // 2. 在 MinecraftConnection 的类层次中找到类型为 Channel 的字段
+    val channelField: Field? = generateSequence<Class<*>>(connection.javaClass) { it.superclass }
+        .firstNotNullOfOrNull { cls ->
+            cls.declaredFields.firstOrNull { Channel::class.java.isAssignableFrom(it.type) }
+                ?.also { it.isAccessible = true }
+        }
+    if (channelField != null) return channelField.get(connection) as Channel
+
+    // 3. 回退：通过无参方法 channel() 获取
+    return connection.javaClass.getMethod("channel").invoke(connection) as Channel
+}

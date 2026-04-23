@@ -29,7 +29,6 @@ plugins {
 dependencies {
 //    VC
     compileOnly(libs.velocityApi)
-    compileOnly(libs.velocityProxy)
     compileOnly(libs.brigadier)
 // Limbo is optional; implementations may provide a bridge adapter. Do not
 // require the limbo API here at compile time.

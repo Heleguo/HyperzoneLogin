@@ -2,7 +2,8 @@ metadata.format.version = "1.1"
 
 [versions]
 
-velocity = "3.5.0-SNAPSHOT"
+velocity = "3.4.0-SNAPSHOT"
+asm = "9.7"
 shadow = "9.4.1"
 spotless = "7.2.1"
 configurate = "4.2.0"
@@ -37,6 +38,9 @@ adventureTextMinimessage = { group = "net.kyori", name = "adventure-text-minimes
 
 velocityApi = { group = "com.velocitypowered", name = "velocity-api", version.ref = "velocity" }
 velocityProxy = { group = "com.velocitypowered", name = "velocity-proxy", version.ref = "velocity" }
+
+asm = { group = "org.ow2.asm", name = "asm", version.ref = "asm" }
+asmCommons = { group = "org.ow2.asm", name = "asm-commons", version.ref = "asm" }
 
 exposedCore = { group = "org.jetbrains.exposed", name = "exposed-core", version.ref = "exposed" }
 exposedDao = { group = "org.jetbrains.exposed", name = "exposed-dao", version.ref = "exposed" }

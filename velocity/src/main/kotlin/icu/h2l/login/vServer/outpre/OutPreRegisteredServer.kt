@@ -39,6 +39,7 @@ import com.velocitypowered.proxy.protocol.netty.MinecraftVarintFrameDecoder
 import com.velocitypowered.proxy.protocol.netty.MinecraftVarintLengthEncoder
 import com.velocitypowered.proxy.protocol.util.ByteBufDataOutput
 import com.velocitypowered.proxy.protocol.ProtocolUtils
+import icu.h2l.login.reflect.VelocityInternalAccess
 import io.netty.buffer.ByteBuf
 import io.netty.buffer.Unpooled
 import io.netty.channel.Channel
@@ -46,19 +47,14 @@ import io.netty.channel.ChannelInitializer
 import io.netty.handler.timeout.ReadTimeoutHandler
 import net.kyori.adventure.audience.Audience
 import net.kyori.adventure.audience.ForwardingAudience
-import java.lang.reflect.Constructor
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
-/** 反射获取 [com.velocitypowered.proxy.server.PingSessionHandler] 的包私有构造器，延迟初始化。 */
-private val pingSessionHandlerConstructor: Constructor<*> by lazy {
-    Class.forName("com.velocitypowered.proxy.server.PingSessionHandler")
-        .getDeclaredConstructors()
-        .first()
-        .also { it.isAccessible = true }
-}
+/** 反射获取 [com.velocitypowered.proxy.server.PingSessionHandler] 的包私有构造器，延迟初始化。已由 [VelocityInternalAccess] 统一管理。 */
+@Deprecated("Use VelocityInternalAccess.createPingSessionHandler instead", level = DeprecationLevel.HIDDEN)
+private val _unusedPingCtor = Unit
 
 /**
  * OutPre 认证端点的 [RegisteredServer] 实现。
@@ -155,11 +151,11 @@ class OutPreRegisteredServer(
             if (future.isSuccess) {
                 val conn = (future as io.netty.channel.ChannelFuture).channel()
                     .pipeline().get(MinecraftConnection::class.java)
-                val handler = pingSessionHandlerConstructor.newInstance(
+                val handler = VelocityInternalAccess.createPingSessionHandler(
                     pingFuture, this, conn,
                     pingOptions.protocolVersion,
                     pingOptions.virtualHost
-                ) as com.velocitypowered.proxy.connection.MinecraftSessionHandler
+                )
                 conn.setActiveSessionHandler(StateRegistry.HANDSHAKE, handler)
             } else {
                 pingFuture.completeExceptionally(future.cause())

@@ -29,17 +29,14 @@ import com.velocitypowered.api.util.GameProfile
 import com.velocitypowered.proxy.VelocityServer
 import com.velocitypowered.proxy.connection.MinecraftConnection
 import com.velocitypowered.proxy.connection.MinecraftSessionHandler
-import com.velocitypowered.proxy.connection.VelocityConstants
 import com.velocitypowered.proxy.connection.client.InitialLoginSessionHandler
 import com.velocitypowered.proxy.connection.client.LoginInboundConnection
 import com.velocitypowered.proxy.crypto.EncryptionUtils
-import com.velocitypowered.proxy.crypto.IdentifiedKeyImpl
 import com.velocitypowered.proxy.protocol.StateRegistry
 import com.velocitypowered.proxy.protocol.netty.MinecraftDecoder
 import com.velocitypowered.proxy.protocol.packet.EncryptionRequestPacket
 import com.velocitypowered.proxy.protocol.packet.EncryptionResponsePacket
 import com.velocitypowered.proxy.protocol.packet.ServerLoginPacket
-import com.velocitypowered.proxy.util.VelocityProperties
 import icu.h2l.api.event.connection.OpenPreLoginEvent
 import icu.h2l.api.event.connection.OpenStartAuthEvent
 import icu.h2l.api.log.HyperZoneDebugType
@@ -48,6 +45,7 @@ import icu.h2l.login.HyperZoneLoginMain
 import icu.h2l.login.inject.network.NettyReflectionHelper
 import icu.h2l.login.inject.network.NettyReflectionHelper.fireLogin
 import icu.h2l.login.inject.network.VelocityNetworkInjectorImpl
+import icu.h2l.login.reflect.VelocityInternalAccess
 import icu.h2l.login.vServer.outpre.OutPreAuthSessionHandler
 import icu.h2l.login.vServer.outpre.OutPreVServerAuth
 import io.netty.channel.Channel
@@ -71,19 +69,13 @@ class NettyLoginSessionHandler(
 ) : ChannelInboundHandlerAdapter() {
     companion object {
         val logger: Logger = LogManager.getLogger(InitialLoginSessionHandler::class.java)
-
-        private val encryptionRequestShouldAuthenticateField by lazy {
-            EncryptionRequestPacket::class.java.getDeclaredField("shouldAuthenticate").also {
-                it.isAccessible = true
-            }
-        }
     }
 
     private lateinit var sessionHandler: InitialLoginSessionHandler
     private lateinit var inbound: LoginInboundConnection
     private var forceKeyAuthentication: Boolean = false
     private lateinit var login: @MonotonicNonNull ServerLoginPacket
-    private var verify: ByteArray = VelocityConstants.EMPTY_BYTE_ARRAY
+    private var verify: ByteArray = VelocityInternalAccess.EMPTY_BYTE_ARRAY
     private var onlineMode: Boolean = true
 
 
@@ -105,11 +97,9 @@ class NettyLoginSessionHandler(
         val sessionHandler = mcConnection.activeSessionHandler as? InitialLoginSessionHandler ?: return
         this.sessionHandler = sessionHandler
 
-        this.inbound = InitialLoginSessionHandler::class.java.getDeclaredField("inbound").also {
-            it.isAccessible = true
-        }.get(sessionHandler) as LoginInboundConnection
+        this.inbound = VelocityInternalAccess.getInitialLoginSessionHandlerInbound(sessionHandler)
 
-        forceKeyAuthentication = VelocityProperties.readBoolean(
+        forceKeyAuthentication = VelocityInternalAccess.velocityPropertiesReadBoolean(
             "auth.forceSecureProfiles",
             injector.proxy.configuration.isForceKeyAuthentication
         )
@@ -126,7 +116,7 @@ class NettyLoginSessionHandler(
         val request = EncryptionRequestPacket()
         request.publicKey = injector.proxy.serverKeyPair.public.encoded
         request.verifyToken = verify
-        encryptionRequestShouldAuthenticateField.setBoolean(request, shouldAuthenticate)
+        VelocityInternalAccess.setEncryptionRequestShouldAuthenticate(request, shouldAuthenticate)
         return request
     }
 
@@ -162,8 +152,10 @@ class NettyLoginSessionHandler(
                 return
             }
             val isKeyValid: Boolean =
-                if (playerKey.keyRevision == IdentifiedKey.Revision.LINKED_V2 && playerKey is IdentifiedKeyImpl) {
-                    playerKey.internalAddHolder(packet.holderUuid)
+                if (playerKey.keyRevision == IdentifiedKey.Revision.LINKED_V2
+                    && VelocityInternalAccess.isIdentifiedKeyImpl(playerKey)
+                ) {
+                    VelocityInternalAccess.identifiedKeyImplInternalAddHolder(playerKey, packet.holderUuid)
                 } else {
                     playerKey.isSignatureValid
                 }
