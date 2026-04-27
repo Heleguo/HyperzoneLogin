@@ -89,13 +89,6 @@ class LoginProfilePacketReplacer(
         channel.pipeline().remove(this)
     }
 
-    private fun isLoginServerTarget(): Boolean {
-        val loginServerName = HyperZoneLoginMain.getCoreConfig().vServer.backend.fallbackAuthServer.trim()
-        if (loginServerName.isBlank()) {
-            return false
-        }
-        return targetServerName.equals(loginServerName, ignoreCase = true)
-    }
 
     private fun genLoginPluginResponse(msg: LoginPluginResponsePacket): LoginPluginResponsePacket {
         if (config.playerInfoForwardingMode != PlayerInfoForwarding.MODERN) {
@@ -155,9 +148,14 @@ class LoginProfilePacketReplacer(
         }
     }
 
-    /** 计算本次连接应向后端转发的初始档案（供事件的 initialProfile 字段使用）。 */
-    private fun resolveInitialForwardingProfile(isLoginServer: Boolean): GameProfile {
-        if (isLoginServer || hyperPlayer.isInWaitingArea()) {
+    /**
+     * 计算本次连接应向后端转发的初始档案（供事件的 initialProfile 字段使用）。
+     *
+     * 仅根据玩家是否处于等待区来决定使用临时档案还是正式档案；
+     * 登录服（isLoginServerTarget）的临时档案替换由 backend 模块的专用监听器负责。
+     */
+    private fun resolveInitialForwardingProfile(): GameProfile {
+        if (hyperPlayer.isInWaitingArea()) {
             return hyperPlayer.getTemporaryGameProfile()
         }
         return requireNotNull(hyperPlayer.getApplyGameProfile()) {
@@ -197,9 +195,8 @@ class LoginProfilePacketReplacer(
         hyperPlayer = HyperZonePlayerManager.getByPlayer(player)
         config = HyperZoneLoginMain.getInstance().proxy.configuration as VelocityConfiguration
 
-        val isLoginServer = isLoginServerTarget()
-        val initialProfile = resolveInitialForwardingProfile(isLoginServer)
-        val event = LoginProfileReplaceEvent(hyperPlayer, targetServerName, isLoginServer, initialProfile)
+        val initialProfile = resolveInitialForwardingProfile()
+        val event = LoginProfileReplaceEvent(hyperPlayer, targetServerName, initialProfile)
         HyperZoneLoginMain.getInstance().proxy.eventManager.fire(event).join()
 
         if (!event.modified) {

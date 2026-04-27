@@ -36,16 +36,14 @@ import icu.h2l.api.player.HyperZonePlayer
  * - [modified] 为 `false`：无需重写，处理器立即自移除（retire）；
  * - [modified] 为 `true`：使用 [profile] 替换登录阶段下发给后端的档案包，并输出替换成功日志。
  *
- * @property hyperZonePlayer      当前登录态玩家对象
- * @property targetServerName     此次连接的目标后端服务器名称
- * @property isLoginServerTarget  目标服务器是否为配置中的 fallbackAuthServer（登录服）
- * @property initialProfile       处理器初始解析出的预期档案（由替换器在触发事件前计算）
+ * @property hyperZonePlayer  当前登录态玩家对象
+ * @property targetServerName 此次连接的目标后端服务器名称
+ * @property initialProfile   处理器初始解析出的预期档案（由替换器在触发事件前计算）
  */
 @AwaitingEvent
 class LoginProfileReplaceEvent(
     val hyperZonePlayer: HyperZonePlayer,
     val targetServerName: String,
-    val isLoginServerTarget: Boolean,
     val initialProfile: GameProfile,
 ) {
     /**
