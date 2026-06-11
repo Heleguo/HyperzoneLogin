@@ -35,11 +35,11 @@ class FloodgateVServerAuthListener(
 ) {
     @Subscribe(priority = Short.MAX_VALUE)
     fun onVServerAuthStart(event: VServerAuthStartEvent) {
-        debug(HyperZoneDebugType.OUTPRE_TRACE) {
+        debug(HyperZoneDebugType.GENERAL) {
             "onVServerAuthStart before complete channel=${event.proxyPlayer.getChannel()} player=${event.hyperZonePlayer.clientOriginalName} waitingArea=${event.hyperZonePlayer.isInWaitingArea()} verified=${event.hyperZonePlayer.isVerified()} attachedProfile=${event.hyperZonePlayer.hasAttachedProfile()}"
         }
         val result = authService.complete(event.proxyPlayer.getChannel(), event.hyperZonePlayer)
-        debug(HyperZoneDebugType.OUTPRE_TRACE) {
+        debug(HyperZoneDebugType.GENERAL) {
             "onVServerAuthStart after complete channel=${event.proxyPlayer.getChannel()} player=${event.hyperZonePlayer.clientOriginalName} handled=${result.handled} passed=${result.passed} disconnectOnFailure=${result.disconnectOnFailure} waitingArea=${event.hyperZonePlayer.isInWaitingArea()} verified=${event.hyperZonePlayer.isVerified()} attachedProfile=${event.hyperZonePlayer.hasAttachedProfile()}"
         }
         if (!result.handled) {

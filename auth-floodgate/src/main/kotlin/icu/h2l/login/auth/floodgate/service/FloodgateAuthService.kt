@@ -47,7 +47,7 @@ class FloodgateAuthService(
     private val logger = java.util.logging.Logger.getLogger("hzl-auth-floodgate")
 
     private fun trace(message: String) {
-        debug(HyperZoneDebugType.OUTPRE_TRACE, message)
+        debug(HyperZoneDebugType.GENERAL, message)
     }
 
     sealed interface VerifyResult {
