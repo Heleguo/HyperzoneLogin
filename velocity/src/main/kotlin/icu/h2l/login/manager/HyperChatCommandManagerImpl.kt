@@ -44,6 +44,12 @@ import java.lang.invoke.MethodHandles
 import java.util.concurrent.ConcurrentHashMap
 
 object HyperChatCommandManagerImpl : HyperChatCommandManager {
+    /**
+     * 等待区玩家允许执行的命令白名单（不区分大小写）。
+     * 只有这些命令可以在认证完成前执行。
+     */
+    private val waitingAreaAllowedCommands = setOf("register", "login")
+
     private val availableCommandsRootNodeSetter by lazy {
         MethodHandles.privateLookupIn(AvailableCommandsPacket::class.java, MethodHandles.lookup())
             .findSetter(AvailableCommandsPacket::class.java, "rootNode", RootCommandNode::class.java)
@@ -111,6 +117,13 @@ object HyperChatCommandManagerImpl : HyperChatCommandManager {
             }
             return false
         }
+
+        // 等待区玩家只允许执行白名单中的命令
+        if (hyperPlayer != null && hyperPlayer.isInWaitingArea() && label !in waitingAreaAllowedCommands) {
+            messages.send(source, MessageKeys.Chat.ONLY_ALLOWED_COMMANDS)
+            return true
+        }
+
         val invocation = ChatInvocation(source, label, args)
         if (!registration.executor.hasPermission(invocation)) {
             messages.send(source, MessageKeys.Common.NO_PERMISSION)

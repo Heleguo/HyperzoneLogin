@@ -41,13 +41,10 @@ import icu.h2l.api.event.connection.OpenPreLoginEvent
 import icu.h2l.api.event.connection.OpenStartAuthEvent
 import icu.h2l.api.log.HyperZoneDebugType
 import icu.h2l.api.log.debug
-import icu.h2l.login.HyperZoneLoginMain
 import icu.h2l.login.inject.network.NettyReflectionHelper
 import icu.h2l.login.inject.network.NettyReflectionHelper.fireLogin
 import icu.h2l.login.inject.network.VelocityNetworkInjectorImpl
 import icu.h2l.login.reflect.VelocityInternalAccess
-import icu.h2l.login.vServer.outpre.OutPreAuthSessionHandler
-import icu.h2l.login.vServer.outpre.OutPreVServerAuth
 import io.netty.channel.Channel
 import io.netty.channel.ChannelHandlerContext
 import io.netty.channel.ChannelInboundHandlerAdapter
@@ -142,7 +139,7 @@ class NettyLoginSessionHandler(
     private fun handleServerLogin(ctx: ChannelHandlerContext, packet: ServerLoginPacket) {
         aState(0)
         cState = 1
-        debug(HyperZoneDebugType.OUTPRE_TRACE) {
+        debug(HyperZoneDebugType.GENERAL) {
             "netty.handleServerLogin channel=${mcConnection.channel} username=${packet.username} holderUuid=${packet.holderUuid} protocol=${mcConnection.protocolVersion} sessionHandler=${mcConnection.activeSessionHandler?.javaClass?.name ?: "null"}"
         }
         val playerKey: IdentifiedKey? = packet.playerKey
@@ -205,7 +202,7 @@ class NettyLoginSessionHandler(
                         val resolvedOnlineMode = openPreLoginEvent.isOnline
                             && !result.isForceOfflineMode
                             && (injector.proxy.configuration.isOnlineMode || result.isOnlineModeAllowed)
-                        debug(HyperZoneDebugType.OUTPRE_TRACE) {
+                        debug(HyperZoneDebugType.GENERAL) {
                             "netty.handleServerLogin after-OpenPreLogin channel=${mcConnection.channel} username=$userName allow=${openPreLoginEvent.allow} requestedOnline=${openPreLoginEvent.isOnline} resolvedOnline=$resolvedOnlineMode forceOffline=${result.isForceOfflineMode} onlineAllowed=${result.isOnlineModeAllowed} host=$host playerIp=$playerIp"
                         }
                         if (!openPreLoginEvent.allow) {
@@ -265,7 +262,7 @@ class NettyLoginSessionHandler(
 
         injector.proxy.eventManager.fire(openStartAuthEvent).thenRunAsync(
             {
-                debug(HyperZoneDebugType.OUTPRE_TRACE) {
+                debug(HyperZoneDebugType.GENERAL) {
                     "netty.doLogin after-OpenStartAuth channel=${mcConnection.channel} username=${login.username} allow=${openStartAuthEvent.allow} onlineMode=$onlineMode gameProfile=${openStartAuthEvent.gameProfile} encrypt=$encrypt"
                 }
                 if (mcConnection.isClosed) {
@@ -302,7 +299,7 @@ class NettyLoginSessionHandler(
                         UUID.randomUUID().toString() // For LoginEvent, not important
                     )
 
-                debug(HyperZoneDebugType.OUTPRE_TRACE) {
+                debug(HyperZoneDebugType.GENERAL) {
                     "netty.doLogin selected-handler channel=${mcConnection.channel} username=${login.username} handler=${authSessionHandler.javaClass.name} gameProfile=$getProfile"
                 }
 
@@ -363,18 +360,6 @@ class NettyLoginSessionHandler(
         onlineMode: Boolean,
         serverIdHash: String,
     ): MinecraftSessionHandler {
-        val activeAdapter = HyperZoneLoginMain.getInstance().serverAdapter
-        if (activeAdapter is OutPreVServerAuth) {
-            return OutPreAuthSessionHandler(
-                server = requireNotNull(server),
-                inbound = requireNotNull(inbound),
-                initialProfile = requireNotNull(profile),
-                onlineMode = onlineMode,
-                serverIdHash = serverIdHash,
-                outPre = activeAdapter,
-            )
-        }
-
         return NettyReflectionHelper.createAuthSessionHandler(
             server,
             inbound,

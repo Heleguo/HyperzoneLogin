@@ -41,8 +41,6 @@ import icu.h2l.login.config.i18n.ConfigCommentI18nService
 import icu.h2l.api.vServer.HyperZoneVServerAdapter
 import icu.h2l.login.command.BindCodeCommandRegistrar
 import icu.h2l.login.command.HyperZoneLoginCommand
-import icu.h2l.login.command.ReUuidCommand
-import icu.h2l.login.command.RenameCommand
 import icu.h2l.login.config.*
 import icu.h2l.login.database.BindingCodeRepository
 import icu.h2l.login.database.DatabaseConfig
@@ -64,8 +62,6 @@ import icu.h2l.login.vServer.backend.compat.BackendLoginProfileReplaceListener
 import icu.h2l.login.vServer.backend.compat.BackendProfileLayerCompatListener
 import icu.h2l.login.vServer.backend.compat.BackendRuntimeProfileCompensator
 import icu.h2l.login.vServer.command.ExitVServerCommand
-import icu.h2l.login.vServer.command.OverVServerCommand
-import icu.h2l.login.vServer.outpre.OutPreVServerAuth
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger
 import org.spongepowered.configurate.ConfigurationNode
 import java.nio.file.Files
@@ -157,27 +153,12 @@ class HyperZoneLoginMain(
 
         activeVServerAdapter = null
 
-        val configuredMode = normalizeVServerMode(coreConfig.vServer.mode)
         val configuredFallback = coreConfig.vServer.backend.fallbackAuthServer.trim()
-        val configuredOutPreAuthAddress = coreConfig.vServer.outpre.resolveOutpreAuthAddress()
-        if (configuredOutPreAuthAddress != null && configuredMode == "outpre") {
-            activeVServerAdapter = OutPreVServerAuth(server)
-            logger.info(
-                "Using outpre waiting-area adapter on direct auth endpoint '{}' ({})",
-                coreConfig.vServer.outpre.outpreAuthTargetLabel(),
-                configuredOutPreAuthAddress,
-            )
-        } else if (configuredFallback.isNotBlank() && configuredMode == "backend") {
+        if (configuredFallback.isNotBlank()) {
             activeVServerAdapter = BackendAuthHoldListener(server)
             logger.info("Using backend auth hold server '$configuredFallback'")
         } else {
-            logger.info(
-                if (configuredMode == "outpre") {
-                    "Outpre mode is enabled but vserver-outpre.conf authHost/authPort is invalid; running without waiting-area adapter"
-                } else {
-                    "Backend mode is enabled but fallbackAuthServer is blank; running without waiting-area adapter"
-                }
-            )
+            logger.info("Backend mode is enabled but fallbackAuthServer is blank; running without waiting-area adapter")
         }
 
         HyperChatCommandManagerImpl.bindVServer(proxy, activeVServerAdapter)
@@ -187,21 +168,6 @@ class HyperZoneLoginMain(
             HyperChatCommandRegistration(
                 name = "exit",
                 executor = ExitVServerCommand()
-            )
-        )
-        chatCommandManager.register(
-            HyperChatCommandRegistration(
-                name = "rename",
-                executor = RenameCommand(),
-                brigadier = RenameCommand.brigadier()
-            )
-        )
-        chatCommandManager.register(
-            HyperChatCommandRegistration(
-                name = "reUUID",
-                aliases = setOf("reuuid", "reUuid"),
-                executor = ReUuidCommand(),
-                brigadier = ReUuidCommand.brigadier()
             )
         )
         BindCodeCommandRegistrar.register(chatCommandManager, bindingCodeService)
@@ -224,8 +190,6 @@ class HyperZoneLoginMain(
         proxy.eventManager.register(plugin, AttachedProfileInitialGameProfileListener())
         proxy.eventManager.register(plugin, LoginProfileReplaceDefaultListener())
         proxy.eventManager.register(plugin, backendRuntimeProfileCompensator)
-        proxy.eventManager.register(plugin, LoginRenameListener())
-        proxy.eventManager.register(plugin, LoginReUuidListener())
         proxy.eventManager.register(plugin, LoginVerifyListener())
         proxy.eventManager.register(plugin, PlayerAreaLifecycleListener)
         proxy.eventManager.register(plugin, HyperZonePlayerManager)
@@ -306,18 +270,6 @@ class HyperZoneLoginMain(
     fun triggerVServerReJoinForPlayer(player: com.velocitypowered.api.proxy.Player) {
         serverAdapter?.reJoin(player)
             ?: messageService.send(player, MessageKeys.HzlCommand.AUTH_FLOW_UNAVAILABLE)
-    }
-
-    private fun normalizeVServerMode(rawMode: String): String {
-        return when (rawMode.trim().lowercase()) {
-            "", "auto", "limbo" -> {
-                logger.warn("vServerMode='{}' is deprecated after Limbo removal; falling back to 'backend'", rawMode)
-                "backend"
-            }
-
-            "outpre" -> "outpre"
-            else -> "backend"
-        }
     }
 
     private fun logInternalTestWarning() {

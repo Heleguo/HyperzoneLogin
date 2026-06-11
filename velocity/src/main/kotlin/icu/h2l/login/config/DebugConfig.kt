@@ -39,7 +39,6 @@ data class DebugConfig(
     fun isEnabled(type: HyperZoneDebugType): Boolean {
         return when (type) {
             HyperZoneDebugType.GENERAL -> log.general
-            HyperZoneDebugType.OUTPRE_TRACE -> log.outPreTrace
             HyperZoneDebugType.PROFILE_SKIN -> log.profileSkin
             HyperZoneDebugType.BACKEND_COMPAT -> log.backendCompat
             HyperZoneDebugType.NETWORK_REWRITE -> log.networkRewrite
@@ -54,10 +53,6 @@ data class DebugLogConfig(
     // 通用 debug 日志
     @Comment("config.debug.log.general")
     val general: Boolean = false,
-
-    // Floodgate / OutPre 预登录链路追踪日志
-    @Comment("config.debug.log.outpre-trace")
-    val outPreTrace: Boolean = false,
 
     // ProfileSkin 相关调试日志
     @Comment("config.debug.log.profile-skin")

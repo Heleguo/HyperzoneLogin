@@ -54,7 +54,6 @@ class VelocityHyperZoneProfileService(
 ) : HyperZoneProfileService {
     companion object {
         private const val PROFILE_INSERT_RETRIES = 3
-        private const val REUUID_CREATE_RETRIES = 8
     }
 
     private val attachedProfiles = ConcurrentHashMap<HyperZonePlayer, UUID>()
@@ -107,59 +106,6 @@ class VelocityHyperZoneProfileService(
         return createTrustedProfile(userName, resolvedUuid)
     }
 
-    fun canCreateWithReUuid(userName: String): Boolean {
-        return getReUuidBlockedReason(userName) == null
-    }
-
-    fun getRenameBlockedReason(userName: String, uuid: UUID? = null): String? {
-        val resolvedUuid = resolveRequestedUuid(userName, uuid)
-        return RenameProfileCreatePolicy.getBlockedReason(
-            requestedName = userName,
-            requestedUuid = resolvedUuid,
-            existingByName = databaseHelper.getProfileByName(userName)
-        )
-    }
-
-    fun getReUuidBlockedReason(
-        userName: String,
-        remapPrefix: String = HyperZoneLoginMain.getCoreConfig().remap.prefix
-    ): String? {
-        val preferredUuid = ReUuidResolver.preferredUuid(userName, remapPrefix)
-        val existingByName = databaseHelper.getProfileByName(userName) ?: return null
-        return databaseHelper.validateTrustedProfileCreate(userName, preferredUuid)
-            ?: "名称 $userName 已映射到现有 Profile: ${existingByName.id}"
-    }
-
-    fun createWithReUuid(
-        userName: String,
-        remapPrefix: String = HyperZoneLoginMain.getCoreConfig().remap.prefix
-    ): Profile {
-        repeat(REUUID_CREATE_RETRIES) {
-            val resolvedUuid = ReUuidResolver.resolve(
-                userName = userName,
-                remapPrefix = remapPrefix,
-                hasNameConflict = databaseHelper.getProfileByName(userName) != null,
-                isUuidTaken = { candidate -> databaseHelper.getProfileByUuid(candidate) != null }
-            ) ?: throw IllegalStateException(getReUuidBlockedReason(userName, remapPrefix) ?: "名称 $userName 已被占用")
-            runCatching {
-                return createTrustedProfile(userName, resolvedUuid)
-            }.getOrElse { throwable ->
-                getCreateBlockedReason(userName, resolvedUuid)?.let { reason ->
-                    if (databaseHelper.getProfileByName(userName) != null) {
-                        throw IllegalStateException(reason)
-                    }
-                }
-                if (throwable is IllegalStateException && throwable.message?.contains("名称 ") == true) {
-                    throw throwable
-                }
-            }
-        }
-
-        throw IllegalStateException(
-            getReUuidBlockedReason(userName, remapPrefix) ?: "玩家 $userName 注册失败，未能创建 Profile"
-        )
-    }
-
     private fun createTrustedProfile(userName: String, resolvedUuid: UUID): Profile {
         getCreateBlockedReason(userName, resolvedUuid)?.let { reason ->
             throw IllegalStateException(reason)
@@ -177,7 +123,7 @@ class VelocityHyperZoneProfileService(
 
     override fun attachProfile(player: HyperZonePlayer, profileId: UUID): Profile? {
         val profile = databaseHelper.getProfile(profileId) ?: return null
-        debug(HyperZoneDebugType.OUTPRE_TRACE) {
+        debug(HyperZoneDebugType.GENERAL) {
             "profileService.attachProfile player=${player.clientOriginalName} profileId=${profile.id} profileName=${profile.name} profileUuid=${profile.uuid}"
         }
         attachedProfiles[player] = profile.id
@@ -199,7 +145,7 @@ class VelocityHyperZoneProfileService(
         getAttachedProfile(player)?.let { return it }
 
         val credentials = player.getSubmittedCredentials()
-        debug(HyperZoneDebugType.OUTPRE_TRACE) {
+        debug(HyperZoneDebugType.GENERAL) {
             "profileService.attachVerifiedCredentialProfile player=${player.clientOriginalName} credentials=${credentials.map { "${it.javaClass.simpleName}:${it.getBoundProfileId()}" }}"
         }
         if (credentials.isEmpty()) {

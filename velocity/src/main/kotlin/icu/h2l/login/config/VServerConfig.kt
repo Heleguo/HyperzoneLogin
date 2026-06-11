@@ -23,14 +23,13 @@ package icu.h2l.login.config
 
 import org.spongepowered.configurate.objectmapping.ConfigSerializable
 import org.spongepowered.configurate.objectmapping.meta.Comment
-import java.net.InetSocketAddress
 
 @Suppress("ANNOTATION_WILL_BE_APPLIED_ALSO_TO_PROPERTY_OR_FIELD")
 @ConfigSerializable
 data class VServerConfig(
-    // 登录服实现模式：backend 或 outpre。推荐 outpre 模式，若有问题请使用backend模式。
+    // 登录服实现模式：仅支持 backend 模式
     @Comment("config.vserver.mode")
-    val mode: String = "outpre",
+    val mode: String = "backend",
 
     // 认证完成后默认进入的服务器
     @Comment("config.vserver.post-auth-default-server")
@@ -40,9 +39,7 @@ data class VServerConfig(
     @Comment("config.vserver.remember-requested-server")
     val rememberRequestedServerDuringAuth: Boolean = true,
 
-    val backend: BackendConfig = BackendConfig(),
-
-    val outpre: OutpreConfig = OutpreConfig()
+    val backend: BackendConfig = BackendConfig()
 ) {
     @Suppress("ANNOTATION_WILL_BE_APPLIED_ALSO_TO_PROPERTY_OR_FIELD")
     @ConfigSerializable
@@ -67,56 +64,4 @@ data class VServerConfig(
         @Comment("config.vserver.backend.uuid-hot-change")
         val enableUuidHotChange: Boolean = false
     )
-
-    @Suppress("ANNOTATION_WILL_BE_APPLIED_ALSO_TO_PROPERTY_OR_FIELD")
-    @ConfigSerializable
-    data class OutpreConfig(
-        // 认证服的逻辑名，仅用于日志/状态标识；不需要在 Velocity 的 servers 中注册。
-        // 如果使用 ViaVersion，你需要在 Velocity 的 servers 中添加注册条目，如 outpre-auth = "127.0.0.1:30066"，但不需要将其配置到 try 队列。
-        @Comment("config.vserver.outpre.auth-label")
-        val authLabel: String = "outpre-auth",
-
-        // 认证服的直连 Host
-        @Comment("config.vserver.outpre.auth-host")
-        val authHost: String = "127.0.0.1",
-
-        // 认证服的直连 Port
-        @Comment("config.vserver.outpre.auth-port")
-        val authPort: Int = 30066,
-
-        // 转接给认证服时，在连接握手中对后端暴露的 Host；留空时使用 authHost
-        @Comment("config.vserver.outpre.presented-host")
-        val presentedHost: String = "",
-
-        // 转接给认证服时，在连接握手中对后端暴露的 Port；<=0 时使用 authPort
-        @Comment("config.vserver.outpre.presented-port")
-        val presentedPort: Int = -1,
-
-        // 转接给认证服时，在连接握手中对后端暴露的玩家源 IP；留空时使用玩家真实 IP
-        @Comment("config.vserver.outpre.presented-player-ip")
-        val presentedPlayerIp: String = ""
-    ) {
-        fun resolveOutpreAuthAddress(): InetSocketAddress? {
-            val host = authHost.trim()
-            if (host.isBlank()) return null
-            if (authPort !in 1..65535) return null
-            return InetSocketAddress.createUnresolved(host, authPort)
-        }
-
-        fun outpreAuthTargetLabel(): String {
-            return authLabel.trim().ifBlank { "${authHost.trim()}:$authPort" }
-        }
-
-        fun resolveOutprePresentedHost(authAddress: InetSocketAddress): String {
-            return presentedHost.trim().ifBlank { authAddress.hostString }
-        }
-
-        fun resolveOutprePresentedPort(authAddress: InetSocketAddress): Int {
-            return presentedPort.takeIf { it in 1..65535 } ?: authAddress.port
-        }
-
-        fun resolveOutprePresentedPlayerIp(clientIp: String): String {
-            return presentedPlayerIp.trim().ifBlank { clientIp }
-        }
-    }
 }

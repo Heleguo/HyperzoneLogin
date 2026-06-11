@@ -34,29 +34,6 @@ object MessageKeys {
         const val WAITING_AREA_ONLY = "chat.waiting-area-only"
     }
 
-    object Rename {
-        const val USAGE = "rename.usage"
-        const val NOT_IN_WAITING_AREA = "rename.not-in-waiting-area"
-        const val ALREADY_BOUND = "rename.already-bound"
-        const val SAME_AS_CURRENT = "rename.same-as-current"
-        const val CREATE_BLOCKED = "rename.create-blocked"
-        const val CONTEXT_CONFLICT = "rename.context-conflict"
-        const val SUCCESS = "rename.success"
-        const val REMEMBER_NAME = "rename.remember-name"
-        const val REUUID_REQUIRED = "rename.reuuid-required"
-        const val EVENT_FAILED = "rename.event-failed"
-    }
-
-    object ReUuid {
-        const val USAGE = "reuuid.usage"
-        const val NOT_IN_WAITING_AREA = "reuuid.not-in-waiting-area"
-        const val ALREADY_BOUND = "reuuid.already-bound"
-        const val CREATE_BLOCKED = "reuuid.create-blocked"
-        const val CONTEXT_CONFLICT = "reuuid.context-conflict"
-        const val SUCCESS = "reuuid.success"
-        const val EVENT_FAILED = "reuuid.event-failed"
-    }
-
     object BindCode {
         const val COMMAND_USAGE = "bindcode.command-usage"
         const val COMMAND_USE_USAGE = "bindcode.command-use-usage"

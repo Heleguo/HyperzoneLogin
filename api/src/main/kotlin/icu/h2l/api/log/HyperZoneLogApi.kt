@@ -31,11 +31,6 @@ enum class HyperZoneDebugType {
     GENERAL,
 
     /**
-     * Floodgate / OutPre 预登录链路追踪日志。
-     */
-    OUTPRE_TRACE,
-
-    /**
      * 皮肤预处理、缓存、回放等日志。
      */
     PROFILE_SKIN,

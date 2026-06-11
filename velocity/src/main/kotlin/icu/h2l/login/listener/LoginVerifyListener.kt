@@ -40,7 +40,7 @@ class LoginVerifyListener {
         val incomingProfile = event.gameProfile
         val incomingName = incomingProfile.name
         val verifyEvent = VerifyInitialGameProfileEvent(event.connection, incomingProfile)
-        debug(HyperZoneDebugType.OUTPRE_TRACE) {
+        debug(HyperZoneDebugType.GENERAL) {
             "loginVerify.onGameProfileRequest channel=${event.connection.getNettyChannel()} incomingName=${incomingProfile.name} incomingUuid=${incomingProfile.id}"
         }
 
@@ -55,7 +55,7 @@ class LoginVerifyListener {
             HyperZoneLoginMain.getInstance().logger.error("初始 GameProfile 扩展校验事件执行失败: ${t.message}", t)
         }
 
-        debug(HyperZoneDebugType.OUTPRE_TRACE) {
+        debug(HyperZoneDebugType.GENERAL) {
             "loginVerify.afterVerifyEvent channel=${event.connection.getNettyChannel()} incomingName=${incomingProfile.name} pass=${verifyEvent.pass}"
         }
 
