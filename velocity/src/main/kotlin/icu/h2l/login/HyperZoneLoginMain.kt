@@ -62,6 +62,7 @@ import icu.h2l.login.vServer.backend.compat.BackendLoginProfileReplaceListener
 import icu.h2l.login.vServer.backend.compat.BackendProfileLayerCompatListener
 import icu.h2l.login.vServer.backend.compat.BackendRuntimeProfileCompensator
 import icu.h2l.login.vServer.command.ExitVServerCommand
+import icu.h2l.login.vServer.command.OverVServerCommand
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger
 import org.spongepowered.configurate.ConfigurationNode
 import java.nio.file.Files
