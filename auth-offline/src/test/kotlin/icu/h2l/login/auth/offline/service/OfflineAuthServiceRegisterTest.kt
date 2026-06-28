@@ -227,8 +227,7 @@ class OfflineAuthServiceRegisterTest {
         val prompts = service.getJoinPrompts(player)
 
         assertTrue(prompts.contains(OfflineAuthMessages.REGISTER_REQUEST))
-        assertTrue(prompts.contains(OfflineAuthMessages.LOGIN_OTHER_USERNAME_PROMPT))
-        assertEquals(2, prompts.size)
+        assertEquals(1, prompts.size)
     }
 
     @Test
