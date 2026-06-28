@@ -215,6 +215,8 @@ class YggdrasilAuthModuleTest {
 
         override fun getProfile(profileId: UUID): Profile? = null
 
+        override fun findProfileByName(name: String): Profile? = null
+
         override fun getAttachedProfile(player: HyperZonePlayer): Profile? = null
 
         override fun attachProfile(player: HyperZonePlayer, profileId: UUID): Profile? = null

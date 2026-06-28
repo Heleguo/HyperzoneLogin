@@ -140,6 +140,8 @@ class ProfileBindingCodeServiceTest {
 
         override fun getProfile(profileId: UUID): Profile? = attachedProfile?.takeIf { it.id == profileId }
 
+        override fun findProfileByName(name: String): Profile? = attachedProfile?.takeIf { it.name.equals(name, ignoreCase = true) }
+
         override fun getAttachedProfile(player: HyperZonePlayer): Profile? = attachedProfile
 
         override fun attachProfile(player: HyperZonePlayer, profileId: UUID): Profile? {
