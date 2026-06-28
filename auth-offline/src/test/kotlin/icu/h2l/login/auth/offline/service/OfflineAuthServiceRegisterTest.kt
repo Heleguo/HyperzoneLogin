@@ -95,6 +95,8 @@ class OfflineAuthServiceRegisterTest {
 
         every { hyperZonePlayer.clientOriginalName } returns USERNAME
         every { hyperZonePlayer.getSubmittedCredentials() } returns emptyList()
+        // Yggdrasil 绑定检查默认返回 false（未绑定），各测试可按需覆写
+        every { profileService.findProfileByName(any()) } returns null
 
         service = OfflineAuthService(
             repository = repository,
