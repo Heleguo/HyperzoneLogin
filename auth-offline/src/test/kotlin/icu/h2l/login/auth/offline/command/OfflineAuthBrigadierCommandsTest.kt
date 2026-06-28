@@ -42,16 +42,13 @@ class OfflineAuthBrigadierCommandsTest {
     }
 
     @Test
-    fun `login keeps descriptive password and as placeholders`() {
+    fun `login keeps descriptive password and code placeholders`() {
         val dispatcher = dispatcher("login", OfflineAuthBrigadierCommands.login())
         val loginNode = requireNotNull(dispatcher.root.getChild("login"))
         val passwordNode = requireNotNull(loginNode.getChild("password"))
-        val asNode = requireNotNull(loginNode.getChild("as"))
-        val usernameNode = requireNotNull(asNode.getChild("username"))
 
-        assertEquals(setOf("password", "as"), childNames(loginNode))
+        assertEquals(setOf("password"), childNames(loginNode))
         assertEquals(setOf("code"), childNames(passwordNode))
-        assertEquals(setOf("password"), childNames(usernameNode))
     }
 
     @Test

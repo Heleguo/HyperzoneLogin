@@ -239,9 +239,7 @@ class OfflineAuthService(
         repository.resetLoginProtection(entry.profileId)
 
         // 检查该 Profile 是否已绑定 Yggdrasil，若已绑定则拒绝离线登录
-        val profileIdForCheck = entry.profileId
-        if (profileIdForCheck != null &&
-            icu.h2l.api.profile.ProfileChannelBindingRegistry.isProfileBoundToAnyExternalChannel(profileIdForCheck)
+        if (icu.h2l.api.profile.ProfileChannelBindingRegistry.isProfileBoundToAnyExternalChannel(entry.profileId)
         ) {
             publishAuthFailure(
                 player = player,

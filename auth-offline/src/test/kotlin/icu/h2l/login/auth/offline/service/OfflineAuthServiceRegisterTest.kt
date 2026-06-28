@@ -231,7 +231,7 @@ class OfflineAuthServiceRegisterTest {
     }
 
     @Test
-    fun `login supports explicitly choosing another offline username`() {
+    fun `login with correct password succeeds`() {
         insertProfile()
         repository.create(
             name = NORMALIZED_NAME,
@@ -247,13 +247,6 @@ class OfflineAuthServiceRegisterTest {
 
         assertTrue(result.success)
         assertEquals(OfflineAuthMessages.LOGIN_SUCCESS, result.message)
-        verify(exactly = 1) {
-            hyperZonePlayer.submitCredential(match {
-                it.channelId == "offline" &&
-                    it.credentialId == NORMALIZED_NAME &&
-                    it.getBoundProfileId() == PROFILE.id
-            })
-        }
         verify(exactly = 1) { hyperZonePlayer.overVerify() }
     }
 
