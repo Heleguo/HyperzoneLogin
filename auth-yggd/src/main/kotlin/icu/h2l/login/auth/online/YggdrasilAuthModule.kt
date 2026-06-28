@@ -86,7 +86,7 @@ class YggdrasilAuthModule(
      */
         private val waitingAreaPlayers = ConcurrentHashMap<Player, HyperZonePlayer>()
 
-    private val entryDatabaseHelper = EntryDatabaseHelper(
+    val entryDatabaseHelper = EntryDatabaseHelper(
         databaseManager = databaseManager,
         entryTableManager = entryTableManager
     )

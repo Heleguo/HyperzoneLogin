@@ -189,10 +189,6 @@ class OfflineAuthService(
         return loginInternal(player, null, password, totpCode)
     }
 
-    fun loginAs(player: Player, username: String, password: String, totpCode: String? = null): Result {
-        return loginInternal(player, username, password, totpCode)
-    }
-
     private fun loginInternal(player: Player, username: String?, password: String, totpCode: String? = null): Result {
         val hyperPlayer = playerAccessor.getByPlayer(player)
         if (!hyperPlayer.isInWaitingArea()) {
@@ -241,6 +237,20 @@ class OfflineAuthService(
         }
 
         repository.resetLoginProtection(entry.profileId)
+
+        // 检查该 Profile 是否已绑定 Yggdrasil，若已绑定则拒绝离线登录
+        val profileIdForCheck = entry.profileId
+        if (profileIdForCheck != null &&
+            icu.h2l.api.profile.ProfileChannelBindingRegistry.isProfileBoundToAnyExternalChannel(profileIdForCheck)
+        ) {
+            publishAuthFailure(
+                player = player,
+                authType = AuthenticationFailureEvent.AuthType.OFFLINE,
+                reason = AuthenticationFailureEvent.Reason.INVALID_CREDENTIALS,
+                reasonMessage = "profile bound to yggdrasil, offline login rejected"
+            )
+            return Result(false, OfflineAuthMessages.YGGDRASIL_ONLY_ACCOUNT)
+        }
 
         if (isTotpEnabled(entry)) {
             val trimmedCode = totpCode?.trim().orEmpty()
@@ -578,7 +588,6 @@ class OfflineAuthService(
             }
 
             prompts += OfflineAuthMessages.REGISTER_REQUEST
-            prompts += OfflineAuthMessages.LOGIN_OTHER_USERNAME_PROMPT
             return prompts
         }
 

@@ -62,6 +62,13 @@ class EntryTableManager(
         return entryTables[entryId.lowercase()]
     }
 
+    /**
+     * 获取所有已注册的 entry ID 列表。
+     */
+    fun getAllEntryIds(): List<String> {
+        return entryTables.keys.toList()
+    }
+
     fun createAllEntryTables() {
         entryTables.values.forEach(::createEntryTable)
     }

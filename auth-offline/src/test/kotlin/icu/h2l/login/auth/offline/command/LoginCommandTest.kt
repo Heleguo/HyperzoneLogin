@@ -128,31 +128,9 @@ class LoginCommandTest {
     }
 
     @Test
-    fun `explicit username syntax logs in the selected offline account`() {
-        insertProfile()
-        repository.create(
-            name = NORMALIZED_NAME,
-            passwordHash = hashPassword(VALID_PASSWORD),
-            hashFormat = "sha256",
-            profileId = PROFILE.id
-        )
-
-        every { hyperZonePlayer.isInWaitingArea() } returns true
-        every { hyperZonePlayer.clientOriginalName } returns OTHER_NAME
-        every { profileService.getAttachedProfile(hyperZonePlayer) } returns null
+    fun `too many arguments shows usage`() {
         every { invocation.source() } returns player
-        every { invocation.arguments() } returns arrayOf("as", USERNAME, VALID_PASSWORD)
-
-        command.execute(invocation)
-
-        verify(exactly = 1) { hyperZonePlayer.overVerify() }
-        verify(exactly = 1) { player.sendMessage(OfflineAuthMessages.LOGIN_SUCCESS) }
-    }
-
-    @Test
-    fun `invalid login syntax shows usage`() {
-        every { invocation.source() } returns player
-        every { invocation.arguments() } returns arrayOf("as", USERNAME)
+        every { invocation.arguments() } returns arrayOf("pass1", "code2", "extra3")
 
         command.execute(invocation)
 

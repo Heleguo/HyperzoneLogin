@@ -48,6 +48,8 @@ object OfflineAuthMessages {
         get() = render("common.unregistered", "${PREFIX}§c此用户名还未注册过")
     val UNREGISTERED_SIMPLE: Component
         get() = render("common.unregistered-simple", "§c尚未注册")
+    val YGGDRASIL_ONLY_ACCOUNT: Component
+        get() = render("login.yggdrasil-only-account", "${PREFIX}§c此账号已绑定正版/皮肤站，请使用正版登录")
     val ATTACHED_PROFILE_MISSING: Component
         get() = render("common.attached-profile-missing", "§c未找到已绑定的游戏档案，无法完成本次认证")
     val PROFILE_ATTACH_FAILED_AFTER_LOGIN: Component
@@ -77,7 +79,7 @@ object OfflineAuthMessages {
         get() = render("register.bind-pending-error", "§c注册成功，但等待绑定时出现错误")
 
     val LOGIN_USAGE: Component
-        get() = render("login.usage", "${PREFIX}§e/login <密码> [验证码] §7或 §e/login as <用户名> <密码> [验证码]")
+        get() = render("login.usage", "${PREFIX}§e/login <密码> [验证码]")
     val LOGIN_REQUEST: Component
         get() = render("login.request", "${PREFIX}§c请输入“/login <密码>”以登录")
     val LOGIN_SUCCESS: Component
@@ -195,13 +197,11 @@ object OfflineAuthMessages {
     val TOTP_DISABLE_FAILED: Component
         get() = render("totp.disable-failed", "§c二步验证关闭失败，请稍后再试")
     val TOTP_LOGIN_REQUIRED: Component
-        get() = render("totp.login-required", "${PREFIX}§e该账号已启用 TOTP，请使用 /login <密码> <验证码>；若要指定账号，请使用 /login as <用户名> <密码> <验证码>")
+        get() = render("totp.login-required", "${PREFIX}§e该账号已启用 TOTP，请使用 /login <密码> <验证码>")
     val TOTP_LOGIN_HINT: Component
-        get() = render("totp.login-hint", "${PREFIX}§7已启用 TOTP，请使用 /login <密码> <验证码> 登录；若要指定账号，请使用 /login as <用户名> <密码> <验证码>")
+        get() = render("totp.login-hint", "${PREFIX}§7已启用 TOTP，请使用 /login <密码> <验证码> 登录")
     val PENDING_BIND_PROMPT: Component
         get() = render("prompt.pending-bind", "§8[§6玩家系统§8] §7当前离线注册信息已暂存；若名称冲突，可使用 /rename <新注册名> 重试建档；若要绑定已有档案，请使用 /bindcode use <绑定码>")
-    val LOGIN_OTHER_USERNAME_PROMPT: Component
-        get() = render("prompt.login-other-username", "§8[§6玩家系统§8] §7若当前连接名不是你的离线账号名，可使用 /login as <用户名> <密码> [验证码]")
     val CHANGE_PASSWORD_PROMPT: Component
         get() = render("prompt.change-password", "§8[§6玩家系统§8] §7如需修改密码：/changepassword <旧密码> <新密码>")
     val EMAIL_ADD_PROMPT: Component

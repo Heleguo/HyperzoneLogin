@@ -43,8 +43,8 @@ class BackendLoginProfileReplaceListener {
         if (!isLoginServerTarget(event.targetServerName)) return
 
         val hyperPlayer = event.hyperZonePlayer
-        val tempProfile = hyperPlayer.getTemporaryGameProfile()
-        event.profile = tempProfile
+        // 临时 GameProfile 功能已移除，直接使用客户端原始档案
+        event.profile = hyperPlayer.getTemporaryGameProfile()
         event.modified = true
     }
 

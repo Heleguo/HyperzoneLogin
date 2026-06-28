@@ -67,6 +67,12 @@ class YggdrasilSubModule : HyperSubModule {
         proxy.eventManager.register(api, yggdrasilEventListener)
         proxy.eventManager.register(api, YggdrasilReUuidListener())
 
+        // 注册 Yggdrasil 渠道绑定检查器，供其他模块（如 auth-offline）查询
+        val entryDatabaseHelper = yggdrasilAuthModule.entryDatabaseHelper
+        icu.h2l.api.profile.ProfileChannelBindingRegistry.register("yggdrasil") { profileId ->
+            entryDatabaseHelper.isProfileBoundToAnyEntry(profileId)
+        }
+
         this.entryConfigManager = entryConfigManager
         this.entryTableManager = entryTableManager
         this.yggdrasilAuthModule = yggdrasilAuthModule

@@ -156,6 +156,7 @@ class LoginProfilePacketReplacer(
      */
     private fun resolveInitialForwardingProfile(): GameProfile {
         if (hyperPlayer.isInWaitingArea()) {
+            // 临时 GameProfile 功能已移除，直接返回客户端原始档案
             return hyperPlayer.getTemporaryGameProfile()
         }
         return requireNotNull(hyperPlayer.getApplyGameProfile()) {

@@ -242,9 +242,9 @@ class OfflineAuthServiceRegisterTest {
         )
 
         every { hyperZonePlayer.isInWaitingArea() } returns true
-        every { hyperZonePlayer.clientOriginalName } returns OTHER_NAME
+        every { hyperZonePlayer.clientOriginalName } returns USERNAME
 
-        val result = service.loginAs(player, USERNAME, VALID_PASSWORD)
+        val result = service.login(player, VALID_PASSWORD)
 
         assertTrue(result.success)
         assertEquals(OfflineAuthMessages.LOGIN_SUCCESS, result.message)

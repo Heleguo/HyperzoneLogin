@@ -49,6 +49,7 @@ class FloodgateLoginProfileReplaceListener {
         }
 
         val targetProfile: GameProfile = if (hyperPlayer.isInWaitingArea()) {
+            // 临时 GameProfile 功能已移除，直接使用客户端原始档案
             hyperPlayer.getTemporaryGameProfile()
         } else {
             runCatching { hyperPlayer.getApplyGameProfile() }.getOrElse { throwable ->

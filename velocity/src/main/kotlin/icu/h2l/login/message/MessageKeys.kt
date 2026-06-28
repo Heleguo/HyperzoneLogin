@@ -32,6 +32,8 @@ object MessageKeys {
         const val MUST_VERIFY_BEFORE_CHAT = "chat.must-verify-before-chat"
         const val ONLY_ALLOWED_COMMANDS = "chat.only-allowed-commands"
         const val WAITING_AREA_ONLY = "chat.waiting-area-only"
+        const val OFFLINE_ONLY_ALLOWED_COMMANDS = "chat.offline-only-allowed-commands"
+        const val OFFLINE_CANNOT_LEAVE_WAITING_AREA = "chat.offline-cannot-leave-waiting-area"
     }
 
     object Rename {

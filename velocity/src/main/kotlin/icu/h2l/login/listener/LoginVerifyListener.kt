@@ -23,15 +23,11 @@ package icu.h2l.login.listener
 
 import com.velocitypowered.api.event.Subscribe
 import com.velocitypowered.api.event.player.GameProfileRequestEvent
-import icu.h2l.api.connection.disconnectWithMessage
 import icu.h2l.api.connection.getNettyChannel
 import icu.h2l.api.event.profile.VerifyInitialGameProfileEvent
 import icu.h2l.api.log.HyperZoneDebugType
 import icu.h2l.api.log.debug
 import icu.h2l.login.HyperZoneLoginMain
-import icu.h2l.login.vServer.backend.compat.BackendProfileLayerCompatListener.Companion.PLUGIN_CONFLICT_MESSAGE
-import net.kyori.adventure.text.Component
-import net.kyori.adventure.text.format.NamedTextColor
 
 class LoginVerifyListener {
 
@@ -44,11 +40,6 @@ class LoginVerifyListener {
             "loginVerify.onGameProfileRequest channel=${event.connection.getNettyChannel()} incomingName=${incomingProfile.name} incomingUuid=${incomingProfile.id}"
         }
 
-        fun disconnectWithError(logMessage: String, userMessage: String) {
-            HyperZoneLoginMain.getInstance().logger.error(logMessage)
-            event.connection.disconnectWithMessage(Component.text(userMessage, NamedTextColor.RED))
-        }
-
         try {
             HyperZoneLoginMain.getInstance().proxy.eventManager.fire(verifyEvent).join()
         } catch (t: Throwable) {
@@ -59,15 +50,9 @@ class LoginVerifyListener {
             "loginVerify.afterVerifyEvent channel=${event.connection.getNettyChannel()} incomingName=${incomingProfile.name} pass=${verifyEvent.pass}"
         }
 
-        if (verifyEvent.pass) {
-            return
-        }else{
-            disconnectWithError(
-                "GameProfile 名称校验失败：$incomingName，疑似插件冲突",
-                PLUGIN_CONFLICT_MESSAGE
-            )
-            return
-        }
+        // 临时 GameProfile 功能已移除，不再校验 HZL 前缀/UUID
+        // 直接允许通过，由各认证模块的监听器自行处理
+        return
     }
 }
 

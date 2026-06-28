@@ -116,18 +116,6 @@ class OfflineAuthBrigadierCommandsTest {
     }
 
     @Test
-    fun `login as keeps explicit username syntax`() {
-        val execution = execute(
-            registrationName = "login",
-            brigadier = OfflineAuthBrigadierCommands.login(),
-            input = "login as Alice SecurePass123 123456"
-        )
-
-        assertEquals("login", execution.alias)
-        assertArrayEquals(arrayOf("as", "Alice", "SecurePass123", "123456"), execution.args)
-    }
-
-    @Test
     fun `change password command keeps both normal passwords`() {
         val execution = execute(
             registrationName = "changepassword",

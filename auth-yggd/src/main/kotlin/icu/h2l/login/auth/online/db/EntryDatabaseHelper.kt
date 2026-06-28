@@ -51,6 +51,20 @@ class EntryDatabaseHelper(
         }
     }
 
+    /**
+     * 检查指定 profileId 是否已在任意 Yggdrasil entry 表中存在绑定记录。
+     * 用于阻止已绑定 Yggdrasil 的玩家使用离线登录。
+     */
+    fun isProfileBoundToAnyEntry(profileId: UUID): Boolean {
+        val entryIds = entryTableManager.getAllEntryIds()
+        return entryIds.any { entryId ->
+            val entryTable = entryTableManager.getEntryTable(entryId) ?: return@any false
+            databaseManager.executeTransaction {
+                !entryTable.selectAll().where { entryTable.pid eq profileId }.empty()
+            }
+        }
+    }
+
     fun createEntry(entryId: String, name: String, uuid: UUID, pid: UUID): Boolean {
         val entryTable = entryTableManager.getEntryTable(entryId) ?: return false
 

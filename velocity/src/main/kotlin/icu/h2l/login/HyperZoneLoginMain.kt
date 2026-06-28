@@ -50,6 +50,7 @@ import icu.h2l.login.database.DatabaseHelper
 import icu.h2l.login.inject.network.VelocityNetworkModule
 import icu.h2l.login.listener.*
 import icu.h2l.login.manager.HyperChatCommandManagerImpl
+import icu.h2l.login.listener.OfflineWaitingAreaGuardListener
 import icu.h2l.login.manager.HyperZonePlayerManager
 import icu.h2l.login.message.MessageKeys
 import icu.h2l.login.message.MessageService
@@ -229,6 +230,7 @@ class HyperZoneLoginMain(
         proxy.eventManager.register(plugin, LoginVerifyListener())
         proxy.eventManager.register(plugin, PlayerAreaLifecycleListener)
         proxy.eventManager.register(plugin, HyperZonePlayerManager)
+        proxy.eventManager.register(plugin, OfflineWaitingAreaGuardListener())
 
         logInternalTestWarning()
 

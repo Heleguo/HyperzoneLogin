@@ -67,8 +67,9 @@ object RemapUtils {
     }
 
     /**
-     * 生成一个带随机后缀的临时 remap 档案。
+     * @deprecated 不再需要临时 GameProfile，该方法已废弃。
      */
+    @Deprecated("临时 GameProfile 功能已移除，不再需要生成随机临时档案", ReplaceWith("genProfile(name, prefix)"))
     fun randomProfile(): GameProfile {
         val randomId = String.format("%06d", Random.nextInt(1_000_000))
         val newName = "$EXPECTED_NAME_PREFIX$randomId"

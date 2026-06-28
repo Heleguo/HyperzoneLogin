@@ -104,6 +104,15 @@ object HyperChatCommandManagerImpl : HyperChatCommandManager {
         val label = parts.first().lowercase()
         val args = if (parts.size > 1) parts.drop(1).toTypedArray() else emptyArray()
 
+        // 离线玩家在等待区时，仅允许 /login, /register 及别名
+        if (hyperPlayer != null && hyperPlayer.isInWaitingArea() && !hyperPlayer.isOnlinePlayer) {
+            val allowedOfflineCommands = setOf("login", "l", "register", "reg")
+            if (label !in allowedOfflineCommands) {
+                messages.send(source, MessageKeys.Chat.OFFLINE_ONLY_ALLOWED_COMMANDS)
+                return true
+            }
+        }
+
         val registration = commands[label] ?: run {
             if (hyperPlayer != null && hyperPlayer.isInWaitingArea()) {
                 messages.send(source, MessageKeys.Chat.ONLY_ALLOWED_COMMANDS)
