@@ -242,6 +242,7 @@ class OfflineAuthServiceRegisterTest {
 
         every { hyperZonePlayer.isInWaitingArea() } returns true
         every { hyperZonePlayer.clientOriginalName } returns USERNAME
+        every { profileService.getAttachedProfile(hyperZonePlayer) } returns null
 
         val result = service.login(player, VALID_PASSWORD)
 
