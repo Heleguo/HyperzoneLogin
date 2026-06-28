@@ -70,6 +70,14 @@ class OfflineAuthService(
             return Result(false, OfflineAuthMessages.OFFLINE_PASSWORD_ALREADY_SET)
         }
 
+        // 检查该名称是否对应已绑定 Yggdrasil 的 Profile，若是则禁止注册离线账号
+        val existingProfile = profileService.findProfileByName(normalizedName)
+        if (existingProfile != null &&
+            icu.h2l.api.profile.ProfileChannelBindingRegistry.isProfileBoundToAnyExternalChannel(existingProfile.id)
+        ) {
+            return Result(false, OfflineAuthMessages.YGGDRASIL_ONLY_ACCOUNT)
+        }
+
         validatePassword(username, password)?.let {
             return it
         }

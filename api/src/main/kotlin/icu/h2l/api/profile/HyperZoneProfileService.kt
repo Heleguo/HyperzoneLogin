@@ -56,6 +56,11 @@ interface HyperZoneProfileService {
     }
 
     /**
+     * 根据玩家名查找档案（不区分大小写）。
+     */
+    fun findProfileByName(name: String): Profile?
+
+    /**
      * 读取当前登录态玩家已 attach 的正式档案。
      */
     fun getAttachedProfile(player: HyperZonePlayer): Profile?

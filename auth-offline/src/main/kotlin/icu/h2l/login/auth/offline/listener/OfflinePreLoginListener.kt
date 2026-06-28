@@ -26,9 +26,12 @@ package icu.h2l.login.auth.offline.listener
 import com.velocitypowered.api.event.Subscribe
 import icu.h2l.api.event.connection.OpenPreLoginEvent
 import icu.h2l.api.log.info
+import icu.h2l.api.profile.HyperZoneProfileServiceProvider
+import icu.h2l.api.profile.ProfileChannelBindingRegistry
 import icu.h2l.login.auth.offline.config.AuthOfflineConfigLoader
 import icu.h2l.login.auth.offline.type.OfflineUUIDType
 import icu.h2l.login.auth.offline.util.ExtraUuidUtils
+import net.kyori.adventure.text.Component
 
 class OfflinePreLoginListener {
     @Subscribe
@@ -47,8 +50,21 @@ class OfflinePreLoginListener {
         }
         val offlineUUIDType = ExtraUuidUtils.matchType(uuid, name)
 
-        event.isOnline = !(offlineUUIDType != OfflineUUIDType.UNKNOWN || offlineHost)
-        info { "传入 UUID 信息玩家: $name UUID:$uuid 类型: $offlineUUIDType 在线:${event.isOnline}" }
+        val isOnline = !(offlineUUIDType != OfflineUUIDType.UNKNOWN || offlineHost)
+        event.isOnline = isOnline
+        info { "传入 UUID 信息玩家: $name UUID:$uuid 类型: $offlineUUIDType 在线:$isOnline" }
+
+        // 若为离线模式玩家，检查其名称是否对应已绑定 Yggdrasil 的 Profile
+        // 若是则直接踢出，禁止以离线方式登录已绑定正版/皮肤站的账号
+        if (!isOnline) {
+            val profileService = HyperZoneProfileServiceProvider.getOrNull() ?: return
+            val profile = profileService.findProfileByName(name) ?: return
+            if (ProfileChannelBindingRegistry.isProfileBoundToAnyExternalChannel(profile.id)) {
+                info { "踢出离线玩家 $name: 该账号已绑定正版/皮肤站" }
+                event.allow = false
+                event.disconnectMessage = Component.text("此账号已绑定正版/皮肤站，请使用正版登录")
+            }
+        }
     }
 }
 
