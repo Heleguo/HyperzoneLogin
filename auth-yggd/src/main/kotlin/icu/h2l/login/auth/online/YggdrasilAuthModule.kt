@@ -331,6 +331,13 @@ class YggdrasilAuthModule(
                 }
                 return "此账号已使用离线模式注册，请使用 /login 登录"
             }
+            // 检查冲突的 Profile 是否已绑定其他 Yggdrasil 条目
+            // （例如先用 Mojang 登录，又用同名的皮肤站登录）
+            if (conflictingProfile != null &&
+                ProfileChannelBindingRegistry.isProfileBoundToChannel(conflictingProfile.id, "yggdrasil")
+            ) {
+                return "此账号已绑定其他皮肤站/正版，请使用原渠道登录"
+            }
         }
 
         if (canCreate) {
