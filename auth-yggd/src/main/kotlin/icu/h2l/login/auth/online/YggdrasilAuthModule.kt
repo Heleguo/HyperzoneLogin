@@ -324,7 +324,7 @@ class YggdrasilAuthModule(
                         return null
                     }
                 }
-                return "此账号已注册离线密码，请先使用离线登录，然后执行 /upgrade 命令升级为正版账号"
+                return "此账号已使用离线模式注册，请使用 /login 登录"
             }
         }
 
