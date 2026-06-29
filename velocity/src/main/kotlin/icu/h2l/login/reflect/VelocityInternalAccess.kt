@@ -42,6 +42,7 @@ import java.lang.reflect.Field
 import java.lang.reflect.Method
 import java.net.InetSocketAddress
 import java.util.UUID
+import java.util.concurrent.CompletableFuture
 
 /**
  * Velocity 内部 API 统一访问层。
@@ -483,7 +484,28 @@ object VelocityInternalAccess {
         profile: GameProfile?,
         onlineMode: Boolean,
         serverIdHash: String,
+        appliedResourcePacksFuture: CompletableFuture<ByteArray>? = null,
     ): AuthSessionHandler {
+        // Velocity-CTD: 6-param constructor (server, inbound, profile, onlineMode, serverIdHash, appliedResourcePacksFuture)
+        val ctor6 = runCatching {
+            FuzzyLookup.constructorByParamCandidates(
+                AuthSessionHandler::class.java,
+                arrayOf(
+                    VelocityServer::class.java,
+                    LoginInboundConnection::class.java,
+                    GameProfile::class.java,
+                    Boolean::class.javaPrimitiveType!!,
+                    String::class.java,
+                    CompletableFuture::class.java,
+                ),
+            )
+        }.getOrNull()
+        if (ctor6 != null) {
+            val futureArg = appliedResourcePacksFuture ?: CompletableFuture.completedFuture(ByteArray(0))
+            return ctor6.newInstance(server, inbound, profile, onlineMode, serverIdHash, futureArg) as AuthSessionHandler
+        }
+
+        // Upstream Velocity 3.5+: 5-param constructor
         val ctor5 = runCatching {
             FuzzyLookup.constructorByParamCandidates(
                 AuthSessionHandler::class.java,
@@ -500,6 +522,7 @@ object VelocityInternalAccess {
             return ctor5.newInstance(server, inbound, profile, onlineMode, serverIdHash) as AuthSessionHandler
         }
 
+        // Legacy Velocity: 4-param constructor
         val ctor4 = FuzzyLookup.constructorByParamCandidates(
             AuthSessionHandler::class.java,
             arrayOf(
