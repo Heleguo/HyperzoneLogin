@@ -73,7 +73,11 @@ dependencies {
     needPackageCompileOnly(libs.hikari)
 //    VC
     compileOnly(libs.velocityApi)
-    compileOnly(libs.velocityProxy) // From Elytrium Repo.
+    compileOnly(libs.velocityProxy)
+    testImplementation(libs.velocityProxy) {
+        exclude(group = "gg.gemstone")
+        exclude(group = "com.velocityctd", module = "velocity-permission-integration-spi")
+    }
     compileOnly(libs.floodgateApi)
     add(bstatsRelocatedClasspath.name, libs.bstatsVelocity)
     compileOnly(files(relocateBstatsCompileOnlyJar.flatMap { it.archiveFile }))

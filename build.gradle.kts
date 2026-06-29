@@ -225,8 +225,6 @@ subprojects {
         maven("https://maven.elytrium.net/repo/")
         maven("https://repo.opencollab.dev/maven-snapshots")
         maven("https://repo.velocityctd.com/snapshots")
-        maven("https://repo.gemstone.gg/snapshots")
-        maven("https://repo.gemstone.gg/releases")
     }
 
     tasks.withType(ProcessResources::class.java).configureEach {
