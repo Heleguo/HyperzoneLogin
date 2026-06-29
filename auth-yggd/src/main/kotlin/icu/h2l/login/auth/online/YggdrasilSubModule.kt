@@ -65,7 +65,7 @@ class YggdrasilSubModule : HyperSubModule {
         val yggdrasilEventListener = YggdrasilEventListener(yggdrasilAuthModule)
 
         proxy.eventManager.register(api, yggdrasilEventListener)
-        proxy.eventManager.register(api, YggdrasilReUuidListener())
+        // YggdrasilReUuidListener has been removed
 
         // 注册 Yggdrasil 渠道绑定检查器，供其他模块（如 auth-offline）查询
         val entryDatabaseHelper = yggdrasilAuthModule.entryDatabaseHelper

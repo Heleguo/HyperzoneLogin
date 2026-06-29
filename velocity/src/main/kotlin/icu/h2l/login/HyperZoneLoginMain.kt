@@ -39,10 +39,7 @@ import icu.h2l.api.util.ConfigFormatProvider
 import icu.h2l.api.util.ConfigLoader
 import icu.h2l.login.config.i18n.ConfigCommentI18nService
 import icu.h2l.api.vServer.HyperZoneVServerAdapter
-import icu.h2l.login.command.BindCodeCommandRegistrar
 import icu.h2l.login.command.HyperZoneLoginCommand
-import icu.h2l.login.command.ReUuidCommand
-import icu.h2l.login.command.RenameCommand
 import icu.h2l.login.command.UpgradeCommand
 import icu.h2l.login.config.*
 import icu.h2l.login.database.BindingCodeRepository
@@ -193,26 +190,10 @@ class HyperZoneLoginMain(
         )
         chatCommandManager.register(
             HyperChatCommandRegistration(
-                name = "rename",
-                executor = RenameCommand(),
-                brigadier = RenameCommand.brigadier()
-            )
-        )
-        chatCommandManager.register(
-            HyperChatCommandRegistration(
-                name = "reUUID",
-                aliases = setOf("reuuid", "reUuid"),
-                executor = ReUuidCommand(),
-                brigadier = ReUuidCommand.brigadier()
-            )
-        )
-        chatCommandManager.register(
-            HyperChatCommandRegistration(
                 name = "upgrade",
                 executor = UpgradeCommand()
             )
         )
-        BindCodeCommandRegistrar.register(chatCommandManager, bindingCodeService)
         syncSlowTestCommands()
 
 //        最后加载模块
@@ -232,8 +213,6 @@ class HyperZoneLoginMain(
         proxy.eventManager.register(plugin, AttachedProfileInitialGameProfileListener())
         proxy.eventManager.register(plugin, LoginProfileReplaceDefaultListener())
         proxy.eventManager.register(plugin, backendRuntimeProfileCompensator)
-        proxy.eventManager.register(plugin, LoginRenameListener())
-        proxy.eventManager.register(plugin, LoginReUuidListener())
         proxy.eventManager.register(plugin, LoginVerifyListener())
         proxy.eventManager.register(plugin, PlayerAreaLifecycleListener)
         proxy.eventManager.register(plugin, HyperZonePlayerManager)

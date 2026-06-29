@@ -51,7 +51,7 @@ object YggdrasilMessages {
         return render(
             player,
             "profile-resolve-failed",
-            "$reason。若当前是建档名称冲突，请使用 /rename [新注册名]；若要绑定已有档案，请使用 /bindcode use [绑定码]。",
+            reason,
             HyperZoneMessagePlaceholder.text("reason", reason)
         )
     }

@@ -74,7 +74,7 @@ object OfflineAuthMessages {
     val REGISTER_BIND_PROFILE_MISSING: Component
         get() = render("register.bind-profile-missing", "${PREFIX}§c未找到已关联档案，暂时无法设置离线密码")
     val REGISTER_BIND_PENDING: Component
-        get() = render("register.bind-pending", "§a注册成功，但当前名称无法直接分配档案。若要继续新建档案，请使用 /rename <新注册名>；若要绑定已有档案，请使用 /bindcode use <绑定码>")
+        get() = render("register.bind-pending", "§a注册成功，但当前名称无法直接分配档案")
     val REGISTER_BIND_PENDING_ERROR: Component
         get() = render("register.bind-pending-error", "§c注册成功，但等待绑定时出现错误")
 
@@ -201,7 +201,7 @@ object OfflineAuthMessages {
     val TOTP_LOGIN_HINT: Component
         get() = render("totp.login-hint", "${PREFIX}§7已启用 TOTP，请使用 /login <密码> <验证码> 登录")
     val PENDING_BIND_PROMPT: Component
-        get() = render("prompt.pending-bind", "§8[§6玩家系统§8] §7当前离线注册信息已暂存；若名称冲突，可使用 /rename <新注册名> 重试建档；若要绑定已有档案，请使用 /bindcode use <绑定码>")
+        get() = render("prompt.pending-bind", "§8[§6玩家系统§8] §7当前离线注册信息已暂存")
     val CHANGE_PASSWORD_PROMPT: Component
         get() = render("prompt.change-password", "§8[§6玩家系统§8] §7如需修改密码：/changepassword <旧密码> <新密码>")
     val EMAIL_ADD_PROMPT: Component
