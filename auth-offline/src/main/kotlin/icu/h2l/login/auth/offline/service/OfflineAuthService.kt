@@ -246,17 +246,8 @@ class OfflineAuthService(
 
         repository.resetLoginProtection(entry.profileId)
 
-        // 检查该 Profile 是否已绑定 Yggdrasil，若已绑定则拒绝离线登录
-        if (icu.h2l.api.profile.ProfileChannelBindingRegistry.isProfileBoundToAnyExternalChannel(entry.profileId)
-        ) {
-            publishAuthFailure(
-                player = player,
-                authType = AuthenticationFailureEvent.AuthType.OFFLINE,
-                reason = AuthenticationFailureEvent.Reason.INVALID_CREDENTIALS,
-                reasonMessage = "profile bound to yggdrasil, offline login rejected"
-            )
-            return Result(false, OfflineAuthMessages.YGGDRASIL_ONLY_ACCOUNT)
-        }
+        // 注意：Yggdrasil 绑定的离线拦截在连接阶段（OfflinePreLoginListener）处理
+        // 此处不额外拦截，否则已拥有离线+外部双绑定的玩家将无法登录执行 /upgrade
 
         if (isTotpEnabled(entry)) {
             val trimmedCode = totpCode?.trim().orEmpty()
