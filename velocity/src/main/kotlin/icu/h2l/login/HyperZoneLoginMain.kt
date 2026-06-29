@@ -42,7 +42,6 @@ import icu.h2l.api.vServer.HyperZoneVServerAdapter
 import icu.h2l.login.command.HyperZoneLoginCommand
 import icu.h2l.login.command.UpgradeCommand
 import icu.h2l.login.config.*
-import icu.h2l.login.database.BindingCodeRepository
 import icu.h2l.login.database.DatabaseConfig
 import icu.h2l.login.database.DatabaseHelper
 import icu.h2l.login.inject.network.VelocityNetworkModule
@@ -55,7 +54,6 @@ import icu.h2l.login.message.MessageService
 import icu.h2l.login.module.EmbeddedModuleRegistry
 import icu.h2l.login.module.EmbeddedModuleSpec
 import icu.h2l.login.profile.CredentialChannelRegistryImpl
-import icu.h2l.login.profile.ProfileBindingCodeService
 import icu.h2l.login.profile.VelocityHyperZoneProfileService
 import icu.h2l.login.util.registerApiLogger
 import icu.h2l.login.vServer.backend.BackendAuthHoldListener
@@ -90,7 +88,6 @@ class HyperZoneLoginMain(
     lateinit var profileService: VelocityHyperZoneProfileService
     lateinit var backendRuntimeProfileCompensator: BackendRuntimeProfileCompensator
     lateinit var credentialChannelRegistry: CredentialChannelRegistryImpl
-    lateinit var bindingCodeService: ProfileBindingCodeService
     lateinit var messageService: MessageService
     val serverAdapter: HyperZoneVServerAdapter?
         get() = activeVServerAdapter
@@ -147,10 +144,6 @@ class HyperZoneLoginMain(
         createBaseTables()
         profileService = VelocityHyperZoneProfileService(databaseHelper)
         backendRuntimeProfileCompensator = BackendRuntimeProfileCompensator(profileService, logger)
-        bindingCodeService = ProfileBindingCodeService(
-            BindingCodeRepository(databaseManager, databaseManager.getBindingCodeTable()),
-            profileService
-        )
         HyperZoneProfileServiceProvider.bind(profileService)
         CredentialChannelRegistryProvider.bind(credentialChannelRegistry)
 
@@ -203,7 +196,7 @@ class HyperZoneLoginMain(
         // External modules (auth-offline, auth-yggd, data-merge) will be loaded as
         // separate Velocity plugins and should call `registerModule(...)` on this
         // main plugin during their own initialization.
-        val hzlCommand = HyperZoneLoginCommand(bindingCodeService).createCommand()
+        val hzlCommand = HyperZoneLoginCommand().createCommand()
         val hzlCommandMeta = proxy.commandManager.metaBuilder(hzlCommand).build()
         proxy.commandManager.register(hzlCommandMeta, hzlCommand)
         if (activeVServerAdapter?.needsBackendInitialProfileCompat() == true) {

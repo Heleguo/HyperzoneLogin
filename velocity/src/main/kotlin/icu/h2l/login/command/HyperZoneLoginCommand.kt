@@ -22,20 +22,15 @@
 package icu.h2l.login.command
 
 import com.mojang.brigadier.Command
-import com.mojang.brigadier.arguments.StringArgumentType
 import com.velocitypowered.api.command.BrigadierCommand
 import com.velocitypowered.api.command.CommandSource
-import com.velocitypowered.api.proxy.Player
 import icu.h2l.api.message.HyperZoneMessagePlaceholder
 import icu.h2l.api.profile.HyperZoneProfileServiceProvider
 import icu.h2l.login.HyperZoneLoginMain
 import icu.h2l.login.manager.HyperZonePlayerManager
 import icu.h2l.login.message.MessageKeys
-import icu.h2l.login.profile.ProfileBindingCodeService
 
-class HyperZoneLoginCommand(
-    private val bindingCodeService: ProfileBindingCodeService
-) {
+class HyperZoneLoginCommand {
     fun createCommand(): BrigadierCommand {
         return BrigadierCommand(
             BrigadierCommand.literalArgumentBuilder("hzl")
@@ -63,30 +58,6 @@ class HyperZoneLoginCommand(
                             executeUuid(context.source)
                         }
                 )
-                .then(
-                    BrigadierCommand.literalArgumentBuilder("bindcode")
-                        .executes { context ->
-                            executeBindCodeGenerate(context.source)
-                        }
-                        .then(
-                            BrigadierCommand.literalArgumentBuilder("generate")
-                                .executes { context ->
-                                    executeBindCodeGenerate(context.source)
-                                }
-                        )
-                        .then(
-                            BrigadierCommand.literalArgumentBuilder("use")
-                                .then(
-                                    BrigadierCommand.requiredArgumentBuilder("code", StringArgumentType.word())
-                                        .executes { context ->
-                                            executeBindCodeUse(
-                                                context.source,
-                                                StringArgumentType.getString(context, "code")
-                                            )
-                                        }
-                                )
-                        )
-                )
         )
     }
 
@@ -96,8 +67,6 @@ class HyperZoneLoginCommand(
             messages.send(sender, MessageKeys.HzlCommand.USAGE_RELOAD)
         }
         messages.send(sender, MessageKeys.HzlCommand.USAGE_RE)
-        messages.send(sender, MessageKeys.HzlCommand.USAGE_BINDCODE_GENERATE)
-        messages.send(sender, MessageKeys.HzlCommand.USAGE_BINDCODE_USE)
         if (sender.hasPermission(ADMIN_PERMISSION)) {
             messages.send(sender, MessageKeys.HzlCommand.USAGE_UUID)
         }
@@ -183,42 +152,6 @@ class HyperZoneLoginCommand(
             messages.send(sender, MessageKeys.HzlCommand.UUID_PROFILE_NULL)
         }
 
-        return Command.SINGLE_SUCCESS
-    }
-
-    private fun executeBindCodeGenerate(sender: CommandSource): Int {
-        val messages = HyperZoneLoginMain.getInstance().messageService
-        if (sender !is Player) {
-            messages.send(sender, MessageKeys.Common.ONLY_PLAYER)
-            return Command.SINGLE_SUCCESS
-        }
-
-        val hyperZonePlayer = runCatching {
-            HyperZonePlayerManager.getByPlayer(sender)
-        }.getOrElse {
-            messages.send(sender, MessageKeys.Common.PLAYER_STATE_UNAVAILABLE)
-            return Command.SINGLE_SUCCESS
-        }
-
-        sender.sendMessage(bindingCodeService.generate(hyperZonePlayer).message)
-        return Command.SINGLE_SUCCESS
-    }
-
-    private fun executeBindCodeUse(sender: CommandSource, code: String): Int {
-        val messages = HyperZoneLoginMain.getInstance().messageService
-        if (sender !is Player) {
-            messages.send(sender, MessageKeys.Common.ONLY_PLAYER)
-            return Command.SINGLE_SUCCESS
-        }
-
-        val hyperZonePlayer = runCatching {
-            HyperZonePlayerManager.getByPlayer(sender)
-        }.getOrElse {
-            messages.send(sender, MessageKeys.Common.PLAYER_STATE_UNAVAILABLE)
-            return Command.SINGLE_SUCCESS
-        }
-
-        sender.sendMessage(bindingCodeService.use(hyperZonePlayer, code).message)
         return Command.SINGLE_SUCCESS
     }
 
