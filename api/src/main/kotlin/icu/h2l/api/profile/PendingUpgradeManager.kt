@@ -38,7 +38,8 @@ object PendingUpgradeManager {
         val offlineProfileId: UUID,
         val yggdrasilEntryId: String,
         val yggdrasilName: String,
-        val yggdrasilUuid: UUID
+        val yggdrasilUuid: UUID,
+        val playerIp: String? = null
     )
 
     private val pendingUpgrades = ConcurrentHashMap<UUID, PendingUpgrade>()
@@ -46,8 +47,8 @@ object PendingUpgradeManager {
     /**
      * 记录一个待办升级。
      */
-    fun addPending(offlineProfileId: UUID, entryId: String = "__pending__", name: String, uuid: UUID) {
-        pendingUpgrades[offlineProfileId] = PendingUpgrade(offlineProfileId, entryId, name, uuid)
+    fun addPending(offlineProfileId: UUID, entryId: String = "__pending__", name: String, uuid: UUID, playerIp: String? = null) {
+        pendingUpgrades[offlineProfileId] = PendingUpgrade(offlineProfileId, entryId, name, uuid, playerIp)
     }
 
     /**

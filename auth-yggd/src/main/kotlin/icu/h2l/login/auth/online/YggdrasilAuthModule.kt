@@ -301,6 +301,11 @@ class YggdrasilAuthModule(
                 // 检查是否有待办升级，若有则自动完成升级流程
                 val pending = PendingUpgradeManager.consumePending(conflictingProfile.id)
                 if (pending != null) {
+                    // IP 一致性验证
+                    val currentIp = handler.getProxyPlayerOrNull()?.remoteAddress?.address?.hostAddress
+                    if (pending.playerIp != null && currentIp != null && pending.playerIp != currentIp) {
+                        return "IP 地址不匹配：升级申请来自 $currentIp，当前连接 IP 不一致，拒绝升级"
+                    }
                     // 创建 Yggdrasil 条目绑定到现有 Profile
                     val bound = entryDatabaseHelper.createEntry(
                         entryId = result.entryId,

@@ -85,10 +85,15 @@ class UpgradeCommand : HyperChatCommandExecutor {
 
         // 记录升级待办（后续由 YggdrasilAuthModule 消费）
         val attachedProfile = profileService.getAttachedProfile(hyperPlayer)
+        val playerIp = source.remoteAddress.address.hostAddress?.let { addr ->
+            val idx = addr.indexOf('%')
+            if (idx == -1) addr else addr.substring(0, idx)
+        }
         PendingUpgradeManager.addPending(
             offlineProfileId = profileId,
             name = hyperPlayer.clientOriginalName,
-            uuid = attachedProfile?.uuid ?: hyperPlayer.clientOriginalUUID
+            uuid = attachedProfile?.uuid ?: hyperPlayer.clientOriginalUUID,
+            playerIp = playerIp
         )
 
         source.sendMessage(Component.text("§a升级准备已就绪！"))
