@@ -59,7 +59,7 @@ class OfflinePreLoginListener {
         if (!isOnline) {
             val profileService = HyperZoneProfileServiceProvider.getOrNull() ?: return
             val profile = profileService.findProfileByName(name) ?: return
-            if (ProfileChannelBindingRegistry.isProfileBoundToAnyExternalChannel(profile.id)) {
+            if (ProfileChannelBindingRegistry.isProfileBoundToChannel(profile.id, "yggdrasil")) {
                 info { "踢出离线玩家 $name: 该账号已绑定皮肤站/正版" }
                 event.allow = false
                 event.disconnectMessage = Component.text("此账号已绑定皮肤站/正版，请使用皮肤站启动游戏登录")
