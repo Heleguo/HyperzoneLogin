@@ -80,7 +80,7 @@ class OutPreRegisteredServer(
 
     override fun getTotalPlayerCount(): Long = bridgedPlayers.size.toLong()
 
-    override fun getQueue(): com.velocitypowered.api.proxy.server.Queue? = null
+    override fun getQueue() = null
 
     override fun getPlayersConnected(): Collection<Player> =
         ImmutableList.copyOf(bridgedPlayers.values.map { it.player })
