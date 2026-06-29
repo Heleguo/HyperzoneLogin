@@ -73,6 +73,15 @@ class UpgradeCommand : HyperChatCommandExecutor {
             return
         }
 
+        val args = invocation.arguments()
+        val isConfirmed = args.isNotEmpty() && args[0].equals("confirm", ignoreCase = true)
+
+        if (!isConfirmed) {
+            source.sendMessage(Component.text("§c⚠ 升级后将无法回退为离线模式，此后只能使用皮肤站/正版登录！"))
+            source.sendMessage(Component.text("§e如果确认要升级，请使用 §6/upgrade confirm §e继续"))
+            return
+        }
+
         // 记录升级待办（后续由 YggdrasilAuthModule 消费）
         val attachedProfile = profileService.getAttachedProfile(hyperPlayer)
         PendingUpgradeManager.addPending(
@@ -82,7 +91,7 @@ class UpgradeCommand : HyperChatCommandExecutor {
         )
 
         source.sendMessage(Component.text("§a升级准备已就绪！"))
-        source.sendMessage(Component.text("§e请断开当前连接，使用正版/皮肤站启动游戏重新进入服务器。"))
-        source.sendMessage(Component.text("§e系统将自动完成升级，之后您将只能使用正版登录（不可回退为离线）。"))
+        source.sendMessage(Component.text("§e请断开当前连接，使用皮肤站/正版启动游戏重新进入服务器。"))
+        source.sendMessage(Component.text("§e系统将自动完成升级，之后您将只能使用皮肤站/正版登录（不可回退为离线）。"))
     }
 }
