@@ -23,7 +23,6 @@ package icu.h2l.login.vServer.outpre
 
 import com.velocitypowered.api.event.player.CookieRequestEvent
 import com.velocitypowered.api.network.ProtocolVersion
-import com.velocitypowered.api.proxy.server.PlayerInfoForwarding
 import com.velocitypowered.proxy.connection.MinecraftSessionHandler
 import com.velocitypowered.proxy.connection.PlayerDataForwarding
 import com.velocitypowered.proxy.protocol.MinecraftPacket
@@ -78,7 +77,7 @@ class OutPreBackendBridgeSessionHandler(
     override fun handle(packet: LoginPluginMessagePacket): Boolean {
         val connection = bridge.ensureConnected()
         val config = bridge.proxyServer.configuration
-        if (config.playerInfoForwardingMode == PlayerInfoForwarding.MODERN
+        if (icu.h2l.login.util.PlayerInfoForwardingCompat.isModernForwardingMode(config)
             && packet.channel == PlayerDataForwarding.CHANNEL
         ) {
             var requestedForwardingVersion = PlayerDataForwarding.MODERN_DEFAULT
@@ -113,7 +112,7 @@ class OutPreBackendBridgeSessionHandler(
     }
 
     override fun handle(packet: ServerLoginSuccessPacket): Boolean {
-        if (bridge.proxyServer.configuration.playerInfoForwardingMode == PlayerInfoForwarding.MODERN && !modernForwardingSent) {
+        if (icu.h2l.login.util.PlayerInfoForwardingCompat.isModernForwardingMode(bridge.proxyServer.configuration) && !modernForwardingSent) {
             debug(HyperZoneDebugType.OUTPRE_TRACE) {
                 "[OutPre][${bridge.player.username}] MODERN forwarding configured but forwarding data was not sent " +
                     "(backend may not have requested it). Proceeding without forwarding."

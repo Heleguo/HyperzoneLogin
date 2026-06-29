@@ -34,7 +34,6 @@ import com.velocitypowered.api.proxy.crypto.IdentifiedKey
 import com.velocitypowered.api.util.GameProfile
 import com.velocitypowered.api.util.UuidUtils
 import com.velocitypowered.proxy.VelocityServer
-import com.velocitypowered.api.proxy.server.PlayerInfoForwarding
 import com.velocitypowered.proxy.connection.MinecraftConnection
 import com.velocitypowered.proxy.connection.MinecraftSessionHandler
 import com.velocitypowered.proxy.connection.client.AuthSessionHandler
@@ -94,7 +93,7 @@ class OutPreAuthSessionHandler(
     override fun activated() {
         profile = mcConnection.type.addGameProfileTokensIfRequired(
             profile,
-            server.configuration.playerInfoForwardingMode,
+            icu.h2l.login.util.PlayerInfoForwardingCompat.getForwardingModeValue(server.configuration),
         )
         debug(HyperZoneDebugType.OUTPRE_TRACE) {
             "outpre.handler.activated channel=${mcConnection.channel} initialProfile=${describeGameProfileBrief(profile)} onlineMode=$onlineMode protocol=${inbound.protocolVersion}"
@@ -134,7 +133,7 @@ class OutPreAuthSessionHandler(
         }
 
         var playerUniqueId: UUID = player.uniqueId
-        if (server.configuration.playerInfoForwardingMode == PlayerInfoForwarding.NONE) {
+        if (icu.h2l.login.util.PlayerInfoForwardingCompat.isNoneForwardingMode(server.configuration)) {
             playerUniqueId = UuidUtils.generateOfflinePlayerUuid(player.username)
         }
 

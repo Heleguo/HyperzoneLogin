@@ -25,7 +25,6 @@ import com.velocitypowered.api.network.ProtocolVersion
 import com.velocitypowered.api.proxy.Player
 import com.velocitypowered.api.proxy.ServerConnection
 import com.velocitypowered.api.util.GameProfile
-import com.velocitypowered.api.proxy.server.PlayerInfoForwarding
 import com.velocitypowered.proxy.config.VelocityConfiguration
 import com.velocitypowered.proxy.connection.MinecraftConnection
 import com.velocitypowered.proxy.connection.PlayerDataForwarding
@@ -91,7 +90,7 @@ class LoginProfilePacketReplacer(
 
 
     private fun genLoginPluginResponse(msg: LoginPluginResponsePacket): LoginPluginResponsePacket {
-        if (config.playerInfoForwardingMode != PlayerInfoForwarding.MODERN) {
+        if (!icu.h2l.login.util.PlayerInfoForwardingCompat.isModernForwardingMode(config)) {
             return msg
         }
 
