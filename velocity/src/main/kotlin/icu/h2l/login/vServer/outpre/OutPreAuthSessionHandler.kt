@@ -108,14 +108,6 @@ class OutPreAuthSessionHandler(
         )
         connectedPlayer = player
 
-        if (!server.canRegisterConnection(player)) {
-            player.disconnect0(
-                Component.translatable("velocity.error.already-connected-proxy", NamedTextColor.RED),
-                true,
-            )
-            return
-        }
-
         if (server.configuration.isLogPlayerConnections) {
             logger.info("{} entered outpre pre-registration flow", player)
         }
@@ -268,10 +260,7 @@ class OutPreAuthSessionHandler(
                             return@thenAcceptAsync
                         }
 
-                        if (!server.registerConnection(player)) {
-                            player.disconnect0(Component.translatable("velocity.error.already-connected-proxy"), false)
-                            return@thenAcceptAsync
-                        }
+                        server.registerConnection(player)
 
                         continueReleasedFlow(player, preferredTargetServerName)
                     }, mcConnection.eventLoop())

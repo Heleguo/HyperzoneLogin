@@ -89,8 +89,10 @@ class OutPreBackendBridge(
 
     fun targetAddress(): InetSocketAddress = authTargetAddress
 
-    override fun getServer(): RegisteredServer {
-        return proxyServer.getServer(outPreServerInfo.name).orElseGet { registeredServer }
+    override fun getServer(): com.velocitypowered.proxy.server.VelocityRegisteredServer {
+        return proxyServer.getServer(outPreServerInfo.name)
+            .map { it as com.velocitypowered.proxy.server.VelocityRegisteredServer }
+            .orElseThrow { RuntimeException("Server ${outPreServerInfo.name} not found") }
     }
 
     override fun getPreviousServer(): Optional<RegisteredServer> {

@@ -78,6 +78,10 @@ class OutPreRegisteredServer(
 
     override fun getServerInfo(): ServerInfo = serverInfo
 
+    override fun getTotalPlayerCount(): Long = bridgedPlayers.size.toLong()
+
+    override fun getQueue(): Optional<Any> = Optional.empty()
+
     override fun getPlayersConnected(): Collection<Player> =
         ImmutableList.copyOf(bridgedPlayers.values.map { it.player })
 
