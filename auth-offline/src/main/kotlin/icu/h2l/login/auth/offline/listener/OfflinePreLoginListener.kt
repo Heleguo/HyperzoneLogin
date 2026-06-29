@@ -27,6 +27,7 @@ import com.velocitypowered.api.event.Subscribe
 import icu.h2l.api.event.connection.OpenPreLoginEvent
 import icu.h2l.api.log.info
 import icu.h2l.api.profile.HyperZoneProfileServiceProvider
+import icu.h2l.api.profile.PendingUpgradeManager
 import icu.h2l.api.profile.ProfileChannelBindingRegistry
 import icu.h2l.login.auth.offline.config.AuthOfflineConfigLoader
 import icu.h2l.login.auth.offline.type.OfflineUUIDType
@@ -55,10 +56,17 @@ class OfflinePreLoginListener {
         info { "传入 UUID 信息玩家: $name UUID:$uuid 类型: $offlineUUIDType 在线:$isOnline" }
 
         // 若为离线模式玩家，检查其名称是否对应已绑定 Yggdrasil 的 Profile
-        // 若是则直接踢出，禁止以离线方式登录已绑定正版/皮肤站的账号
+        // 或是正在等待升级（刚执行完 /upgrade）
+        // 若是则直接踢出，禁止以离线方式登录
         if (!isOnline) {
             val profileService = HyperZoneProfileServiceProvider.getOrNull() ?: return
             val profile = profileService.findProfileByName(name) ?: return
+            if (PendingUpgradeManager.hasPending(profile.id)) {
+                info { "踢出离线玩家 $name: 此账号正在等待升级，必须使用皮肤站/正版登录" }
+                event.allow = false
+                event.disconnectMessage = Component.text("§e您已申请升级账号，请使用皮肤站/正版启动游戏登录以完成升级")
+                return
+            }
             if (ProfileChannelBindingRegistry.isProfileBoundToChannel(profile.id, "yggdrasil")) {
                 info { "踢出离线玩家 $name: 该账号已绑定皮肤站/正版" }
                 event.allow = false

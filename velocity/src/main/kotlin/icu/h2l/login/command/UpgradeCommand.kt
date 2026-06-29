@@ -78,6 +78,7 @@ class UpgradeCommand : HyperChatCommandExecutor {
 
         if (!isConfirmed) {
             source.sendMessage(Component.text("§c⚠ 升级后将无法回退为离线模式，此后只能使用皮肤站/正版登录！"))
+            source.sendMessage(Component.text("§c⚠ 请务必使用皮肤站/正版启动游戏重新连接，不要使用离线模式！"))
             source.sendMessage(Component.text("§e如果确认要升级，请使用 §6/upgrade confirm §e继续"))
             return
         }
