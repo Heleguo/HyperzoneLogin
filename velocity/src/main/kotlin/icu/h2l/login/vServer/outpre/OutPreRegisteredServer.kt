@@ -47,7 +47,7 @@ import io.netty.channel.ChannelInitializer
 import io.netty.handler.timeout.ReadTimeoutHandler
 import net.kyori.adventure.audience.Audience
 import net.kyori.adventure.audience.ForwardingAudience
-import java.util.UUID
+import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
