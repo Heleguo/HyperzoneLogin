@@ -36,8 +36,8 @@ adventureTextSerializerGson = { group = "net.kyori", name = "adventure-text-seri
 adventureTextLoggerSlf4j = { group = "net.kyori", name = "adventure-text-logger-slf4j", version.ref = "adventure" }
 adventureTextMinimessage = { group = "net.kyori", name = "adventure-text-minimessage", version.ref = "adventure" }
 
-velocityApi = { group = "com.velocitypowered", name = "velocity-api", version.ref = "velocity" }
-velocityProxy = { group = "com.velocitypowered", name = "velocity-proxy", version.ref = "velocity" }
+velocityApi = { group = "com.velocityctd", name = "velocity-api", version.ref = "velocity" }
+velocityProxy = { group = "com.velocityctd", name = "velocity-proxy", version.ref = "velocity" }
 
 asm = { group = "org.ow2.asm", name = "asm", version.ref = "asm" }
 asmCommons = { group = "org.ow2.asm", name = "asm-commons", version.ref = "asm" }

@@ -31,6 +31,7 @@ import com.velocitypowered.api.event.player.PlayerChooseInitialServerEvent
 import com.velocitypowered.api.network.ProtocolVersion
 import com.velocitypowered.api.permission.PermissionFunction
 import com.velocitypowered.api.proxy.crypto.IdentifiedKey
+import com.velocitypowered.api.proxy.server.PlayerInfoForwarding
 import com.velocitypowered.api.util.GameProfile
 import com.velocitypowered.api.util.UuidUtils
 import com.velocitypowered.proxy.VelocityServer
@@ -93,7 +94,7 @@ class OutPreAuthSessionHandler(
     override fun activated() {
         profile = mcConnection.type.addGameProfileTokensIfRequired(
             profile,
-            icu.h2l.login.util.PlayerInfoForwardingCompat.getForwardingModeValue(server.configuration),
+            server.configuration.playerInfoForwardingMode,
         )
         debug(HyperZoneDebugType.OUTPRE_TRACE) {
             "outpre.handler.activated channel=${mcConnection.channel} initialProfile=${describeGameProfileBrief(profile)} onlineMode=$onlineMode protocol=${inbound.protocolVersion}"
@@ -133,7 +134,7 @@ class OutPreAuthSessionHandler(
         }
 
         var playerUniqueId: UUID = player.uniqueId
-        if (icu.h2l.login.util.PlayerInfoForwardingCompat.isNoneForwardingMode(server.configuration)) {
+        if (server.configuration.playerInfoForwardingMode == PlayerInfoForwarding.NONE) {
             playerUniqueId = UuidUtils.generateOfflinePlayerUuid(player.username)
         }
 
