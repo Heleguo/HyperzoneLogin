@@ -215,8 +215,8 @@ class YggdrasilAuthModule(
                 if (profileResolveError != null) {
                     val failedResult = YggdrasilAuthResult.Failed(profileResolveError)
                     publishAuthFailure(player, username, failedResult)
-                    handler.sendMessage(YggdrasilMessages.profileResolveFailed(handler, profileResolveError))
-                    info { "玩家 $username Yggdrasil 验证成功，但 Profile 解析失败：$profileResolveError" }
+                    info { "玩家 $username Yggdrasil 验证成功，但 Profile 解析失败：$profileResolveError，已踢出" }
+                    player.disconnect(net.kyori.adventure.text.Component.text(profileResolveError))
                     return
                 }
 
