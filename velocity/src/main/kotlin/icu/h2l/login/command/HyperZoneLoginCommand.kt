@@ -24,6 +24,7 @@ package icu.h2l.login.command
 import com.mojang.brigadier.Command
 import com.velocitypowered.api.command.BrigadierCommand
 import com.velocitypowered.api.command.CommandSource
+import com.velocitypowered.api.proxy.Player
 import icu.h2l.api.message.HyperZoneMessagePlaceholder
 import icu.h2l.api.profile.HyperZoneProfileServiceProvider
 import icu.h2l.login.HyperZoneLoginMain
