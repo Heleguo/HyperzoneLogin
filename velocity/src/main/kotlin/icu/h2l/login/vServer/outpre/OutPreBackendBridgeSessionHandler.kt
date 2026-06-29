@@ -23,7 +23,7 @@ package icu.h2l.login.vServer.outpre
 
 import com.velocitypowered.api.event.player.CookieRequestEvent
 import com.velocitypowered.api.network.ProtocolVersion
-import com.velocitypowered.proxy.config.PlayerInfoForwarding
+import com.velocitypowered.api.proxy.server.PlayerInfoForwarding
 import com.velocitypowered.proxy.connection.MinecraftSessionHandler
 import com.velocitypowered.proxy.connection.PlayerDataForwarding
 import com.velocitypowered.proxy.protocol.MinecraftPacket

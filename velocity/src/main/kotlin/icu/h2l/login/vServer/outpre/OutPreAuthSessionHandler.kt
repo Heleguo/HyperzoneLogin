@@ -34,7 +34,7 @@ import com.velocitypowered.api.proxy.crypto.IdentifiedKey
 import com.velocitypowered.api.util.GameProfile
 import com.velocitypowered.api.util.UuidUtils
 import com.velocitypowered.proxy.VelocityServer
-import com.velocitypowered.proxy.config.PlayerInfoForwarding
+import com.velocitypowered.api.proxy.server.PlayerInfoForwarding
 import com.velocitypowered.proxy.connection.MinecraftConnection
 import com.velocitypowered.proxy.connection.MinecraftSessionHandler
 import com.velocitypowered.proxy.connection.client.AuthSessionHandler
