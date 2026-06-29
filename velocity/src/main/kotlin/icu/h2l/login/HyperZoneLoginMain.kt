@@ -43,6 +43,7 @@ import icu.h2l.login.command.BindCodeCommandRegistrar
 import icu.h2l.login.command.HyperZoneLoginCommand
 import icu.h2l.login.command.ReUuidCommand
 import icu.h2l.login.command.RenameCommand
+import icu.h2l.login.command.UpgradeCommand
 import icu.h2l.login.config.*
 import icu.h2l.login.database.BindingCodeRepository
 import icu.h2l.login.database.DatabaseConfig
@@ -203,6 +204,12 @@ class HyperZoneLoginMain(
                 aliases = setOf("reuuid", "reUuid"),
                 executor = ReUuidCommand(),
                 brigadier = ReUuidCommand.brigadier()
+            )
+        )
+        chatCommandManager.register(
+            HyperChatCommandRegistration(
+                name = "upgrade",
+                executor = UpgradeCommand()
             )
         )
         BindCodeCommandRegistrar.register(chatCommandManager, bindingCodeService)

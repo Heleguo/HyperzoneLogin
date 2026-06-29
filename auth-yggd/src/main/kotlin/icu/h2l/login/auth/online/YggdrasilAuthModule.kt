@@ -37,6 +37,8 @@ import icu.h2l.api.player.HyperZonePlayer
 import icu.h2l.api.player.HyperZonePlayerAccessor
 import icu.h2l.api.profile.CredentialChannelRegistryProvider
 import icu.h2l.api.profile.HyperZoneProfileService
+import icu.h2l.api.profile.PendingUpgradeManager
+import icu.h2l.api.profile.ProfileChannelBindingRegistry
 import icu.h2l.api.profile.skin.ProfileSkinModel
 import icu.h2l.api.profile.skin.ProfileSkinSource
 import icu.h2l.api.profile.skin.ProfileSkinTextures
@@ -288,6 +290,42 @@ class YggdrasilAuthModule(
         if (channelAbility?.canRegister == false) {
             handler.submitCredential(probeCredential)
             return YggdrasilMessages.registrationDisabledReason(handler)
+        }
+
+        // 检查名称冲突的 Profile 是否为离线绑定
+        if (!profileService.canCreate(probeCredential)) {
+            val conflictingProfile = profileService.findProfileByName(result.profile.name)
+            if (conflictingProfile != null &&
+                ProfileChannelBindingRegistry.isProfileBoundToChannel(conflictingProfile.id, "offline")
+            ) {
+                // 检查是否有待办升级，若有则自动完成升级流程
+                val pending = PendingUpgradeManager.consumePending(conflictingProfile.id)
+                if (pending != null) {
+                    // 创建 Yggdrasil 条目绑定到现有 Profile
+                    val bound = entryDatabaseHelper.createEntry(
+                        entryId = result.entryId,
+                        name = result.profile.name,
+                        uuid = result.profile.id,
+                        pid = conflictingProfile.id
+                    )
+                    if (bound) {
+                        // 移除离线绑定
+                        ProfileChannelBindingRegistry.removeBinding(conflictingProfile.id, "offline")
+                        // 提交带 knownProfileId 的凭证直接完成绑定
+                        handler.submitCredential(
+                            yggdrasilCredential(
+                                entryId = result.entryId,
+                                authenticatedName = result.profile.name,
+                                authenticatedUuid = result.profile.id,
+                                suggestedProfileCreateUuid = profileResolveUuid,
+                                knownProfileId = conflictingProfile.id
+                            )
+                        )
+                        return null
+                    }
+                }
+                return "此账号已注册离线密码，请先使用离线登录，然后执行 /upgrade 命令升级为正版账号"
+            }
         }
 
         if (profileService.canCreate(probeCredential)) {

@@ -27,6 +27,7 @@ import icu.h2l.api.db.table.ProfileTable
 import icu.h2l.api.log.info
 import icu.h2l.api.module.HyperSubModule
 import icu.h2l.api.profile.HyperZoneProfileServiceProvider
+import icu.h2l.api.profile.ProfileChannelBindingRegistry
 import icu.h2l.login.auth.offline.command.OfflineAuthCommandRegistrar
 import icu.h2l.login.auth.offline.config.AuthOfflineConfigLoader
 import icu.h2l.login.auth.offline.config.OfflineAuthMessageResourceLoader
@@ -106,6 +107,15 @@ class OfflineSubModule : HyperSubModule {
             authService = offlineAuthService
         )
         proxy.eventManager.register(api, OfflineWaitingAreaEventListener(offlineAuthService))
+
+        // 注册离线绑定检查器与移除器，供其他模块查询和升级流程使用
+        ProfileChannelBindingRegistry.register("offline") { profileId ->
+            offlineAuthRepository.getByProfileId(profileId) != null
+        }
+        ProfileChannelBindingRegistry.registerRemover("offline") { profileId ->
+            offlineAuthRepository.deleteByProfileId(profileId)
+        }
+
         info { "OfflineSubModule 已加载，离线聊天命令与提示监听器已注册" }
     }
 }

@@ -34,6 +34,7 @@ import java.util.concurrent.ConcurrentHashMap
 object ProfileChannelBindingRegistry {
 
     private val checkers = ConcurrentHashMap<String, (UUID) -> Boolean>()
+    private val removers = ConcurrentHashMap<String, (UUID) -> Unit>()
 
     /**
      * 注册一个渠道绑定检查器。
@@ -46,10 +47,28 @@ object ProfileChannelBindingRegistry {
     }
 
     /**
+     * 注册一个渠道绑定移除器（用于升级流程）。
+     *
+     * @param channelId 渠道 ID
+     * @param remover 移除函数，接收 profileId
+     */
+    fun registerRemover(channelId: String, remover: (UUID) -> Unit) {
+        removers[channelId] = remover
+    }
+
+    /**
+     * 移除指定 Profile 在特定渠道的绑定。
+     */
+    fun removeBinding(profileId: UUID, channelId: String) {
+        removers[channelId]?.invoke(profileId)
+    }
+
+    /**
      * 注销一个渠道绑定检查器。
      */
     fun unregister(channelId: String) {
         checkers.remove(channelId)
+        removers.remove(channelId)
     }
 
     /**
@@ -57,5 +76,12 @@ object ProfileChannelBindingRegistry {
      */
     fun isProfileBoundToAnyExternalChannel(profileId: UUID): Boolean {
         return checkers.values.any { it(profileId) }
+    }
+
+    /**
+     * 检查指定 Profile 是否被特定渠道绑定。
+     */
+    fun isProfileBoundToChannel(profileId: UUID, channelId: String): Boolean {
+        return checkers[channelId]?.invoke(profileId) ?: false
     }
 }
