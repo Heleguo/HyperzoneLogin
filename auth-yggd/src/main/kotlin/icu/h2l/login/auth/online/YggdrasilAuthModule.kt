@@ -292,8 +292,8 @@ class YggdrasilAuthModule(
             return YggdrasilMessages.registrationDisabledReason(handler)
         }
 
-        // 检查名称冲突的 Profile 是否为离线绑定
-        if (!profileService.canCreate(probeCredential)) {
+        val canCreate = profileService.canCreate(probeCredential)
+        if (!canCreate) {
             val conflictingProfile = profileService.findProfileByName(result.profile.name)
             if (conflictingProfile != null &&
                 ProfileChannelBindingRegistry.isProfileBoundToChannel(conflictingProfile.id, "offline")
@@ -328,7 +328,7 @@ class YggdrasilAuthModule(
             }
         }
 
-        if (profileService.canCreate(probeCredential)) {
+        if (canCreate) {
             val createdProfile = try {
                 profileService.create(probeCredential)
             } catch (throwable: IllegalStateException) {
