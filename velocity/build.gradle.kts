@@ -29,6 +29,11 @@ plugins {
     id("icu.h2l.runtime-dependencies")
 }
 
+configurations.all {
+    exclude(group = "gg.gemstone")
+    exclude(group = "com.velocityctd", module = "velocity-permission-integration-spi")
+}
+
 val bstatsRelocatedClasspath by configurations.creating {
     isCanBeConsumed = false
     isCanBeResolved = true
