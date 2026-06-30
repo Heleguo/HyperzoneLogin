@@ -32,6 +32,7 @@ plugins {
 configurations.all {
     exclude(group = "gg.gemstone")
     exclude(group = "com.velocityctd", module = "velocity-permission-integration-spi")
+    exclude(group = "com.velocityctd", module = "velocity-native")
 }
 
 val bstatsRelocatedClasspath by configurations.creating {
@@ -117,6 +118,7 @@ dependencies {
         exclude(group = "com.velocitypowered", module = "velocity-proxy-log4j2-plugin")
         exclude(group = "gg.gemstone")
         exclude(group = "com.velocityctd", module = "velocity-permission-integration-spi")
+        exclude(group = "com.velocityctd", module = "velocity-native")
     }
     testImplementation(libs.nettyAll)
     testImplementation(libs.adventureTextLoggerSlf4j)
