@@ -80,8 +80,11 @@ class OutPreBackendBridgeSessionHandler(
     override fun handle(packet: LoginPluginMessagePacket): Boolean {
         val connection = bridge.ensureConnected()
         val config = bridge.proxyServer.configuration
-        if (config.playerInfoForwardingMode == PlayerInfoForwarding.MODERN
-            && packet.channel == PlayerDataForwarding.CHANNEL
+//        CTD兼容
+//        if (config.playerInfoForwardingMode == PlayerInfoForwarding.MODERN
+//            && packet.channel == PlayerDataForwarding.CHANNEL
+//        ) {
+        if (packet.channel == PlayerDataForwarding.CHANNEL
         ) {
             var requestedForwardingVersion = PlayerDataForwarding.MODERN_DEFAULT
             if (packet.content().readableBytes() == 1) {
@@ -117,12 +120,7 @@ class OutPreBackendBridgeSessionHandler(
     }
 
     override fun handle(packet: ServerLoginSuccessPacket): Boolean {
-        if (bridge.proxyServer.configuration.playerInfoForwardingMode == PlayerInfoForwarding.MODERN && !modernForwardingSent) {
-            debug(HyperZoneDebugType.OUTPRE_TRACE) {
-                "[OutPre][${bridge.player.username}] MODERN forwarding configured but forwarding data was not sent " +
-                    "(backend may not have requested it). Proceeding without forwarding."
-            }
-        }
+//        省略一个modern转发bug提示 CTD兼容
 
         val connection = bridge.ensureConnected()
         if (connection.protocolVersion.lessThan(ProtocolVersion.MINECRAFT_1_20_2)) {

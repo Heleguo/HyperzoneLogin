@@ -91,9 +91,10 @@ class LoginProfilePacketReplacer(
 
 
     private fun genLoginPluginResponse(msg: LoginPluginResponsePacket): LoginPluginResponsePacket {
-        if (config.playerInfoForwardingMode != PlayerInfoForwarding.MODERN) {
-            return msg
-        }
+//        不判定 CTD兼容，理论上也不需要判断
+//        if (config.playerInfoForwardingMode != PlayerInfoForwarding.MODERN) {
+//            return msg
+//        }
 
         val requestedForwardingVersion = resolveRequestedForwardingVersion(msg.content())
         val forwardingData = PlayerDataForwarding.createForwardingData(

@@ -55,6 +55,8 @@ import icu.h2l.login.inject.network.NettyReflectionHelper.reflectedTeardown
 import icu.h2l.login.manager.HyperZonePlayerManager
 import icu.h2l.login.player.ProfileSkinApplySupport
 import icu.h2l.login.reflect.VelocityInternalAccess
+import icu.h2l.login.reflect.VelocityInternalAccess.connectionsByName
+import icu.h2l.login.reflect.VelocityInternalAccess.connectionsByUuid
 import icu.h2l.login.util.buildAttachedIdentityGameProfile
 import icu.h2l.login.util.describeGameProfileBrief
 import icu.h2l.login.util.hasSemanticGameProfileDifference
@@ -65,9 +67,7 @@ import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
-import java.util.Objects
-import java.util.Optional
-import java.util.UUID
+import java.util.*
 import java.util.concurrent.CompletableFuture
 
 /**
@@ -94,15 +94,23 @@ class OutPreAuthSessionHandler(
     private var connectedPlayer: ConnectedPlayer? = null
     private var loginState = State.START
 
-//    激活入口点
+    //    激活入口点
     override fun activated() {
-        profile = mcConnection.type.addGameProfileTokensIfRequired(
-            profile,
-            server.configuration.playerInfoForwardingMode,
-        )
-    debug(HyperZoneDebugType.OUTPRE_TRACE) {
-        "outpre.handler.activated channel=${mcConnection.channel} initialProfile=${describeGameProfileBrief(profile)} onlineMode=$onlineMode protocol=${inbound.protocolVersion}"
-    }
+//        LEGACY的话需要添加额外的 IS_FORGE_CLIENT_PROPERTY 我们先不管
+        profile = try {
+            mcConnection.type.addGameProfileTokensIfRequired(
+                profile,
+                server.configuration.playerInfoForwardingMode,
+            )
+        } catch (e: NoSuchMethodError) {
+            debug(HyperZoneDebugType.OUTPRE_TRACE) {
+                "profile addGameProfileTokensIfRequired failed, maybe using Velocity-CTD"
+            }
+            profile
+        }
+        debug(HyperZoneDebugType.OUTPRE_TRACE) {
+            "outpre.handler.activated channel=${mcConnection.channel} initialProfile=${describeGameProfileBrief(profile)} onlineMode=$onlineMode protocol=${inbound.protocolVersion}"
+        }
 
         val player = NettyReflectionHelper.createConnectedPlayer(
             server = server,
@@ -112,13 +120,7 @@ class OutPreAuthSessionHandler(
         )
         connectedPlayer = player
 
-        if (!server.canRegisterConnection(player)) {
-            player.disconnect0(
-                Component.translatable("velocity.error.already-connected-proxy", NamedTextColor.RED),
-                true,
-            )
-            return
-        }
+//        这里不判断能不能进入，没必要，后续有自己的子服务器判断方法，主要是为了对CTD的兼容性
 
         if (server.configuration.isLogPlayerConnections) {
             logger.info("{} entered outpre pre-registration flow", player)
@@ -141,10 +143,11 @@ class OutPreAuthSessionHandler(
             mcConnection.setCompressionThreshold(threshold)
         }
 
-        var playerUniqueId: UUID = player.uniqueId
-        if (server.configuration.playerInfoForwardingMode == PlayerInfoForwarding.NONE) {
-            playerUniqueId = UuidUtils.generateOfflinePlayerUuid(player.username)
-        }
+//        就用我们自己的往回发，别管，这样皮肤兼容性好
+        val playerUniqueId: UUID = player.uniqueId
+//        if (server.configuration.playerInfoForwardingMode == PlayerInfoForwarding.NONE) {
+//            playerUniqueId = UuidUtils.generateOfflinePlayerUuid(player.username)
+//        }
 
         validateIdentifiedKey(player, playerUniqueId)
         mcConnection.setAssociation(player)
@@ -208,7 +211,12 @@ class OutPreAuthSessionHandler(
 
         val player = connectedPlayer ?: return
         val hyperPlayer = HyperZonePlayerManager.getByPlayerOrNull(player) ?: run {
-            player.disconnect0(Component.text("OutPre finalization failed: missing HyperZonePlayer", NamedTextColor.RED), false)
+            player.disconnect0(
+                Component.text(
+                    "OutPre finalization failed: missing HyperZonePlayer",
+                    NamedTextColor.RED
+                ), false
+            )
             return
         }
 
@@ -223,7 +231,12 @@ class OutPreAuthSessionHandler(
                 ?: throw IllegalStateException("missing attached profile")
         }.getOrElse { throwable ->
             logger.error("OutPre finalization failed for {}: attached profile unavailable", player, throwable)
-            player.disconnect0(Component.text("OutPre finalization failed: attached profile missing", NamedTextColor.RED), false)
+            player.disconnect0(
+                Component.text(
+                    "OutPre finalization failed: attached profile missing",
+                    NamedTextColor.RED
+                ), false
+            )
             return
         }
 
@@ -247,55 +260,62 @@ class OutPreAuthSessionHandler(
                 )
             }
 
-            ProfileSkinApplySupport.applyAsync(hyperPlayer, finalCandidateProfile).thenComposeAsync({ skinResolvedProfile ->
-                if (mcConnection.isClosed) {
-                    return@thenComposeAsync CompletableFuture.completedFuture(null)
-                }
-
-                profile = skinResolvedProfile ?: finalCandidateProfile
-                setConnectedPlayerGameProfile(player, profile)
-
-                server.eventManager.fire(
-                    PermissionsSetupEvent(player, NettyReflectionHelper.defaultPermissions())
-                ).thenComposeAsync({ event ->
+            ProfileSkinApplySupport.applyAsync(hyperPlayer, finalCandidateProfile)
+                .thenComposeAsync({ skinResolvedProfile ->
                     if (mcConnection.isClosed) {
                         return@thenComposeAsync CompletableFuture.completedFuture(null)
                     }
 
-                    val function: PermissionFunction? = event.createFunction(player)
-                    if (function == null) {
-                        logger.error(
-                            "A plugin permission provider {} provided an invalid permission function for player {}. Falling back to the default permission function.",
-                            event.provider.javaClass.name,
-                            player.username,
-                        )
-                    } else {
-                        NettyReflectionHelper.setPermissionFunction(player, function)
-                    }
+                    profile = skinResolvedProfile ?: finalCandidateProfile
+                    setConnectedPlayerGameProfile(player, profile)
 
-                    server.eventManager.fire(LoginEvent(player)).thenAcceptAsync({ loginEvent ->
+                    server.eventManager.fire(
+                        PermissionsSetupEvent(player, NettyReflectionHelper.defaultPermissions())
+                    ).thenComposeAsync({ event ->
                         if (mcConnection.isClosed) {
-                            server.eventManager.fireAndForget(
-                                DisconnectEvent(player, DisconnectEvent.LoginStatus.CANCELLED_BY_USER_BEFORE_COMPLETE),
+                            return@thenComposeAsync CompletableFuture.completedFuture(null)
+                        }
+
+                        val function: PermissionFunction? = event.createFunction(player)
+                        if (function == null) {
+                            logger.error(
+                                "A plugin permission provider {} provided an invalid permission function for player {}. Falling back to the default permission function.",
+                                event.provider.javaClass.name,
+                                player.username,
                             )
-                            return@thenAcceptAsync
+                        } else {
+                            NettyReflectionHelper.setPermissionFunction(player, function)
                         }
 
-                        val reason: Optional<Component> = loginEvent.result.reasonComponent
-                        if (reason.isPresent) {
-                            player.disconnect0(reason.get(), false)
-                            return@thenAcceptAsync
-                        }
+                        server.eventManager.fire(LoginEvent(player)).thenAcceptAsync({ loginEvent ->
+                            if (mcConnection.isClosed) {
+                                server.eventManager.fireAndForget(
+                                    DisconnectEvent(
+                                        player,
+                                        DisconnectEvent.LoginStatus.CANCELLED_BY_USER_BEFORE_COMPLETE
+                                    ),
+                                )
+                                return@thenAcceptAsync
+                            }
 
-                        if (!server.registerConnection(player)) {
-                            player.disconnect0(Component.translatable("velocity.error.already-connected-proxy"), false)
-                            return@thenAcceptAsync
-                        }
+                            val reason: Optional<Component> = loginEvent.result.reasonComponent
+                            if (reason.isPresent) {
+                                player.disconnect0(reason.get(), false)
+                                return@thenAcceptAsync
+                            }
 
-                        continueReleasedFlow(player, preferredTargetServerName)
+                            if (!server.registerConnection(player)) {
+                                player.disconnect0(
+                                    Component.translatable("velocity.error.already-connected-proxy"),
+                                    false
+                                )
+                                return@thenAcceptAsync
+                            }
+
+                            continueReleasedFlow(player, preferredTargetServerName)
+                        }, mcConnection.eventLoop())
                     }, mcConnection.eventLoop())
                 }, mcConnection.eventLoop())
-            }, mcConnection.eventLoop())
         }, mcConnection.eventLoop()).exceptionally { ex ->
             logger.error("Exception while finalizing outpre flow for {}", player, ex)
             player.disconnect0(Component.text("OutPre finalization failed", NamedTextColor.RED), false)
@@ -332,7 +352,10 @@ class OutPreAuthSessionHandler(
         clientHandler.releaseToVelocity(server, releaseAction)
     }
 
-    private fun connectToReleasedTarget(player: ConnectedPlayer, preferredTargetServerName: String?): CompletableFuture<Void> {
+    private fun connectToReleasedTarget(
+        player: ConnectedPlayer,
+        preferredTargetServerName: String?
+    ): CompletableFuture<Void> {
         val preferredTarget = outPre.resolveReleaseTarget(player, preferredTargetServerName)
         val event = PlayerChooseInitialServerEvent(player, preferredTarget)
         return server.eventManager.fire(event).thenRunAsync({
