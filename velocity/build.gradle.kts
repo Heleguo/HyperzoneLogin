@@ -74,10 +74,6 @@ dependencies {
 //    VC
     compileOnly(libs.velocityApi)
     compileOnly(libs.velocityProxy)
-    testImplementation(libs.velocityProxy) {
-        exclude(group = "gg.gemstone")
-        exclude(group = "com.velocityctd", module = "velocity-permission-integration-spi")
-    }
     compileOnly(libs.floodgateApi)
     add(bstatsRelocatedClasspath.name, libs.bstatsVelocity)
     compileOnly(files(relocateBstatsCompileOnlyJar.flatMap { it.archiveFile }))
@@ -114,6 +110,8 @@ dependencies {
     testImplementation(libs.velocityApi)
     testImplementation(libs.velocityProxy) {
         exclude(group = "com.velocitypowered", module = "velocity-proxy-log4j2-plugin")
+        exclude(group = "gg.gemstone")
+        exclude(group = "com.velocityctd", module = "velocity-permission-integration-spi")
     }
     testImplementation(libs.nettyAll)
     testImplementation(libs.adventureTextLoggerSlf4j)
