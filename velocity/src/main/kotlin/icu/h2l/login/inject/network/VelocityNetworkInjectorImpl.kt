@@ -146,6 +146,10 @@ class VelocityNetworkInjectorImpl(
                     channel.pipeline().addLast("h2l_waiting_upsert_filter", BackendWaitingAreaPlayerInfoFilter())
                 }
             }
+
+            override fun initChannel(ch: Channel) {
+                super.initChannel(ch)
+            }
         })
     }
 
