@@ -54,11 +54,11 @@ import io.netty.util.ReferenceCountUtil
 import io.netty.util.ReferenceCounted
 import java.util.*
 
-class OutPreClientBridgeSessionHandler(
-    private val player: ConnectedPlayer,
-    private val bridge: OutPreBackendBridge,
-    private var configMode: Boolean,
-) : MinecraftSessionHandler {
+open class OutPreClientBridgeSessionHandlerLogic(
+    protected val player: ConnectedPlayer,
+    protected val bridge: OutPreBackendBridge,
+    initialConfigMode: Boolean,
+) {
     private data class PendingWrite(
         val requiredPhase: OutPreBackendBridge.Phase,
         val write: (MinecraftConnection) -> Unit,
@@ -73,9 +73,11 @@ class OutPreClientBridgeSessionHandler(
     @Volatile
     private var phaseCallbackRegistered = false
     @Volatile
-    private var releaseToVelocityCallback: (() -> Unit)? = null
+    protected var releaseToVelocityCallback: (() -> Unit)? = null
     @Volatile
-    private var releaseToVelocityInProgress = false
+    protected var releaseToVelocityInProgress = false
+    @Volatile
+    protected var configMode: Boolean = initialConfigMode
 
     init {
         ensurePhaseCallback()
@@ -83,18 +85,18 @@ class OutPreClientBridgeSessionHandler(
 
     private fun backend() = bridge.ensureConnected()
 
-    private fun activeClientPhase(): OutPreBackendBridge.Phase {
+    protected fun activeClientPhase(): OutPreBackendBridge.Phase {
         return if (configMode) OutPreBackendBridge.Phase.CONFIG else OutPreBackendBridge.Phase.PLAY_READY
     }
 
-    private fun sendOrQueue(
+    protected fun sendOrQueue(
         requiredPhase: OutPreBackendBridge.Phase,
         action: (MinecraftConnection) -> Unit,
     ) {
         sendOrQueue(PendingWrite(requiredPhase, action))
     }
 
-    private fun sendOrQueuePacket(
+    protected fun sendOrQueuePacket(
         requiredPhase: OutPreBackendBridge.Phase,
         packet: MinecraftPacket,
     ) {
@@ -110,7 +112,7 @@ class OutPreClientBridgeSessionHandler(
         sendOrQueue(requiredPhase) { it.write(packet) }
     }
 
-    private fun sendOrQueueRetained(
+    protected fun sendOrQueueRetained(
         requiredPhase: OutPreBackendBridge.Phase,
         writeNow: (MinecraftConnection) -> Unit,
         retainForQueue: () -> Any,
@@ -177,7 +179,7 @@ class OutPreClientBridgeSessionHandler(
         maybeSendWaitingAreaCommands(force = false)
     }
 
-    private fun maybeSendWaitingAreaCommands(force: Boolean) {
+    protected fun maybeSendWaitingAreaCommands(force: Boolean) {
         if ((!force && waitingAreaCommandsSent)
             || configMode
             || bridge.phase() != OutPreBackendBridge.Phase.PLAY_READY
@@ -240,7 +242,7 @@ class OutPreClientBridgeSessionHandler(
         }
     }
 
-    private fun handleWaitingAreaInput(rawInput: String): Boolean {
+    protected fun handleWaitingAreaInput(rawInput: String): Boolean {
         HyperChatCommandManagerImpl.executeChat(player, rawInput)
         return true
     }
@@ -274,7 +276,7 @@ class OutPreClientBridgeSessionHandler(
         }
     }
 
-    private fun clearPendingWrites() {
+    protected fun clearPendingWrites() {
         while (true) {
             val next = synchronized(pendingWrites) {
                 if (pendingWrites.isEmpty()) null else pendingWrites.removeFirst()
@@ -283,7 +285,7 @@ class OutPreClientBridgeSessionHandler(
         }
     }
 
-    private fun captureDeferredBrand(packet: PluginMessagePacket) {
+    protected fun captureDeferredBrand(packet: PluginMessagePacket) {
         deferredBrandChannel = packet.channel
         deferredBrandMessage = runCatching {
             PluginMessageUtil.readBrandMessage(packet.content())
@@ -306,6 +308,16 @@ class OutPreClientBridgeSessionHandler(
     fun onBackendFinishUpdate() {
         flushDeferredBrand()
     }
+}
+
+// ---- MinecraftSessionHandler override 子类 ----
+
+class OutPreClientBridgeSessionHandler(
+    player: ConnectedPlayer,
+    bridge: OutPreBackendBridge,
+    configMode: Boolean,
+) : OutPreClientBridgeSessionHandlerLogic(player, bridge, configMode),
+    MinecraftSessionHandler {
 
     override fun handle(packet: PluginMessagePacket): Boolean {
         if (configMode && PluginMessageUtil.isMcBrand(packet)) {
@@ -469,5 +481,3 @@ internal fun shouldReleaseDirectlyToVelocityConfig(
 ): Boolean {
     return configMode && !bridgeConnected
 }
-
-

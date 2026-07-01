@@ -41,11 +41,10 @@ import io.netty.util.ReferenceCountUtil
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.TextComponent
 
-class OutPreBackendBridgeSessionHandler(
-    private val bridge: OutPreBackendBridge,
-) : MinecraftSessionHandler {
-
-    private fun refreshWaitingAreaCommands(force: Boolean = false) {
+open class OutPreBackendBridgeSessionHandlerLogic(
+    protected val bridge: OutPreBackendBridge,
+) {
+    protected fun refreshWaitingAreaCommands(force: Boolean = false) {
         val clientHandler = bridge.player.connection.activeSessionHandler as? OutPreClientBridgeSessionHandler
         if (clientHandler != null) {
             clientHandler.refreshWaitingAreaCommands(force)
@@ -62,13 +61,21 @@ class OutPreBackendBridgeSessionHandler(
         }
     }
 
-    private fun forwardPacketToPlayer(packet: MinecraftPacket) {
+    protected fun forwardPacketToPlayer(packet: MinecraftPacket) {
         bridge.player.connection.write(ReferenceCountUtil.retain(packet))
     }
 
-    private fun forwardUnknownToPlayer(buf: ByteBuf) {
+    protected fun forwardUnknownToPlayer(buf: ByteBuf) {
         bridge.player.connection.write(buf.retain())
     }
+}
+
+// ---- MinecraftSessionHandler override 子类 ----
+
+class OutPreBackendBridgeSessionHandler(
+    bridge: OutPreBackendBridge,
+) : OutPreBackendBridgeSessionHandlerLogic(bridge),
+    MinecraftSessionHandler {
 
     override fun handle(packet: EncryptionRequestPacket): Boolean {
         bridge.player.disconnect(Component.translatable("velocity.error.online-mode-only"))
@@ -247,5 +254,3 @@ class OutPreBackendBridgeSessionHandler(
 internal fun shouldDropOutPreBackendPacket(packet: MinecraftPacket): Boolean {
     return packet is UpsertPlayerInfoPacket
 }
-
-
