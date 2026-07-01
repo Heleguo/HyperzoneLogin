@@ -32,9 +32,7 @@ import com.velocitypowered.api.network.ProtocolVersion
 import com.velocitypowered.api.permission.PermissionFunction
 import com.velocitypowered.api.proxy.crypto.IdentifiedKey
 import com.velocitypowered.api.util.GameProfile
-import com.velocitypowered.api.util.UuidUtils
 import com.velocitypowered.proxy.VelocityServer
-import com.velocitypowered.proxy.config.PlayerInfoForwarding
 import com.velocitypowered.proxy.connection.MinecraftConnection
 import com.velocitypowered.proxy.connection.MinecraftSessionHandler
 import com.velocitypowered.proxy.connection.client.AuthSessionHandler
@@ -55,8 +53,6 @@ import icu.h2l.login.inject.network.NettyReflectionHelper.reflectedTeardown
 import icu.h2l.login.manager.HyperZonePlayerManager
 import icu.h2l.login.player.ProfileSkinApplySupport
 import icu.h2l.login.reflect.VelocityInternalAccess
-import icu.h2l.login.reflect.VelocityInternalAccess.connectionsByName
-import icu.h2l.login.reflect.VelocityInternalAccess.connectionsByUuid
 import icu.h2l.login.util.buildAttachedIdentityGameProfile
 import icu.h2l.login.util.describeGameProfileBrief
 import icu.h2l.login.util.hasSemanticGameProfileDifference
@@ -91,8 +87,14 @@ class OutPreAuthSessionHandler(
 
     private val mcConnection: MinecraftConnection = inbound.reflectedDelegatedConnection()
     private var profile: GameProfile = initialProfile
-    private var connectedPlayer: ConnectedPlayer? = null
     private var loginState = State.START
+    private val connectedPlayer = NettyReflectionHelper.createConnectedPlayer(
+        server = server,
+        inbound = inbound,
+        profile = profile,
+        onlineMode = onlineMode,
+    )
+    private val bridge = outPre.createBridge(connectedPlayer)
 
     //    激活入口点
     override fun activated() {
@@ -112,21 +114,14 @@ class OutPreAuthSessionHandler(
             "outpre.handler.activated channel=${mcConnection.channel} initialProfile=${describeGameProfileBrief(profile)} onlineMode=$onlineMode protocol=${inbound.protocolVersion}"
         }
 
-        val player = NettyReflectionHelper.createConnectedPlayer(
-            server = server,
-            inbound = inbound,
-            profile = profile,
-            onlineMode = onlineMode,
-        )
-        connectedPlayer = player
 
 //        这里不判断能不能进入，没必要，后续有自己的子服务器判断方法，主要是为了对CTD的兼容性
 
         if (server.configuration.isLogPlayerConnections) {
-            logger.info("{} entered outpre pre-registration flow", player)
+            logger.info("{} entered outpre pre-registration flow", connectedPlayer)
         }
 
-        startTemporaryLoginPhase(player)
+        startTemporaryLoginPhase(connectedPlayer)
     }
 
     private fun startTemporaryLoginPhase(player: ConnectedPlayer) {
@@ -167,11 +162,7 @@ class OutPreAuthSessionHandler(
 //        版本判断
         if (inbound.protocolVersion.lessThan(ProtocolVersion.MINECRAFT_1_20_2)) {
             loginState = State.BRIDGING
-            mcConnection.setActiveSessionHandler(
-                StateRegistry.PLAY,
-                OutPreClientBridgeSessionHandler(player, outPre.createBridge(player), false)
-            )
-            outPre.beginInitialJoin(player, this)
+            fireAndConnect(player,false)
         }
     }
 
@@ -304,12 +295,16 @@ class OutPreAuthSessionHandler(
                                 return@thenAcceptAsync
                             }
 
+//                            这里register的特别晚，可以忽略
                             if (!server.registerConnection(player)) {
-                                player.disconnect0(
-                                    Component.translatable("velocity.error.already-connected-proxy"),
-                                    false
-                                )
-                                return@thenAcceptAsync
+//                                player.disconnect0(
+//                                    Component.translatable("velocity.error.already-connected-proxy"),
+//                                    false
+//                                )
+//                                return@thenAcceptAsync
+                                debug(HyperZoneDebugType.OUTPRE_TRACE) {
+                                    "register connection failed for player {${player.username},maybe using Ambassador"
+                                }
                             }
 
                             continueReleasedFlow(player, preferredTargetServerName)
@@ -329,24 +324,29 @@ class OutPreAuthSessionHandler(
         }
         val releaseAction = {
             loginState = State.RELEASED
-            server.eventManager.fire(PostLoginEvent(player)).thenCompose {
-                connectToReleasedTarget(player, preferredTargetServerName)
-            }.exceptionally { ex ->
-                logger.error("Exception while continuing outpre flow for {}", player, ex)
-                null
-            }
+//            先释放再链接
+            NettyReflectionHelper.setConnectionInFlight(player, null)
+            VelocityInternalAccess.setConnectedServer(player, bridge)
+            bridge.completeJoin()
+            connectToReleasedTarget(player, preferredTargetServerName)
+//            server.eventManager.fire(PostLoginEvent(player)).thenCompose {
+//                connectToReleasedTarget(player, preferredTargetServerName)
+//            }.exceptionally { ex ->
+//                logger.error("Exception while continuing outpre flow for {}", player, ex)
+//                null
+//            }
             Unit
         }
 
+//        com.velocitypowered.proxy.connection.client.ConnectedPlayer.ConnectionRequestBuilderImpl.internalConnect
+//        应该使用这套逻辑，所以不需要设置SessionHandler
         val clientHandler = mcConnection.activeSessionHandler as? OutPreClientBridgeSessionHandler
         outPre.markInitialFlowReleased(player)
         if (clientHandler == null) {
-            mcConnection.setActiveSessionHandler(
-                StateRegistry.PLAY,
-                NettyReflectionHelper.createInitialConnectSessionHandler(player, server)
+//            没有的话是bug
+            throw IllegalStateException(
+                "no Required clientHandler",
             )
-            releaseAction()
-            return
         }
 
         clientHandler.releaseToVelocity(server, releaseAction)
@@ -379,13 +379,31 @@ class OutPreAuthSessionHandler(
 
         loginState = State.BRIDGING
         val player = connectedPlayer ?: return true
-        mcConnection.setActiveSessionHandler(
-            StateRegistry.CONFIG,
-            OutPreClientBridgeSessionHandler(player, outPre.createBridge(player), true)
-        )
-        outPre.beginInitialJoin(player, this)
+//        大于 1_20_2 批准了才会进入下一阶段
+        fireAndConnect(player,true)
         return true
     }
+
+    fun fireAndConnect(player: ConnectedPlayer,configMode: Boolean) {
+        server.eventManager.fire(
+            PostLoginEvent(player)
+        ).thenRun {
+            connectBackend(player, configMode)
+        }.exceptionally { ex ->
+            logger.error("Exception while continuing outpre flow for {}", player, ex)
+            null
+        }
+    }
+
+    fun connectBackend(player: ConnectedPlayer,configMode: Boolean){
+        NettyReflectionHelper.setConnectionInFlight(player, bridge)
+        mcConnection.setActiveSessionHandler(
+            StateRegistry.LOGIN,
+            OutPreClientBridgeSessionHandler(player, bridge, configMode)
+        )
+        outPre.beginInitialJoin(player, this)
+    }
+
 
     override fun handle(packet: ServerboundCookieResponsePacket): Boolean {
         val player = connectedPlayer ?: return true

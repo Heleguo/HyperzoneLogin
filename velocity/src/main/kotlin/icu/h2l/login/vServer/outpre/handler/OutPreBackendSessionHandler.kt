@@ -44,7 +44,6 @@ import net.kyori.adventure.text.TextComponent
 class OutPreBackendBridgeSessionHandler(
     private val bridge: OutPreBackendBridge,
 ) : MinecraftSessionHandler {
-    private var modernForwardingSent = false
 
     private fun refreshWaitingAreaCommands(force: Boolean = false) {
         val clientHandler = bridge.player.connection.activeSessionHandler as? OutPreClientBridgeSessionHandler
@@ -99,7 +98,6 @@ class OutPreBackendBridgeSessionHandler(
                 requestedForwardingVersion,
             )
             connection.write(LoginPluginResponsePacket(packet.id, true, forwardingData))
-            modernForwardingSent = true
         } else {
             connection.write(LoginPluginResponsePacket(packet.id, false, Unpooled.EMPTY_BUFFER))
         }

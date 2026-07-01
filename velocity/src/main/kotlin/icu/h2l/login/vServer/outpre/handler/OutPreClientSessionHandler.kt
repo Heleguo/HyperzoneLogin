@@ -202,10 +202,11 @@ class OutPreClientBridgeSessionHandler(
     fun releaseToVelocity(server: VelocityServer, onReleased: () -> Unit) {
         player.connection.eventLoop().execute {
             if (player.protocolVersion.lessThan(ProtocolVersion.MINECRAFT_1_20_2)) {
-                player.connection.setActiveSessionHandler(
-                    StateRegistry.PLAY,
-                    NettyReflectionHelper.createInitialConnectSessionHandler(player, server)
-                )
+//                player.connection.setActiveSessionHandler(
+//                    StateRegistry.PLAY,
+//                    NettyReflectionHelper.createInitialConnectSessionHandler(player, server)
+//                )
+                player.connection.state= StateRegistry.PLAY
                 onReleased()
                 return@execute
             }

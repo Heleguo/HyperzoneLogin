@@ -272,6 +272,10 @@ object VelocityInternalAccess {
         FuzzyLookup.fieldByNames(ConnectedPlayer::class.java, "connectionInFlight")
     }
 
+    private val connectedPlayerConnectedServerField: Field by lazy {
+        FuzzyLookup.fieldByNames(ConnectedPlayer::class.java, "connectedServer")
+    }
+
     private val connectedPlayerDefaultPermissionsField: Field by lazy {
         FuzzyLookup.fieldByNames(ConnectedPlayer::class.java, "DEFAULT_PERMISSIONS")
     }
@@ -297,6 +301,9 @@ object VelocityInternalAccess {
 
     fun setConnectionInFlight(player: ConnectedPlayer, connection: VelocityServerConnection?) {
         connectedPlayerConnectionInFlightField.set(player, connection)
+    }
+    fun setConnectedServer(player: ConnectedPlayer, connection: VelocityServerConnection?) {
+        connectedPlayerConnectedServerField.set(player, connection)
     }
 
     fun defaultPermissions(): PermissionProvider =
