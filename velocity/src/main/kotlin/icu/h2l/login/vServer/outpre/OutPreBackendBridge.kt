@@ -42,6 +42,7 @@ import com.velocitypowered.proxy.protocol.packet.config.FinishedUpdatePacket
 import com.velocitypowered.proxy.server.VelocityRegisteredServer
 import icu.h2l.login.HyperZoneLoginMain
 import icu.h2l.login.vServer.outpre.handler.OutPreBackendBridgeSessionHandler
+import icu.h2l.login.vServer.outpre.vc.OutPreRegisteredServer
 import io.netty.buffer.Unpooled
 import io.netty.channel.ChannelFutureListener
 import java.net.InetSocketAddress
@@ -74,7 +75,7 @@ class OutPreBackendBridge(
     private val playReadyFuture = CompletableFuture<Void>()
     private val phaseListeners = CopyOnWriteArrayList<(Phase) -> Unit>()
 
-    /** 缓存的 [OutPreRegisteredServer]，始终返回同一实例。 */
+    /** 缓存的 [icu.h2l.login.vServer.outpre.vc.OutPreRegisteredServer]，始终返回同一实例。 */
     val outPreRegisteredServer: OutPreRegisteredServer =
         OutPreRegisteredServer(proxyServer, outPreServerInfo)
 

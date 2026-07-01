@@ -217,13 +217,14 @@ subprojects {
         if (!isCi) {
             maven("https://maven.aliyun.com/repository/central")
             maven("https://mirrors.cloud.tencent.com/nexus/repository/maven-public/")
+            mavenLocal()
         }
         mavenCentral()
 
         maven("https://repo.papermc.io/repository/maven-public/")
         maven("https://maven.fabricmc.net/")
-        maven("https://maven.elytrium.net/repo/")
         maven("https://repo.opencollab.dev/maven-snapshots")
+        maven("https://maven.elytrium.net/repo/")
     }
 
     tasks.withType(ProcessResources::class.java).configureEach {

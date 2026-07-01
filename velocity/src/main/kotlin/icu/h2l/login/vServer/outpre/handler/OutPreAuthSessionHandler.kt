@@ -162,7 +162,7 @@ class OutPreAuthSessionHandler(
 //        版本判断
         if (inbound.protocolVersion.lessThan(ProtocolVersion.MINECRAFT_1_20_2)) {
             loginState = State.BRIDGING
-            fireAndConnect(player,false)
+            fireAndConnect(player, false)
         }
     }
 
@@ -380,11 +380,11 @@ class OutPreAuthSessionHandler(
         loginState = State.BRIDGING
         val player = connectedPlayer ?: return true
 //        大于 1_20_2 批准了才会进入下一阶段
-        fireAndConnect(player,true)
+        fireAndConnect(player, true)
         return true
     }
 
-    fun fireAndConnect(player: ConnectedPlayer,configMode: Boolean) {
+    fun fireAndConnect(player: ConnectedPlayer, configMode: Boolean) {
         server.eventManager.fire(
             PostLoginEvent(player)
         ).thenRun {
@@ -395,20 +395,19 @@ class OutPreAuthSessionHandler(
         }
     }
 
-    fun connectBackend(player: ConnectedPlayer,configMode: Boolean){
+    fun connectBackend(player: ConnectedPlayer, supportConfig: Boolean) {
         NettyReflectionHelper.setConnectionInFlight(player, bridge)
         mcConnection.setActiveSessionHandler(
-            StateRegistry.LOGIN,
-            OutPreClientBridgeSessionHandler(player, bridge, configMode)
+            if (supportConfig) StateRegistry.CONFIG else StateRegistry.LOGIN,
+            OutPreClientBridgeSessionHandler(player, bridge, supportConfig)
         )
         outPre.beginInitialJoin(player, this)
     }
 
 
     override fun handle(packet: ServerboundCookieResponsePacket): Boolean {
-        val player = connectedPlayer ?: return true
         server.eventManager.fire(
-            CookieReceiveEvent(player, packet.key, packet.payload),
+            CookieReceiveEvent(connectedPlayer, packet.key, packet.payload),
         ).thenAcceptAsync({ event ->
             if (event.result.isAllowed) {
                 throw IllegalStateException(
@@ -416,7 +415,6 @@ class OutPreAuthSessionHandler(
                 )
             }
         }, mcConnection.eventLoop())
-
         return true
     }
 
@@ -426,7 +424,7 @@ class OutPreAuthSessionHandler(
 
     override fun disconnected() {
         loginState = State.CLOSED
-        connectedPlayer?.reflectedTeardown()
+        connectedPlayer.reflectedTeardown()
         inbound.reflectedCleanup()
     }
 

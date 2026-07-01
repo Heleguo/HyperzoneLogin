@@ -19,7 +19,7 @@
  *
  */
 
-package icu.h2l.login.vServer.outpre
+package icu.h2l.login.vServer.outpre.vc
 
 import com.google.common.collect.ImmutableList
 import com.velocitypowered.api.proxy.Player
@@ -39,11 +39,14 @@ import com.velocitypowered.proxy.protocol.netty.MinecraftVarintFrameDecoder
 import com.velocitypowered.proxy.protocol.netty.MinecraftVarintLengthEncoder
 import com.velocitypowered.proxy.protocol.util.ByteBufDataOutput
 import com.velocitypowered.proxy.protocol.ProtocolUtils
+import com.velocitypowered.proxy.protocol.packet.PluginMessagePacket
 import com.velocitypowered.proxy.server.VelocityRegisteredServer
 import icu.h2l.login.reflect.VelocityInternalAccess
+import icu.h2l.login.vServer.outpre.OutPreBackendBridge
 import io.netty.buffer.ByteBuf
 import io.netty.buffer.Unpooled
 import io.netty.channel.Channel
+import io.netty.channel.ChannelFuture
 import io.netty.channel.ChannelInitializer
 import io.netty.handler.timeout.ReadTimeoutHandler
 import net.kyori.adventure.audience.Audience
@@ -69,7 +72,7 @@ class OutPreRegisteredServer(
     private val serverInfo: ServerInfo,
 ) : VelocityRegisteredServer(proxyServer, serverInfo) {
 
-    /** UUID → 当前通过该端点桥接的玩家，由 [OutPreBackendBridge] 维护 */
+    /** UUID → 当前通过该端点桥接的玩家，由 [icu.h2l.login.vServer.outpre.OutPreBackendBridge] 维护 */
     private val bridgedPlayers = ConcurrentHashMap<UUID, OutPreBackendBridge>()
 
     // -------------------------------------------------------------------------
@@ -109,7 +112,7 @@ class OutPreRegisteredServer(
             val conn = bridge.backendConnection ?: continue
             if (conn.isClosed) continue
             conn.write(
-                com.velocitypowered.proxy.protocol.packet.PluginMessagePacket(
+                PluginMessagePacket(
                     identifier.id,
                     data.retainedSlice()
                 )
@@ -149,7 +152,7 @@ class OutPreRegisteredServer(
             }
         }).connect(serverInfo.address).addListener { future ->
             if (future.isSuccess) {
-                val conn = (future as io.netty.channel.ChannelFuture).channel()
+                val conn = (future as ChannelFuture).channel()
                     .pipeline().get(MinecraftConnection::class.java)
                 val handler = VelocityInternalAccess.createPingSessionHandler(
                     pingFuture, this, conn,

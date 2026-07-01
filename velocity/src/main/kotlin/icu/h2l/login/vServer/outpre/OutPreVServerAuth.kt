@@ -45,6 +45,7 @@ import icu.h2l.login.manager.HyperZonePlayerManager
 import icu.h2l.login.message.MessageKeys
 import icu.h2l.login.player.VelocityHyperZonePlayer
 import icu.h2l.login.vServer.outpre.handler.OutPreAuthSessionHandler
+import icu.h2l.login.vServer.outpre.vc.OutPreRegisteredServer
 import io.netty.channel.Channel
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
