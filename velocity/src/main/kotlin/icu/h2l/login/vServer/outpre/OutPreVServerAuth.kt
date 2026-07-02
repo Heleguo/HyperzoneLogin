@@ -45,12 +45,11 @@ import icu.h2l.login.manager.HyperZonePlayerManager
 import icu.h2l.login.message.MessageKeys
 import icu.h2l.login.player.VelocityHyperZonePlayer
 import icu.h2l.login.vServer.outpre.handler.OutPreAuthSessionHandler
-import icu.h2l.login.vServer.outpre.vc.OutPreRegisteredServer
 import io.netty.channel.Channel
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
 import java.util.concurrent.ConcurrentHashMap
-import kotlin.jvm.optionals.getOrElse
+import kotlin.jvm.optionals.getOrNull
 
 /**
  * outpre = 在正常 Velocity 注册前，先把客户端连接桥接到真实认证服；
@@ -74,10 +73,7 @@ class OutPreVServerAuth(
     private val pendingInitialHandlers = ConcurrentHashMap<Channel, OutPreAuthSessionHandler>()
     private val initialBridges = ConcurrentHashMap<Channel, OutPreBackendBridge>()
 
-    /** 认证后端定时探测器：跟踪在线状态与协议版本，离线时拒绝新玩家接入 */
-    val backendHealthChecker = OutPreBackendHealthChecker(server)
-
-    var registeredServer: VelocityRegisteredServer? = null
+    var registeredServer: RegisteredServer? = null
         private set
 
     fun init(plugin: Any) {
@@ -90,17 +86,8 @@ class OutPreVServerAuth(
         server.registerServer(outPreServerInfo)
 //        强行转换 如果不是VelocityServer，说明有问题
         val getServer = proxy.getServer(configuredAuthTargetLabel())
-        registeredServer = getServer.getOrElse {
-            trace("OutPre Create Custom RegisteredServer for auth target: $authTargetLabel at $authAddress")
-            val outPreRegisteredServer = OutPreRegisteredServer(proxy, outPreServerInfo)
-            outPreRegisteredServer
-        } as VelocityRegisteredServer?
+        registeredServer = getServer.getOrNull()
 
-        startBackendHealthCheck(plugin)
-    }
-
-    fun startBackendHealthCheck(plugin: Any) {
-        backendHealthChecker.start(plugin)
     }
 
     private fun trace(message: String) {
@@ -154,16 +141,6 @@ class OutPreVServerAuth(
 
         if (configuredAuthAddress() == null) {
             player.disconnect(messages.render(player, MessageKeys.BackendAuth.MISCONFIGURED_DISCONNECT))
-            return
-        }
-
-        if (!backendHealthChecker.isBackendUsable()) {
-            trace(
-                "beginInitialJoin backend-offline channel=${
-                    player.getChannel().id()
-                } player=${player.username} rejecting"
-            )
-            player.disconnect(renderBackendUnavailableMessage(player))
             return
         }
 
@@ -251,10 +228,6 @@ class OutPreVServerAuth(
         val hyperPlayer = getHyperPlayer(player) ?: return
         if (configuredAuthAddress() == null) {
             player.sendMessage(messages.render(player, MessageKeys.BackendAuth.NO_AUTH_SERVER))
-            return
-        }
-        if (!backendHealthChecker.isBackendUsable()) {
-            player.sendMessage(renderBackendUnavailableMessage(player))
             return
         }
 
@@ -603,18 +576,6 @@ class OutPreVServerAuth(
 
     private fun getHyperPlayer(player: Player): VelocityHyperZonePlayer? {
         return HyperZonePlayerManager.getByPlayerOrNull(player)
-    }
-
-    /** 后端离线的统一提示：携带最后一次探测到的后端版本/协议号占位符 */
-    private fun renderBackendUnavailableMessage(player: Player): Component {
-        val messages = HyperZoneLoginMain.getInstance().messageService
-        val version = backendHealthChecker.backendVersion
-        return messages.render(
-            player,
-            MessageKeys.BackendAuth.UNAVAILABLE_DISCONNECT,
-            HyperZoneMessagePlaceholder.text("backend_version", version?.name ?: "unknown"),
-            HyperZoneMessagePlaceholder.text("backend_protocol", version?.protocol?.toString() ?: "-1"),
-        )
     }
 
     private fun configuredAuthAddress(): java.net.InetSocketAddress? {

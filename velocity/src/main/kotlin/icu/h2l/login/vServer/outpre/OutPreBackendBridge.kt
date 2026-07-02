@@ -42,7 +42,6 @@ import com.velocitypowered.proxy.protocol.packet.config.FinishedUpdatePacket
 import com.velocitypowered.proxy.server.VelocityRegisteredServer
 import icu.h2l.login.HyperZoneLoginMain
 import icu.h2l.login.vServer.outpre.handler.OutPreBackendBridgeSessionHandler
-import icu.h2l.login.vServer.outpre.vc.OutPreRegisteredServer
 import io.netty.buffer.Unpooled
 import io.netty.channel.ChannelFutureListener
 import java.net.InetSocketAddress
@@ -74,10 +73,6 @@ class OutPreBackendBridge(
     private val connectFuture = CompletableFuture<ConnectionRequestResults.Impl?>()
     private val playReadyFuture = CompletableFuture<Void>()
     private val phaseListeners = CopyOnWriteArrayList<(Phase) -> Unit>()
-
-    /** 缓存的 [icu.h2l.login.vServer.outpre.vc.OutPreRegisteredServer]，始终返回同一实例。 */
-    val outPreRegisteredServer: OutPreRegisteredServer =
-        OutPreRegisteredServer(proxyServer, outPreServerInfo)
 
     @Volatile
     private var bridgeSessionHandler: OutPreBackendBridgeSessionHandler? = null
@@ -122,7 +117,6 @@ class OutPreBackendBridge(
         }
         connectStarted = true
         updatePhase(Phase.CONNECTING)
-        outPreRegisteredServer.registerBridge(this)
         proxyServer.createBootstrap(player.connection.eventLoop())
             .handler(proxyServer.backendChannelInitializer)
             .connect(authTargetAddress)
@@ -272,7 +266,6 @@ class OutPreBackendBridge(
         }
         backendConnection?.close(false)
         backendConnection = null
-        outPreRegisteredServer.unregisterBridge(this)
         updatePhase(Phase.CLOSED)
     }
 
@@ -283,7 +276,6 @@ class OutPreBackendBridge(
         playReadyFuture.completeExceptionally(throwable)
         backendConnection?.close(false)
         backendConnection = null
-        outPreRegisteredServer.unregisterBridge(this)
         updatePhase(Phase.CLOSED)
         if (notifyOwner) {
             owner.onInitialBridgeDisconnected(this, player, throwable.message)
