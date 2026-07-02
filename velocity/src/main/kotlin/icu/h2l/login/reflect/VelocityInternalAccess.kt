@@ -552,13 +552,21 @@ object VelocityInternalAccess {
             ?: throw UnsupportedOperationException("PingSessionHandler class not found")
         // 使用模糊构造函数：只要求包含 MinecraftConnection 类型参数
         val ctor = FuzzyLookup.constructorFuzzy(clazz, MinecraftConnection::class.java)
+        // virtualHost 跨版本可能是 String 或 Optional<String>；按参数类型归一化
+        val virtualHostString: String? = when (virtualHost) {
+            is java.util.Optional<*> -> virtualHost.orElse(null) as? String
+            else -> virtualHost as? String
+        }
         val args = ctor.parameters.map { param ->
             when {
                 java.util.concurrent.CompletableFuture::class.java.isAssignableFrom(param.type) -> pingFuture
                 param.type.isAssignableFrom(conn.javaClass) -> conn
                 com.velocitypowered.api.network.ProtocolVersion::class.java.isAssignableFrom(param.type) -> protocolVersion
-                param.name == "virtualHost" || java.util.Optional::class.java.isAssignableFrom(param.type) -> virtualHost
-                else -> registeredServer
+                param.type == String::class.java -> virtualHostString
+                java.util.Optional::class.java.isAssignableFrom(param.type) ->
+                    java.util.Optional.ofNullable(virtualHostString)
+                param.type.isInstance(registeredServer) -> registeredServer
+                else -> null
             }
         }.toTypedArray()
         return ctor.newInstance(*args) as MinecraftSessionHandler

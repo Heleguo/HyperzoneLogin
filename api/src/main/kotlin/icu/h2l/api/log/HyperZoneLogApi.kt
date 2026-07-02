@@ -31,7 +31,7 @@ enum class HyperZoneDebugType {
     GENERAL,
 
     /**
-     * Floodgate / OutPre 预登录链路追踪日志。
+     * OutPre 预登录链路追踪日志。
      */
     OUTPRE_TRACE,
 
@@ -54,6 +54,11 @@ enum class HyperZoneDebugType {
      * Yggdrasil 认证流程与配置加载日志。
      */
     YGGDRASIL_AUTH,
+
+    /**
+     * Floodgate预登录链路追踪日志。
+     */
+    FLOODGATE,
 }
 
 /**

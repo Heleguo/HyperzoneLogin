@@ -35,9 +35,7 @@ import com.velocitypowered.api.util.GameProfile
 import com.velocitypowered.proxy.VelocityServer
 import com.velocitypowered.proxy.connection.MinecraftConnection
 import com.velocitypowered.proxy.connection.MinecraftSessionHandler
-import com.velocitypowered.proxy.connection.client.AuthSessionHandler
-import com.velocitypowered.proxy.connection.client.ConnectedPlayer
-import com.velocitypowered.proxy.connection.client.LoginInboundConnection
+import com.velocitypowered.proxy.connection.client.*
 import com.velocitypowered.proxy.protocol.StateRegistry
 import com.velocitypowered.proxy.protocol.packet.LoginAcknowledgedPacket
 import com.velocitypowered.proxy.protocol.packet.ServerLoginSuccessPacket
@@ -59,6 +57,7 @@ import icu.h2l.login.util.hasSemanticGameProfileDifference
 import icu.h2l.login.util.setConnectedPlayerGameProfile
 import icu.h2l.login.vServer.outpre.OutPreVServerAuth
 import io.netty.buffer.ByteBuf
+import io.netty.channel.EventLoop
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
 import org.apache.logging.log4j.LogManager
@@ -93,11 +92,12 @@ open class OutPreAuthSessionHandlerLogic(
         profile = profile,
         onlineMode = onlineMode,
     )
-    private val bridge = outPre.createBridge(connectedPlayer)
+    val bridge = outPre.createBridge(connectedPlayer)
+    protected val eventLoop: EventLoop = mcConnection.eventLoop()
 
     protected fun startTemporaryLoginPhase(player: ConnectedPlayer) {
         debug(HyperZoneDebugType.OUTPRE_TRACE) {
-            "outpre.handler.startTemporaryLoginPhase channel=${mcConnection.channel} player=${player.username} onlineMode=$onlineMode profile=${
+            "outpre.handler.startTemporaryLoginPhase channel=${mcConnection.channel.id()} player=${player.username} onlineMode=$onlineMode profile=${
                 describeGameProfileBrief(
                     player.gameProfile
                 )
@@ -133,7 +133,7 @@ open class OutPreAuthSessionHandlerLogic(
 //        版本判断
         if (inbound.protocolVersion.lessThan(ProtocolVersion.MINECRAFT_1_20_2)) {
             loginState = State.BRIDGING
-            fireAndConnect(player, false)
+            fireAndConnect(false)
         }
     }
 
@@ -165,7 +165,7 @@ open class OutPreAuthSessionHandlerLogic(
     fun completeAfterVerification(preferredTargetServerName: String?) {
         if (loginState != State.BRIDGING) {
             debug(HyperZoneDebugType.OUTPRE_TRACE) {
-                "outpre.handler.completeAfterVerification ignored channel=${mcConnection.channel} state=$loginState preferredTarget=$preferredTargetServerName"
+                "outpre.handler.completeAfterVerification ignored channel=${mcConnection.channel.id()} state=$loginState preferredTarget=$preferredTargetServerName"
             }
             return
         }
@@ -182,7 +182,7 @@ open class OutPreAuthSessionHandlerLogic(
         }
 
         debug(HyperZoneDebugType.OUTPRE_TRACE) {
-            "outpre.handler.completeAfterVerification start channel=${mcConnection.channel} player=${connectedPlayer.username} preferredTarget=$preferredTargetServerName waitingArea=${hyperPlayer.isInWaitingArea()} verified=${hyperPlayer.isVerified()} attachedProfile=${hyperPlayer.hasAttachedProfile()} credentials=${
+            "outpre.handler.completeAfterVerification start channel=${mcConnection.channel.id()} player=${connectedPlayer.username} preferredTarget=$preferredTargetServerName waitingArea=${hyperPlayer.isInWaitingArea()} verified=${hyperPlayer.isVerified()} attachedProfile=${hyperPlayer.hasAttachedProfile()} credentials=${
                 hyperPlayer.getSubmittedCredentials().map { it.javaClass.simpleName }
             }"
         }
@@ -278,10 +278,10 @@ open class OutPreAuthSessionHandlerLogic(
                             }
 
                             continueReleasedFlow(connectedPlayer, preferredTargetServerName)
-                        }, mcConnection.eventLoop())
-                    }, mcConnection.eventLoop())
-                }, mcConnection.eventLoop())
-        }, mcConnection.eventLoop()).exceptionally { ex ->
+                        }, eventLoop)
+                    }, eventLoop)
+                }, eventLoop)
+        }, eventLoop).exceptionally { ex ->
             logger.error("Exception while finalizing outpre flow for {}", connectedPlayer, ex)
             connectedPlayer.disconnect0(Component.text("OutPre finalization failed", NamedTextColor.RED), false)
             null
@@ -290,7 +290,7 @@ open class OutPreAuthSessionHandlerLogic(
 
     private fun continueReleasedFlow(player: ConnectedPlayer, preferredTargetServerName: String?) {
         debug(HyperZoneDebugType.OUTPRE_TRACE) {
-            "outpre.handler.continueReleasedFlow channel=${mcConnection.channel} player=${player.username} preferredTarget=$preferredTargetServerName"
+            "outpre.handler.continueReleasedFlow channel=${mcConnection.channel.id()} player=${player.username} preferredTarget=$preferredTargetServerName"
         }
         val releaseAction = {
             loginState = State.RELEASED
@@ -338,27 +338,47 @@ open class OutPreAuthSessionHandlerLogic(
                 return@thenRunAsync
             }
             player.createConnectionRequest(toTry).fireAndForget()
-        }, player.connection.eventLoop())
+        }, eventLoop)
     }
 
-    fun fireAndConnect(player: ConnectedPlayer, configMode: Boolean) {
+    fun fireAndConnect(supportConfig: Boolean) {
+        debug(HyperZoneDebugType.OUTPRE_TRACE) {
+            "fireAndConnect channel=${mcConnection.channel.id()} player=${connectedPlayer.username} supportConfig=$supportConfig"
+        }
+//        这里必须配置，否则会因为事件触发其他操作，导致包解析失败
+        if (supportConfig) {
+            mcConnection.setActiveSessionHandler(
+                StateRegistry.CONFIG,
+                ClientConfigSessionHandler(server, connectedPlayer)
+            )
+        } else {
+            mcConnection.setActiveSessionHandler(
+                StateRegistry.PLAY,
+                VelocityInternalAccess.createInitialConnectSessionHandler(connectedPlayer, server)
+            )
+        }
         server.eventManager.fire(
-            PostLoginEvent(player)
-        ).thenRun {
-            connectBackend(player, configMode)
-        }.exceptionally { ex ->
-            logger.error("Exception while continuing outpre flow for {}", player, ex)
+            PostLoginEvent(connectedPlayer)
+        ).thenRunAsync({
+            connectBackend(supportConfig)
+        }, eventLoop).exceptionally { ex ->
+            logger.error("Exception while continuing outpre flow for {}", connectedPlayer, ex)
             null
         }
+
+//        connectBackend(supportConfig)
     }
 
-    fun connectBackend(player: ConnectedPlayer, supportConfig: Boolean) {
-        NettyReflectionHelper.setConnectionInFlight(player, bridge)
+    fun connectBackend(supportConfig: Boolean) {
+        debug(HyperZoneDebugType.OUTPRE_TRACE) {
+            "connectBackend channel=${mcConnection.channel.id()} player=${connectedPlayer.username} supportConfig=$supportConfig"
+        }
+        NettyReflectionHelper.setConnectionInFlight(connectedPlayer, bridge)
         mcConnection.setActiveSessionHandler(
             if (supportConfig) StateRegistry.CONFIG else StateRegistry.LOGIN,
-            OutPreClientBridgeSessionHandler(player, bridge, supportConfig)
+            OutPreClientBridgeSessionHandler(connectedPlayer, bridge, supportConfig)
         )
-        outPre.beginInitialJoin(player, this as OutPreAuthSessionHandler)
+        outPre.beginInitialJoin(connectedPlayer, this as OutPreAuthSessionHandler)
     }
 
     protected enum class State {
@@ -383,7 +403,7 @@ class OutPreAuthSessionHandler(
 ) : OutPreAuthSessionHandlerLogic(server, inbound, initialProfile, onlineMode, serverIdHash, outPre),
     MinecraftSessionHandler {
 
-//    激活入口点
+    //    激活入口点
     override fun activated() {
 //        LEGACY的话需要添加额外的 IS_FORGE_CLIENT_PROPERTY 我们先不管
         profile = try {
@@ -398,7 +418,11 @@ class OutPreAuthSessionHandler(
             profile
         }
         debug(HyperZoneDebugType.OUTPRE_TRACE) {
-            "outpre.handler.activated channel=${mcConnection.channel} initialProfile=${describeGameProfileBrief(profile)} onlineMode=$onlineMode protocol=${inbound.protocolVersion}"
+            "outpre.handler.activated channel=${mcConnection.channel.id()} initialProfile=${
+                describeGameProfileBrief(
+                    profile
+                )
+            } onlineMode=$onlineMode protocol=${inbound.protocolVersion}"
         }
 
 
@@ -419,7 +443,7 @@ class OutPreAuthSessionHandler(
 
         loginState = State.BRIDGING
 //        大于 1_20_2 批准了才会进入下一阶段
-        fireAndConnect(connectedPlayer, true)
+        fireAndConnect(true)
         return true
     }
 
@@ -432,7 +456,7 @@ class OutPreAuthSessionHandler(
                     "A cookie was requested by a proxy plugin in login phase but the response wasn't handled",
                 )
             }
-        }, mcConnection.eventLoop())
+        }, eventLoop)
         return true
     }
 

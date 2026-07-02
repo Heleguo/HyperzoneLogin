@@ -23,9 +23,9 @@ package icu.h2l.login.vServer.outpre.handler
 
 import com.velocitypowered.api.event.player.CookieRequestEvent
 import com.velocitypowered.api.network.ProtocolVersion
-import com.velocitypowered.proxy.config.PlayerInfoForwarding
 import com.velocitypowered.proxy.connection.MinecraftSessionHandler
 import com.velocitypowered.proxy.connection.PlayerDataForwarding
+import com.velocitypowered.proxy.connection.util.ConnectionMessages
 import com.velocitypowered.proxy.protocol.MinecraftPacket
 import com.velocitypowered.proxy.protocol.StateRegistry
 import com.velocitypowered.proxy.protocol.netty.MinecraftEncoder
@@ -33,13 +33,13 @@ import com.velocitypowered.proxy.protocol.packet.*
 import com.velocitypowered.proxy.protocol.packet.config.*
 import icu.h2l.api.log.HyperZoneDebugType
 import icu.h2l.login.manager.HyperChatCommandManagerImpl
-import icu.h2l.login.util.debug
 import icu.h2l.login.vServer.outpre.OutPreBackendBridge
 import io.netty.buffer.ByteBuf
 import io.netty.buffer.Unpooled
 import io.netty.util.ReferenceCountUtil
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.TextComponent
+
 //为了保证兼容性，这里就当作普通的后端使用，不做queue等
 open class OutPreBackendBridgeSessionHandlerLogic(
     protected val bridge: OutPreBackendBridge,
@@ -69,6 +69,20 @@ open class OutPreBackendBridgeSessionHandlerLogic(
 
     protected fun forwardUnknownToPlayer(buf: ByteBuf) {
         bridge.player.connection.write(buf.retain())
+    }
+
+    protected fun disconnect(reason: String?) {
+        bridge.player.disconnect(Component.text(reason ?: "Disconnected by backend"))
+        if (reason != null) {
+//            debug用
+            if (reason.contains("Outdated client!")) {
+                //        Outdated client 版本不兼容，安装ViaBackwards
+                icu.h2l.api.log.debug(HyperZoneDebugType.OUTPRE_TRACE) {
+                    "Outdated client clientProtocol:${bridge.player.protocolVersion} serverProtocol: reason:$reason"
+                }
+            }
+        }
+        bridge.onBackendDisconnected(reason)
     }
 }
 
@@ -116,8 +130,7 @@ class OutPreBackendBridgeSessionHandler(
     override fun handle(packet: DisconnectPacket): Boolean {
 //        reson处理
         val reason = runCatching { (packet.reason.component as TextComponent).content() }.getOrNull()
-//        Outdated client 版本不兼容，安装ViaBackwards
-        bridge.onBackendDisconnected(reason)
+        disconnect(reason)
         return true
     }
 
@@ -245,11 +258,13 @@ class OutPreBackendBridgeSessionHandler(
     }
 
     override fun disconnected() {
-        bridge.onBackendDisconnected("unexpected backend bridge disconnect")
+//        这里要判断是不是正常关闭
+        if (bridge.disconnected) return
+        disconnect("unexpected backend bridge disconnect")
     }
 
     override fun exception(throwable: Throwable) {
-        bridge.onBackendDisconnected(throwable.message)
+        disconnect(throwable.message)
     }
 }
 

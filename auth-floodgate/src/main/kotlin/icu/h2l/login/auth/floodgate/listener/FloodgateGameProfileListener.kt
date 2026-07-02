@@ -37,7 +37,7 @@ class FloodgateGameProfileListener(
 
     @Subscribe
     fun onVerifyInitialGameProfile(event: VerifyInitialGameProfileEvent) {
-        debug(HyperZoneDebugType.OUTPRE_TRACE) {
+        debug(HyperZoneDebugType.FLOODGATE) {
             "onVerifyInitialGameProfile channel=${event.connection.getNettyChannel()} profileName=${event.gameProfile.name} profileId=${event.gameProfile.id}"
         }
 
@@ -53,13 +53,13 @@ class FloodgateGameProfileListener(
             )
         ) {
             FloodgateAuthService.VerifyResult.NotFloodgate -> {
-                debug(HyperZoneDebugType.OUTPRE_TRACE) {
+                debug(HyperZoneDebugType.FLOODGATE) {
                     "onVerifyInitialGameProfile ignored channel=${event.connection.getNettyChannel()} profileName=${event.gameProfile.name}: not floodgate"
                 }
                 return
             }
             is FloodgateAuthService.VerifyResult.Failed -> {
-                debug(HyperZoneDebugType.OUTPRE_TRACE) {
+                debug(HyperZoneDebugType.FLOODGATE) {
                     "onVerifyInitialGameProfile failed channel=${event.connection.getNettyChannel()} profileName=${event.gameProfile.name}"
                 }
                 event.connection.disconnectWithMessage(result.userMessage)
@@ -67,7 +67,7 @@ class FloodgateGameProfileListener(
             }
             FloodgateAuthService.VerifyResult.Accepted -> {
                 event.pass = true
-                debug(HyperZoneDebugType.OUTPRE_TRACE) {
+                debug(HyperZoneDebugType.FLOODGATE) {
                     "onVerifyInitialGameProfile accepted channel=${event.connection.getNettyChannel()} profileName=${event.gameProfile.name} pass=${event.pass}"
                 }
             }

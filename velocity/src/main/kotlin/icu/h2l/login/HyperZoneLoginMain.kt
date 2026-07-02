@@ -161,7 +161,9 @@ class HyperZoneLoginMain(
         val configuredFallback = coreConfig.vServer.backend.fallbackAuthServer.trim()
         val configuredOutPreAuthAddress = coreConfig.vServer.outpre.resolveOutpreAuthAddress()
         if (configuredOutPreAuthAddress != null && configuredMode == "outpre") {
-            activeVServerAdapter = OutPreVServerAuth(server)
+            val outPreAdapter = OutPreVServerAuth(server)
+            activeVServerAdapter = outPreAdapter
+            outPreAdapter.init(plugin)
             logger.info(
                 "Using outpre waiting-area adapter on direct auth endpoint '{}' ({})",
                 coreConfig.vServer.outpre.outpreAuthTargetLabel(),

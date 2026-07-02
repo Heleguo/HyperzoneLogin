@@ -52,12 +52,12 @@ class FloodgateLoginProfileReplaceListener {
             hyperPlayer.getTemporaryGameProfile()
         } else {
             runCatching { hyperPlayer.getApplyGameProfile() }.getOrElse { throwable ->
-                debug(HyperZoneDebugType.OUTPRE_TRACE) {
+                debug(HyperZoneDebugType.FLOODGATE) {
                     "[FloodgateProfileReplace] 获取正式档案失败，回退到初始档案: player=${hyperPlayer.clientOriginalName}, reason=${throwable.message}"
                 }
                 return
             } ?: run {
-                debug(HyperZoneDebugType.OUTPRE_TRACE) {
+                debug(HyperZoneDebugType.FLOODGATE) {
                     "[FloodgateProfileReplace] getApplyGameProfile 返回 null，跳过覆写: player=${hyperPlayer.clientOriginalName}"
                 }
                 return
@@ -75,7 +75,7 @@ class FloodgateLoginProfileReplaceListener {
             return
         }
 
-        debug(HyperZoneDebugType.OUTPRE_TRACE) {
+        debug(HyperZoneDebugType.FLOODGATE) {
             "[FloodgateProfileReplace] 覆写转发档案: player=${hyperPlayer.clientOriginalName} name=${targetProfile.name} uuid=${targetProfile.id}"
         }
         event.profile = targetProfile

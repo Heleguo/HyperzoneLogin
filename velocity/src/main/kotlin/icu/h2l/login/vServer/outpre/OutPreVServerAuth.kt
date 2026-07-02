@@ -50,6 +50,7 @@ import io.netty.channel.Channel
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
 import java.util.concurrent.ConcurrentHashMap
+import kotlin.jvm.optionals.getOrElse
 
 /**
  * outpre = 在正常 Velocity 注册前，先把客户端连接桥接到真实认证服；
@@ -72,6 +73,35 @@ class OutPreVServerAuth(
     private val states = ConcurrentHashMap<Channel, OutPreState>()
     private val pendingInitialHandlers = ConcurrentHashMap<Channel, OutPreAuthSessionHandler>()
     private val initialBridges = ConcurrentHashMap<Channel, OutPreBackendBridge>()
+
+    /** 认证后端定时探测器：跟踪在线状态与协议版本，离线时拒绝新玩家接入 */
+    val backendHealthChecker = OutPreBackendHealthChecker(server)
+
+    var registeredServer: VelocityRegisteredServer? = null
+        private set
+
+    fun init(plugin: Any) {
+        val authAddress = configuredAuthAddress()
+            ?: throw IllegalStateException("OutPre auth endpoint is not configured")
+        val proxy = server as? com.velocitypowered.proxy.VelocityServer
+            ?: throw IllegalStateException("OutPre requires VelocityServer runtime")
+        val authTargetLabel = configuredAuthTargetLabel()
+        val outPreServerInfo = ServerInfo(authTargetLabel, authAddress)
+        server.registerServer(outPreServerInfo)
+//        强行转换 如果不是VelocityServer，说明有问题
+        val getServer = proxy.getServer(configuredAuthTargetLabel())
+        registeredServer = getServer.getOrElse {
+            trace("OutPre Create Custom RegisteredServer for auth target: $authTargetLabel at $authAddress")
+            val outPreRegisteredServer = OutPreRegisteredServer(proxy, outPreServerInfo)
+            outPreRegisteredServer
+        } as VelocityRegisteredServer?
+
+        startBackendHealthCheck(plugin)
+    }
+
+    fun startBackendHealthCheck(plugin: Any) {
+        backendHealthChecker.start(plugin)
+    }
 
     private fun trace(message: String) {
         debug(HyperZoneDebugType.OUTPRE_TRACE, message)
@@ -98,10 +128,7 @@ class OutPreVServerAuth(
             ?: throw IllegalStateException("OutPre requires VelocityServer runtime")
         val authTargetLabel = configuredAuthTargetLabel()
         val outPreServerInfo = ServerInfo(authTargetLabel, authAddress)
-//        强行转换 如果不是VelocityServer，说明有问题
-        val registeredServer = (proxy.getServer(configuredAuthTargetLabel())).orElseGet {
-            OutPreRegisteredServer(proxy, outPreServerInfo)
-        }
+
         return OutPreBackendBridge(
             proxy, authAddress, player, this,
             registeredServer as VelocityRegisteredServer, outPreServerInfo
@@ -114,7 +141,9 @@ class OutPreVServerAuth(
         val messages = HyperZoneLoginMain.getInstance().messageService
         val hyperPlayer = getHyperPlayer(player) ?: return
         trace(
-            "outpre.beginInitialJoin start channel=${player.getChannel()} player=${player.username} waitingArea=${hyperPlayer.isInWaitingArea()} verified=${hyperPlayer.isVerified()} attachedProfile=${hyperPlayer.hasAttachedProfile()}"
+            "beginInitialJoin start channel=${
+                player.getChannel().id()
+            } player=${player.username} waitingArea=${hyperPlayer.isInWaitingArea()} verified=${hyperPlayer.isVerified()} attachedProfile=${hyperPlayer.hasAttachedProfile()}"
         )
 
         runCatching {
@@ -128,6 +157,16 @@ class OutPreVServerAuth(
             return
         }
 
+        if (!backendHealthChecker.isBackendUsable()) {
+            trace(
+                "beginInitialJoin backend-offline channel=${
+                    player.getChannel().id()
+                } player=${player.username} rejecting"
+            )
+            player.disconnect(renderBackendUnavailableMessage(player))
+            return
+        }
+
         val state = OutPreState(
             authTargetLabel = configuredAuthTargetLabel(),
             initialFlowPending = true,
@@ -136,7 +175,7 @@ class OutPreVServerAuth(
         pendingInitialHandlers[player.getChannel()] = handler
         hyperPlayer.suspendMessageDelivery()
         trace(
-            "outpre.beginInitialJoin state-created channel=${player.getChannel()} player=${player.username} ${
+            "beginInitialJoin state-created channel=${player.getChannel().id()} player=${player.username} ${
                 describeState(
                     state
                 )
@@ -146,7 +185,9 @@ class OutPreVServerAuth(
         val authStartEvent = VServerAuthStartEvent(player, hyperPlayer)
         server.eventManager.fire(authStartEvent).join()
         trace(
-            "outpre.beginInitialJoin after-authStart channel=${player.getChannel()} player=${player.username} waitingArea=${hyperPlayer.isInWaitingArea()} verified=${hyperPlayer.isVerified()} attachedProfile=${hyperPlayer.hasAttachedProfile()} ${
+            "beginInitialJoin after-authStart channel=${
+                player.getChannel().id()
+            } player=${player.username} waitingArea=${hyperPlayer.isInWaitingArea()} verified=${hyperPlayer.isVerified()} attachedProfile=${hyperPlayer.hasAttachedProfile()} ${
                 describeState(
                     state
                 )
@@ -154,7 +195,11 @@ class OutPreVServerAuth(
         )
 
         if (!player.isActive) {
-            trace("outpre.beginInitialJoin player-inactive channel=${player.getChannel()} player=${player.username} clearing-initial-state")
+            trace(
+                "beginInitialJoin player-inactive channel=${
+                    player.getChannel().id()
+                } player=${player.username} clearing-initial-state"
+            )
             clearInitialJoinState(player, state, hyperPlayer)
             return
         }
@@ -163,7 +208,9 @@ class OutPreVServerAuth(
             state.inAuthHold = false
             state.verifiedExitPending = true
             trace(
-                "outpre.beginInitialJoin already-ready-after-authStart channel=${player.getChannel()} player=${player.username} ${
+                "beginInitialJoin already-ready-after-authStart channel=${
+                    player.getChannel().id()
+                } player=${player.username} ${
                     describeState(
                         state
                     )
@@ -172,13 +219,13 @@ class OutPreVServerAuth(
         }
 
         trace(
-            "outpre.beginInitialJoin connect-bridge channel=${player.getChannel()} player=${player.username} ${
+            "beginInitialJoin connect-bridge channel=${player.getChannel().id()} player=${player.username} ${
                 describeState(
                     state
                 )
             }"
         )
-        connectToAuthBridge(player, hyperPlayer, createBridge(player), state)
+        connectToAuthBridge(player, hyperPlayer, handler.bridge, state)
     }
 
     fun markInitialFlowReleased(player: ConnectedPlayer) {
@@ -204,6 +251,10 @@ class OutPreVServerAuth(
         val hyperPlayer = getHyperPlayer(player) ?: return
         if (configuredAuthAddress() == null) {
             player.sendMessage(messages.render(player, MessageKeys.BackendAuth.NO_AUTH_SERVER))
+            return
+        }
+        if (!backendHealthChecker.isBackendUsable()) {
+            player.sendMessage(renderBackendUnavailableMessage(player))
             return
         }
 
@@ -255,14 +306,22 @@ class OutPreVServerAuth(
 
     override fun onVerified(player: Player) {
         val state = states[player.getChannel()] ?: return
-        trace("outpre.onVerified before channel=${player.getChannel()} player=${player.username} ${describeState(state)}")
+        trace(
+            "outpre.onVerified before channel=${player.getChannel().id()} player=${player.username} ${
+                describeState(
+                    state
+                )
+            }"
+        )
         state.inAuthHold = false
 
         if (state.initialFlowPending) {
             if (!state.hasConnectedToAuthServerOnce) {
                 state.verifiedExitPending = true
                 trace(
-                    "outpre.onVerified deferred-until-auth-join channel=${player.getChannel()} player=${player.username} ${
+                    "outpre.onVerified deferred-until-auth-join channel=${
+                        player.getChannel().id()
+                    } player=${player.username} ${
                         describeState(
                             state
                         )
@@ -274,7 +333,7 @@ class OutPreVServerAuth(
             if (handler == null) {
                 state.verifiedExitPending = true
                 trace(
-                    "outpre.onVerified missing-handler channel=${player.getChannel()} player=${player.username} ${
+                    "outpre.onVerified missing-handler channel=${player.getChannel().id()} player=${player.username} ${
                         describeState(
                             state
                         )
@@ -283,7 +342,9 @@ class OutPreVServerAuth(
                 return
             }
             trace(
-                "outpre.onVerified completing-initial-flow channel=${player.getChannel()} player=${player.username} target=${state.returnTargetServerName} ${
+                "outpre.onVerified completing-initial-flow channel=${
+                    player.getChannel().id()
+                } player=${player.username} target=${state.returnTargetServerName} ${
                     describeState(
                         state
                     )
@@ -296,7 +357,9 @@ class OutPreVServerAuth(
         if (!state.hasConnectedToAuthServerOnce) {
             state.verifiedExitPending = true
             trace(
-                "outpre.onVerified deferred-no-auth-join channel=${player.getChannel()} player=${player.username} ${
+                "outpre.onVerified deferred-no-auth-join channel=${
+                    player.getChannel().id()
+                } player=${player.username} ${
                     describeState(
                         state
                     )
@@ -306,7 +369,7 @@ class OutPreVServerAuth(
         }
 
         trace(
-            "outpre.onVerified connect-verified-target channel=${player.getChannel()} player=${player.username} ${
+            "outpre.onVerified connect-verified-target channel=${player.getChannel().id()} player=${player.username} ${
                 describeState(
                     state
                 )
@@ -422,7 +485,9 @@ class OutPreVServerAuth(
     ) {
         state.hasConnectedToAuthServerOnce = true
         trace(
-            "outpre.onAuthServerJoined channel=${player.getChannel()} player=${player.username} waitingArea=${hyperPlayer.isInWaitingArea()} verified=${hyperPlayer.isVerified()} attachedProfile=${hyperPlayer.hasAttachedProfile()} ${
+            "outpre.onAuthServerJoined channel=${
+                player.getChannel().id()
+            } player=${player.username} waitingArea=${hyperPlayer.isInWaitingArea()} verified=${hyperPlayer.isVerified()} attachedProfile=${hyperPlayer.hasAttachedProfile()} ${
                 describeState(
                     state
                 )
@@ -434,7 +499,9 @@ class OutPreVServerAuth(
         if (state.verifiedExitPending) {
             state.verifiedExitPending = false
             trace(
-                "outpre.onAuthServerJoined consume-verifiedExitPending channel=${player.getChannel()} player=${player.username} ${
+                "outpre.onAuthServerJoined consume-verifiedExitPending channel=${
+                    player.getChannel().id()
+                } player=${player.username} ${
                     describeState(
                         state
                     )
@@ -536,6 +603,18 @@ class OutPreVServerAuth(
 
     private fun getHyperPlayer(player: Player): VelocityHyperZonePlayer? {
         return HyperZonePlayerManager.getByPlayerOrNull(player)
+    }
+
+    /** 后端离线的统一提示：携带最后一次探测到的后端版本/协议号占位符 */
+    private fun renderBackendUnavailableMessage(player: Player): Component {
+        val messages = HyperZoneLoginMain.getInstance().messageService
+        val version = backendHealthChecker.backendVersion
+        return messages.render(
+            player,
+            MessageKeys.BackendAuth.UNAVAILABLE_DISCONNECT,
+            HyperZoneMessagePlaceholder.text("backend_version", version?.name ?: "unknown"),
+            HyperZoneMessagePlaceholder.text("backend_protocol", version?.protocol?.toString() ?: "-1"),
+        )
     }
 
     private fun configuredAuthAddress(): java.net.InetSocketAddress? {

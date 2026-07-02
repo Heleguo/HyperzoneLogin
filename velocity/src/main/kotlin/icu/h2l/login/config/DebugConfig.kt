@@ -44,6 +44,7 @@ data class DebugConfig(
             HyperZoneDebugType.BACKEND_COMPAT -> log.backendCompat
             HyperZoneDebugType.NETWORK_REWRITE -> log.networkRewrite
             HyperZoneDebugType.YGGDRASIL_AUTH -> log.yggdrasilAuth
+            HyperZoneDebugType.FLOODGATE -> log.floodgate
         }
     }
 }
@@ -74,6 +75,10 @@ data class DebugLogConfig(
     // Yggdrasil 认证链路调试日志
     @Comment("config.debug.log.yggdrasil-auth")
     val yggdrasilAuth: Boolean = false,
+
+    // floodgate 认证链路调试日志
+    @Comment("config.debug.log.floodgate")
+    val floodgate: Boolean = false,
 )
 
 @Suppress("ANNOTATION_WILL_BE_APPLIED_ALSO_TO_PROPERTY_OR_FIELD")

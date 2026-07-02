@@ -258,7 +258,10 @@ class OutPreBackendBridge(
         owner.onInitialBridgeDisconnected(this, player, reason)
     }
 
+    var disconnected: Boolean=false
+
     override fun disconnect() {
+        disconnected=true
         updatePhase(Phase.CLOSING)
         awaitingClientConfigurationAck = false
         if (!connectFuture.isDone) {

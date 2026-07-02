@@ -94,7 +94,23 @@ data class VServerConfig(
 
         // 转接给认证服时，在连接握手中对后端暴露的玩家源 IP；留空时使用玩家真实 IP
         @Comment("config.vserver.outpre.presented-player-ip")
-        val presentedPlayerIp: String = ""
+        val presentedPlayerIp: String = "",
+
+        // 是否启用认证后端定时 ping 探测；后端离线时拒绝新玩家接入
+        @Comment("config.vserver.outpre.health-check-enabled")
+        val healthCheckEnabled: Boolean = true,
+
+        // 探测间隔（秒）
+        @Comment("config.vserver.outpre.health-check-interval-seconds")
+        val healthCheckIntervalSeconds: Long = 10,
+
+        // 单次探测超时（毫秒）
+        @Comment("config.vserver.outpre.health-check-timeout-millis")
+        val healthCheckTimeoutMillis: Long = 5000,
+
+        // 连续失败多少次后判定后端离线
+        @Comment("config.vserver.outpre.health-check-failure-threshold")
+        val healthCheckFailureThreshold: Int = 2
     ) {
         fun resolveOutpreAuthAddress(): InetSocketAddress? {
             val host = authHost.trim()
