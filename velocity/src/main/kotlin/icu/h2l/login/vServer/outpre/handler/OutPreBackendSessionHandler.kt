@@ -25,12 +25,11 @@ import com.velocitypowered.api.event.player.CookieRequestEvent
 import com.velocitypowered.api.network.ProtocolVersion
 import com.velocitypowered.proxy.connection.MinecraftSessionHandler
 import com.velocitypowered.proxy.connection.PlayerDataForwarding
-import com.velocitypowered.proxy.connection.util.ConnectionMessages
 import com.velocitypowered.proxy.protocol.MinecraftPacket
 import com.velocitypowered.proxy.protocol.StateRegistry
 import com.velocitypowered.proxy.protocol.netty.MinecraftEncoder
 import com.velocitypowered.proxy.protocol.packet.*
-import com.velocitypowered.proxy.protocol.packet.config.*
+import com.velocitypowered.proxy.protocol.packet.config.FinishedUpdatePacket
 import icu.h2l.api.log.HyperZoneDebugType
 import icu.h2l.login.manager.HyperChatCommandManagerImpl
 import icu.h2l.login.vServer.outpre.OutPreBackendBridge
@@ -41,10 +40,12 @@ import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.TextComponent
 
 //为了保证兼容性，这里就当作普通的后端使用，不做queue等
-open class OutPreBackendBridgeSessionHandlerLogic(
-    protected val bridge: OutPreBackendBridge,
-) {
-    protected fun refreshWaitingAreaCommands(force: Boolean = false) {
+//未 override 的包默认走 handleGeneric 转发给玩家
+class OutPreBackendBridgeSessionHandler(
+    private val bridge: OutPreBackendBridge,
+) : MinecraftSessionHandler {
+
+    private fun refreshWaitingAreaCommands(force: Boolean = false) {
         val clientHandler = bridge.player.connection.activeSessionHandler as? OutPreClientBridgeSessionHandler
 //        第一次加入等待区
         if (clientHandler != null) {
@@ -63,15 +64,11 @@ open class OutPreBackendBridgeSessionHandlerLogic(
         }
     }
 
-    protected fun forwardPacketToPlayer(packet: MinecraftPacket) {
+    private fun forwardPacketToPlayer(packet: MinecraftPacket) {
         bridge.player.connection.write(ReferenceCountUtil.retain(packet))
     }
 
-    protected fun forwardUnknownToPlayer(buf: ByteBuf) {
-        bridge.player.connection.write(buf.retain())
-    }
-
-    protected fun disconnect(reason: String?) {
+    private fun disconnect(reason: String?) {
         bridge.player.disconnect(Component.text(reason ?: "Disconnected by backend"))
         if (reason != null) {
 //            debug用
@@ -84,14 +81,6 @@ open class OutPreBackendBridgeSessionHandlerLogic(
         }
         bridge.onBackendDisconnected(reason)
     }
-}
-
-// ---- MinecraftSessionHandler override 子类 ----
-
-class OutPreBackendBridgeSessionHandler(
-    bridge: OutPreBackendBridge,
-) : OutPreBackendBridgeSessionHandlerLogic(bridge),
-    MinecraftSessionHandler {
 
     override fun handle(packet: EncryptionRequestPacket): Boolean {
         bridge.player.disconnect(Component.translatable("velocity.error.online-mode-only"))
@@ -165,36 +154,6 @@ class OutPreBackendBridgeSessionHandler(
         return true
     }
 
-    override fun handle(packet: StartUpdatePacket): Boolean {
-        forwardPacketToPlayer(packet)
-        return true
-    }
-
-    override fun handle(packet: TagsUpdatePacket): Boolean {
-        forwardPacketToPlayer(packet)
-        return true
-    }
-
-    override fun handle(packet: RegistrySyncPacket): Boolean {
-        forwardPacketToPlayer(packet)
-        return true
-    }
-
-    override fun handle(packet: ClientboundCustomReportDetailsPacket): Boolean {
-        forwardPacketToPlayer(packet)
-        return true
-    }
-
-    override fun handle(packet: ClientboundServerLinksPacket): Boolean {
-        forwardPacketToPlayer(packet)
-        return true
-    }
-
-    override fun handle(packet: CodeOfConductPacket): Boolean {
-        forwardPacketToPlayer(packet)
-        return true
-    }
-
     override fun handle(packet: FinishedUpdatePacket): Boolean {
         bridge.markAwaitingClientConfigurationAck()
         (bridge.player.connection.activeSessionHandler as? OutPreClientBridgeSessionHandler)?.onBackendFinishUpdate()
@@ -203,38 +162,8 @@ class OutPreBackendBridgeSessionHandler(
         return true
     }
 
-    override fun handle(packet: KeepAlivePacket): Boolean {
-        forwardPacketToPlayer(packet)
-        return true
-    }
-
-    override fun handle(packet: PluginMessagePacket): Boolean {
-        forwardPacketToPlayer(packet)
-        return true
-    }
-
-    override fun handle(packet: ResourcePackRequestPacket): Boolean {
-        forwardPacketToPlayer(packet)
-        return true
-    }
-
-    override fun handle(packet: RemoveResourcePackPacket): Boolean {
-        forwardPacketToPlayer(packet)
-        return true
-    }
-
-    override fun handle(packet: TransferPacket): Boolean {
-        forwardPacketToPlayer(packet)
-        return true
-    }
-
     override fun handle(packet: ClientboundStoreCookiePacket): Boolean {
         bridge.proxyServer.eventManager.fire(CookieRequestEvent(bridge.player, packet.key))
-        forwardPacketToPlayer(packet)
-        return true
-    }
-
-    override fun handle(packet: ClientboundCookieRequestPacket): Boolean {
         forwardPacketToPlayer(packet)
         return true
     }
@@ -254,12 +183,12 @@ class OutPreBackendBridgeSessionHandler(
     }
 
     override fun handleUnknown(buf: ByteBuf) {
-        forwardUnknownToPlayer(buf)
+        bridge.player.connection.write(buf.retain())
     }
 
     override fun disconnected() {
-//        这里要判断是不是正常关闭
-        if (bridge.disconnected) return
+//        这里要判断是不是正常关闭（含 Velocity 直接调 serverConnection.disconnect() 的路径）
+        if (bridge.disconnected || bridge.serverConnection.connection == null) return
         disconnect("unexpected backend bridge disconnect")
     }
 

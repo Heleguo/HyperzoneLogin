@@ -21,13 +21,8 @@
 
 package icu.h2l.login.vServer.outpre
 
-import com.google.common.io.ByteStreams
 import com.velocitypowered.api.network.HandshakeIntent
 import com.velocitypowered.api.network.ProtocolVersion
-import com.velocitypowered.api.proxy.messages.ChannelIdentifier
-import com.velocitypowered.api.proxy.messages.PluginMessageEncoder
-import com.velocitypowered.api.proxy.server.RegisteredServer
-import com.velocitypowered.api.proxy.server.ServerInfo
 import com.velocitypowered.proxy.VelocityServer
 import com.velocitypowered.proxy.connection.MinecraftConnection
 import com.velocitypowered.proxy.connection.backend.VelocityServerConnection
@@ -36,28 +31,25 @@ import com.velocitypowered.proxy.connection.util.ConnectionRequestResults
 import com.velocitypowered.proxy.network.Connections
 import com.velocitypowered.proxy.protocol.StateRegistry
 import com.velocitypowered.proxy.protocol.packet.HandshakePacket
-import com.velocitypowered.proxy.protocol.packet.PluginMessagePacket
 import com.velocitypowered.proxy.protocol.packet.ServerLoginPacket
 import com.velocitypowered.proxy.protocol.packet.config.FinishedUpdatePacket
 import com.velocitypowered.proxy.server.VelocityRegisteredServer
 import icu.h2l.login.HyperZoneLoginMain
+import icu.h2l.login.reflect.VelocityInternalAccess
 import icu.h2l.login.vServer.outpre.handler.OutPreBackendBridgeSessionHandler
-import io.netty.buffer.Unpooled
 import io.netty.channel.ChannelFutureListener
 import java.net.InetSocketAddress
-import java.util.*
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CopyOnWriteArrayList
 
-//这是Server类型的
+//封装了一个真实的 VelocityServerConnection，供 Velocity 内部字段（connectionInFlight/connectedServer）使用
 class OutPreBackendBridge(
     val proxyServer: VelocityServer,
     private val authTargetAddress: InetSocketAddress,
-    player: ConnectedPlayer,
+    val player: ConnectedPlayer,
     private val owner: OutPreVServerAuth,
-    registeredServer: VelocityRegisteredServer,
-    private val outPreServerInfo: ServerInfo
-) : VelocityServerConnection(registeredServer, null, player, proxyServer) {
+    private val registeredServer: VelocityRegisteredServer,
+) {
     enum class Phase {
         IDLE,
         CONNECTING,
@@ -67,6 +59,8 @@ class OutPreBackendBridge(
         CLOSING,
         CLOSED,
     }
+
+    val serverConnection = VelocityServerConnection(registeredServer, null, player, proxyServer)
 
     var backendConnection: MinecraftConnection? = null
         private set
@@ -88,30 +82,7 @@ class OutPreBackendBridge(
 
     fun targetAddress(): InetSocketAddress = authTargetAddress
 
-    override fun getPreviousServer(): Optional<RegisteredServer> {
-        return player.currentServer.map { it.server }
-    }
-
-    override fun getServerInfo(): ServerInfo {
-        return outPreServerInfo
-    }
-
-    override fun sendPluginMessage(identifier: ChannelIdentifier, data: ByteArray): Boolean {
-        val backendConnection = backendConnection ?: return false
-        if (backendConnection.isClosed) {
-            return false
-        }
-        backendConnection.write(PluginMessagePacket(identifier.id, Unpooled.wrappedBuffer(data)))
-        return true
-    }
-
-    override fun sendPluginMessage(identifier: ChannelIdentifier, dataEncoder: PluginMessageEncoder): Boolean {
-        val output = ByteStreams.newDataOutput()
-        dataEncoder.encode(output)
-        return sendPluginMessage(identifier, output.toByteArray())
-    }
-
-    override fun connect(): CompletableFuture<ConnectionRequestResults.Impl?> {
+    fun connect(): CompletableFuture<ConnectionRequestResults.Impl?> {
         if (connectStarted) {
             return connectFuture
         }
@@ -128,8 +99,9 @@ class OutPreBackendBridge(
 
                 val backendConnection = MinecraftConnection(channelFuture.channel(), proxyServer)
                 this@OutPreBackendBridge.backendConnection = backendConnection
+                VelocityInternalAccess.setServerConnectionConnection(serverConnection, backendConnection)
                 updatePhase(Phase.LOGIN)
-                backendConnection.setAssociation(this)
+                backendConnection.setAssociation(serverConnection)
                 channelFuture.channel().pipeline().addLast(Connections.HANDLER, backendConnection)
 
                 if (!backendConnection.setActiveSessionHandler(StateRegistry.HANDSHAKE)) {
@@ -143,10 +115,6 @@ class OutPreBackendBridge(
                 startHandshake(backendConnection)
             })
         return connectFuture
-    }
-
-    override fun getConnection(): MinecraftConnection? {
-        return backendConnection
     }
 
     fun readyFuture(): CompletableFuture<Void> {
@@ -208,18 +176,18 @@ class OutPreBackendBridge(
         connection.flush()
     }
 
-    override fun ensureConnected(): MinecraftConnection {
+    fun ensureConnected(): MinecraftConnection {
         return backendConnection ?: throw IllegalStateException("OutPre backend bridge is not connected")
     }
 
-    override fun isActive(): Boolean {
+    fun isActive(): Boolean {
         return backendConnection?.isClosed == false && player.isActive
     }
 
     fun onBackendLoginSucceeded(usesConfigurationPhase: Boolean) {
         awaitingClientConfigurationAck = false
         updatePhase(if (usesConfigurationPhase) Phase.CONFIG else Phase.LOGIN)
-        connectFuture.complete(ConnectionRequestResults.successful(server))
+        connectFuture.complete(ConnectionRequestResults.successful(registeredServer))
     }
 
     fun markAwaitingClientConfigurationAck() {
@@ -252,10 +220,10 @@ class OutPreBackendBridge(
         owner.onInitialBridgeDisconnected(this, player, reason)
     }
 
-    var disconnected: Boolean=false
+    var disconnected: Boolean = false
 
-    override fun disconnect() {
-        disconnected=true
+    fun disconnect() {
+        disconnected = true
         updatePhase(Phase.CLOSING)
         awaitingClientConfigurationAck = false
         if (!connectFuture.isDone) {
@@ -264,7 +232,7 @@ class OutPreBackendBridge(
         if (!playReadyFuture.isDone) {
             playReadyFuture.completeExceptionally(IllegalStateException("OutPre backend bridge closed before play ready"))
         }
-        backendConnection?.close(false)
+        serverConnection.disconnect()
         backendConnection = null
         updatePhase(Phase.CLOSED)
     }
@@ -274,7 +242,7 @@ class OutPreBackendBridge(
         awaitingClientConfigurationAck = false
         connectFuture.completeExceptionally(throwable)
         playReadyFuture.completeExceptionally(throwable)
-        backendConnection?.close(false)
+        serverConnection.disconnect()
         backendConnection = null
         updatePhase(Phase.CLOSED)
         if (notifyOwner) {

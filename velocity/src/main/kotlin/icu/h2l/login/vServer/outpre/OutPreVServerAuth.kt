@@ -113,12 +113,9 @@ class OutPreVServerAuth(
             ?: throw IllegalStateException("OutPre auth endpoint is not configured")
         val proxy = server as? com.velocitypowered.proxy.VelocityServer
             ?: throw IllegalStateException("OutPre requires VelocityServer runtime")
-        val authTargetLabel = configuredAuthTargetLabel()
-        val outPreServerInfo = ServerInfo(authTargetLabel, authAddress)
-
         return OutPreBackendBridge(
             proxy, authAddress, player, this,
-            registeredServer as VelocityRegisteredServer, outPreServerInfo
+            registeredServer as VelocityRegisteredServer
         ).also {
             initialBridges[player.getChannel()] = it
         }

@@ -296,8 +296,8 @@ open class OutPreAuthSessionHandlerLogic(
             loginState = State.RELEASED
 //            先释放再链接
             NettyReflectionHelper.setConnectionInFlight(player, null)
-            VelocityInternalAccess.setConnectedServer(player, bridge)
-            bridge.completeJoin()
+            VelocityInternalAccess.setConnectedServer(player, bridge.serverConnection)
+            bridge.serverConnection.completeJoin()
             connectToReleasedTarget(player, preferredTargetServerName)
 //            server.eventManager.fire(PostLoginEvent(player)).thenCompose {
 //                connectToReleasedTarget(player, preferredTargetServerName)
@@ -373,7 +373,7 @@ open class OutPreAuthSessionHandlerLogic(
         debug(HyperZoneDebugType.OUTPRE_TRACE) {
             "connectBackend channel=${mcConnection.channel.id()} player=${connectedPlayer.username} supportConfig=$supportConfig"
         }
-        NettyReflectionHelper.setConnectionInFlight(connectedPlayer, bridge)
+        NettyReflectionHelper.setConnectionInFlight(connectedPlayer, bridge.serverConnection)
         mcConnection.setActiveSessionHandler(
             if (supportConfig) StateRegistry.CONFIG else StateRegistry.LOGIN,
             OutPreClientBridgeSessionHandler(connectedPlayer, bridge, supportConfig)

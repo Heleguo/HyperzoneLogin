@@ -306,6 +306,14 @@ object VelocityInternalAccess {
         connectedPlayerConnectedServerField.set(player, connection)
     }
 
+    private val serverConnectionConnectionField: Field by lazy {
+        FuzzyLookup.fieldByNames(VelocityServerConnection::class.java, "connection")
+    }
+
+    fun setServerConnectionConnection(serverConnection: VelocityServerConnection, connection: MinecraftConnection?) {
+        serverConnectionConnectionField.set(serverConnection, connection)
+    }
+
     fun defaultPermissions(): PermissionProvider =
         connectedPlayerDefaultPermissionsField.get(null) as PermissionProvider
 
