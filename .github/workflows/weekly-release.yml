@@ -40,29 +40,7 @@ jobs:
       - name: Build plugin jars
         run: ./gradlew clean build -PreleaseChannel=WEEKLY
 
-      - name: Update weekly tag
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -f "${{ steps.meta.outputs.tag }}"
-          git push origin "refs/tags/${{ steps.meta.outputs.tag }}" --force
-
-      - name: Publish weekly prerelease
-        uses: ncipollo/release-action@v1
+      - name: Publish artifacts
+        uses: actions/upload-artifact@v4.6.2
         with:
-          tag: ${{ steps.meta.outputs.tag }}
-          name: ${{ steps.meta.outputs.name }}
-          prerelease: true
-          allowUpdates: true
-          artifactErrorsFailBuild: true
-          removeArtifacts: true
-          artifacts: |
-            build/HZL/*
-          body: |
-            This is an automatically generated weekly prerelease build for HyperZoneLogin.
-
-            Included artifacts are collected from `build/HZL/`.
-
-            If you encounter issues, please open an Issue and include environment, modules, logs, config snippets, and reproduction steps.
-          generateReleaseNotes: true
-
+          path: build/HZL/*
