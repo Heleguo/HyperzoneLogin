@@ -42,6 +42,7 @@ import java.lang.reflect.Field
 import java.lang.reflect.Method
 import java.net.InetSocketAddress
 import java.util.UUID
+import java.util.concurrent.CompletableFuture
 
 /**
  * Velocity 内部 API 统一访问层。
@@ -490,7 +491,8 @@ object VelocityInternalAccess {
      * 创建 [AuthSessionHandler] 实例。
      *
      * Velocity 3.4: 4-arg (server, inbound, profile, onlineMode)
-     * Velocity 3.5+: 5-arg (+ serverIdHash)
+     * Velocity 3.5: 5-arg (+ serverIdHash)
+     * Velocity-CTD: 6-arg (+ appliedResourcePacksFuture)
      */
     fun createAuthSessionHandler(
         server: VelocityServer?,
@@ -499,6 +501,27 @@ object VelocityInternalAccess {
         onlineMode: Boolean,
         serverIdHash: String,
     ): AuthSessionHandler {
+        val ctor6 = runCatching {
+            FuzzyLookup.constructorByParamCandidates(
+                AuthSessionHandler::class.java,
+                arrayOf(
+                    VelocityServer::class.java,
+                    LoginInboundConnection::class.java,
+                    GameProfile::class.java,
+                    Boolean::class.javaPrimitiveType!!,
+                    String::class.java,
+                    CompletableFuture::class.java,
+                ),
+            )
+        }.getOrNull()
+        if (ctor6 != null) {
+            @Suppress("UNCHECKED_CAST")
+            return ctor6.newInstance(
+                server, inbound, profile, onlineMode, serverIdHash,
+                CompletableFuture.completedFuture(null) as CompletableFuture<ByteArray>
+            ) as AuthSessionHandler
+        }
+
         val ctor5 = runCatching {
             FuzzyLookup.constructorByParamCandidates(
                 AuthSessionHandler::class.java,
