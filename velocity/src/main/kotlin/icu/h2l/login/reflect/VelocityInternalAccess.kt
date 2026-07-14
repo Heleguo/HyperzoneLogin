@@ -213,20 +213,76 @@ object VelocityInternalAccess {
     // VelocityServer — player registries
     // ══════════════════════════════════════════════════════════════════════════
 
-    private val velocityServerConnectionsByNameField: Field by lazy {
-        FuzzyLookup.fieldByNames(VelocityServer::class.java, "connectionsByName")
+    /**
+     * Velocity-CTD 把 `connectionsByUuid`/`connectionsByName` 移到了 `PlayerRegistry` 类中，
+     * 字段名改为 `byUuid`/`byName`。通过 `VelocityServer.playerRegistry` 访问。
+     * 此处兼容两种结构：优先找 VelocityServer 直属字段，找不到则走 PlayerRegistry。
+     */
+
+    /** PlayerRegistry 类（Velocity-CTD），原版 Velocity 中不存在。 */
+    private val playerRegistryClass: Class<*>? by lazy {
+        runCatching {
+            Class.forName("com.velocitypowered.proxy.connection.client.PlayerRegistry")
+        }.getOrNull()
     }
-    private val velocityServerConnectionsByUuidField: Field by lazy {
-        FuzzyLookup.fieldByNames(VelocityServer::class.java, "connectionsByUuid")
+
+    /** VelocityServer 上的 `playerRegistry` 字段（Velocity-CTD）。 */
+    private val velocityServerPlayerRegistryField: Field? by lazy {
+        playerRegistryClass?.let {
+            runCatching { FuzzyLookup.fieldByNames(VelocityServer::class.java, "playerRegistry") }.getOrNull()
+        }
+    }
+
+    private val velocityServerConnectionsByNameField: Field? by lazy {
+        runCatching {
+            FuzzyLookup.fieldByNames(VelocityServer::class.java, "connectionsByName")
+        }.getOrNull()
+    }
+    private val velocityServerConnectionsByUuidField: Field? by lazy {
+        runCatching {
+            FuzzyLookup.fieldByNames(VelocityServer::class.java, "connectionsByUuid")
+        }.getOrNull()
+    }
+
+    /** PlayerRegistry 上的 `byName` 字段（Velocity-CTD）。 */
+    private val playerRegistryByNameField: Field? by lazy {
+        playerRegistryClass?.let {
+            runCatching { FuzzyLookup.fieldByNames(it, "byName") }.getOrNull()
+        }
+    }
+
+    /** PlayerRegistry 上的 `byUuid` 字段（Velocity-CTD）。 */
+    private val playerRegistryByUuidField: Field? by lazy {
+        playerRegistryClass?.let {
+            runCatching { FuzzyLookup.fieldByNames(it, "byUuid") }.getOrNull()
+        }
     }
 
     @Suppress("UNCHECKED_CAST")
-    fun connectionsByName(server: VelocityServer): MutableMap<String, ConnectedPlayer> =
-        velocityServerConnectionsByNameField.get(server) as MutableMap<String, ConnectedPlayer>
+    fun connectionsByName(server: VelocityServer): MutableMap<String, ConnectedPlayer> {
+        // 1) 原版 Velocity：字段直接在 VelocityServer 上
+        velocityServerConnectionsByNameField?.let { field ->
+            return field.get(server) as MutableMap<String, ConnectedPlayer>
+        }
+        // 2) Velocity-CTD：通过 PlayerRegistry.byName 访问
+        val registry = velocityServerPlayerRegistryField?.get(server)
+            ?: throw IllegalStateException("Cannot access player registry: neither connectionsByName nor playerRegistry found")
+        return playerRegistryByNameField?.get(registry) as? MutableMap<String, ConnectedPlayer>
+            ?: throw IllegalStateException("Cannot access byName field on PlayerRegistry")
+    }
 
     @Suppress("UNCHECKED_CAST")
-    fun connectionsByUuid(server: VelocityServer): MutableMap<UUID, ConnectedPlayer> =
-        velocityServerConnectionsByUuidField.get(server) as MutableMap<UUID, ConnectedPlayer>
+    fun connectionsByUuid(server: VelocityServer): MutableMap<UUID, ConnectedPlayer> {
+        // 1) 原版 Velocity：字段直接在 VelocityServer 上
+        velocityServerConnectionsByUuidField?.let { field ->
+            return field.get(server) as MutableMap<UUID, ConnectedPlayer>
+        }
+        // 2) Velocity-CTD：通过 PlayerRegistry.byUuid 访问
+        val registry = velocityServerPlayerRegistryField?.get(server)
+            ?: throw IllegalStateException("Cannot access player registry: neither connectionsByUuid nor playerRegistry found")
+        return playerRegistryByUuidField?.get(registry) as? MutableMap<UUID, ConnectedPlayer>
+            ?: throw IllegalStateException("Cannot access byUuid field on PlayerRegistry")
+    }
 
     // ══════════════════════════════════════════════════════════════════════════
     // VelocityRegisteredServer — players field
