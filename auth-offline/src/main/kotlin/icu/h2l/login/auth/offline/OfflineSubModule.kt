@@ -97,7 +97,7 @@ class OfflineSubModule : HyperSubModule {
         proxy.eventManager.register(api, offlineAuthTableManager)
 
         // Register pre-login listener (handles channel init + offline UUID matching)
-        proxy.eventManager.register(api, OfflinePreLoginListener())
+        proxy.eventManager.register(api, OfflinePreLoginListener(databaseManager))
         proxy.eventManager.register(api, OfflineSessionAuthListener(offlineAuthService))
         proxy.eventManager.register(api, OfflineRenameReUuidListener())
 

@@ -62,7 +62,7 @@ class YggdrasilSubModule : HyperSubModule {
             playerAccessor = api.hyperZonePlayers,
             profileService = HyperZoneProfileServiceProvider.get()
         )
-        val yggdrasilEventListener = YggdrasilEventListener(yggdrasilAuthModule)
+        val yggdrasilEventListener = YggdrasilEventListener(yggdrasilAuthModule, databaseManager)
 
         proxy.eventManager.register(api, yggdrasilEventListener)
         proxy.eventManager.register(api, YggdrasilReUuidListener())

@@ -22,6 +22,7 @@
 package icu.h2l.login.auth.mode.db
 
 import icu.h2l.api.db.HyperZoneDatabaseManager
+import icu.h2l.api.db.table.AuthModeTable
 import icu.h2l.api.log.warn
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.deleteWhere

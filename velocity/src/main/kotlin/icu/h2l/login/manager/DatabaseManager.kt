@@ -30,7 +30,7 @@ import icu.h2l.api.event.db.TableSchemaAction
 import icu.h2l.api.event.db.TableSchemaEvent
 import icu.h2l.api.log.info
 import icu.h2l.api.log.warn
-import icu.h2l.login.auth.mode.db.AuthModeTable
+import icu.h2l.api.db.table.AuthModeTable
 import icu.h2l.login.database.DatabaseConfig
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.SchemaUtils

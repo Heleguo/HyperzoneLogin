@@ -23,20 +23,24 @@ package icu.h2l.login.auth.online
 
 import com.velocitypowered.api.event.Subscribe
 import com.velocitypowered.api.event.connection.DisconnectEvent
+import icu.h2l.api.db.HyperZoneDatabaseManager
+import icu.h2l.api.db.table.AuthModeTable
 import icu.h2l.api.event.connection.OpenStartAuthEvent
 import icu.h2l.api.event.vServer.VServerJoinEvent
 import icu.h2l.api.log.HyperZoneDebugType
 import icu.h2l.api.log.debug
 import icu.h2l.api.log.info
 import icu.h2l.api.player.getChannel
-import icu.h2l.login.HyperZoneLoginMain
 import io.netty.channel.Channel
 import net.kyori.adventure.text.Component
+import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
 class YggdrasilEventListener(
-    private val yggdrasilAuthModule: YggdrasilAuthModule
+    private val yggdrasilAuthModule: YggdrasilAuthModule,
+    private val databaseManager: HyperZoneDatabaseManager
 ) {
     private val pendingContexts = ConcurrentHashMap<Channel, PendingAuthContext>()
 
@@ -70,21 +74,21 @@ class YggdrasilEventListener(
         val username = event.proxyPlayer.username
 
         // Phase 3: 检查 auth_mode 表，如果该玩家名存在 OFFLINE 记录，则跳过 Yggdrasil 认证
-        val main = runCatching { HyperZoneLoginMain.getInstance() }.getOrNull()
-        if (main != null && ::main.authModeRepository.isInitialized) {
-            val entry = main.authModeRepository.getByName(username)
-            if (entry != null && entry.authType == "OFFLINE") {
-                info { "玩家 $username 以在线方式连接，但存在离线注册记录，跳过 Yggdrasil 认证" }
-                event.hyperZonePlayer.sendMessage(
-                    Component.text("§6[认证] §e你的账号当前为离线注册状态。如需通过正版/皮肤站方式登录，")
-                )
-                event.hyperZonePlayer.sendMessage(
-                    Component.text("§6[认证] §e请在等待区使用 §f/login <原密码> §e完成认证，然后使用 §f/upgrade §e升级。")
-                )
-                // 移除 pending context 以防止过期数据残留
-                pendingContexts.remove(channel)
-                return
-            }
+        val authModeTable = AuthModeTable(databaseManager.tablePrefix)
+        val offlineEntry = databaseManager.executeTransaction {
+            authModeTable.selectAll().where { authModeTable.playerName eq username }.limit(1).singleOrNull()
+        }
+        if (offlineEntry != null && offlineEntry[authModeTable.authType] == "OFFLINE") {
+            info { "玩家 $username 以在线方式连接，但存在离线注册记录，跳过 Yggdrasil 认证" }
+            event.hyperZonePlayer.sendMessage(
+                Component.text("§6[认证] §e你的账号当前为离线注册状态。如需通过正版/皮肤站方式登录，")
+            )
+            event.hyperZonePlayer.sendMessage(
+                Component.text("§6[认证] §e请在等待区使用 §f/login <原密码> §e完成认证，然后使用 §f/upgrade §e升级。")
+            )
+            // 移除 pending context 以防止过期数据残留
+            pendingContexts.remove(channel)
+            return
         }
 
         debug(HyperZoneDebugType.YGGDRASIL_AUTH) { "[YggdrasilFlow] WaitingAreaJoin 收到，开始验证: user=$username" }

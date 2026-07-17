@@ -24,15 +24,20 @@ package icu.h2l.login.auth.offline.listener
 // HyperZonePlayerManager.create(...) belongs to core pre-login initialization and is intentionally
 // kept in the core `velocity` EventListener. Do not initialize channel here to avoid ordering issues.
 import com.velocitypowered.api.event.Subscribe
+import icu.h2l.api.db.HyperZoneDatabaseManager
+import icu.h2l.api.db.table.AuthModeTable
 import icu.h2l.api.event.connection.OpenPreLoginEvent
 import icu.h2l.api.log.info
-import icu.h2l.login.HyperZoneLoginMain
 import icu.h2l.login.auth.offline.config.AuthOfflineConfigLoader
 import icu.h2l.login.auth.offline.type.OfflineUUIDType
 import icu.h2l.login.auth.offline.util.ExtraUuidUtils
 import net.kyori.adventure.text.Component
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.selectAll
 
-class OfflinePreLoginListener {
+class OfflinePreLoginListener(
+    private val databaseManager: HyperZoneDatabaseManager
+) {
     @Subscribe
     fun onPreLogin(event: OpenPreLoginEvent) {
         val uuid = event.uuid
@@ -53,10 +58,13 @@ class OfflinePreLoginListener {
 
         // 认证方式锁定检查：如果玩家尝试离线连接但该账号已绑定在线认证，则拒绝
         if (!isOnline) {
-            val main = runCatching { HyperZoneLoginMain.getInstance() }.getOrNull()
-            if (main != null && ::main.authModeRepository.isInitialized) {
-                val entry = main.authModeRepository.getByName(name)
-                if (entry != null && (entry.authType == "MOJANG" || entry.authType == "YGGDRASIL")) {
+            val authModeTable = AuthModeTable(databaseManager.tablePrefix)
+            val entry = databaseManager.executeTransaction {
+                authModeTable.selectAll().where { authModeTable.playerName eq name }.limit(1).singleOrNull()
+            }
+            if (entry != null) {
+                val authType = entry[authModeTable.authType]
+                if (authType == "MOJANG" || authType == "YGGDRASIL") {
                     event.allow = false
                     event.disconnectMessage = Component.text("此账号已绑定正版/皮肤站认证，请使用对应方式登录")
                     return
