@@ -113,7 +113,6 @@ class OfflineAuthBrigadierCommandsTest {
     }
 
     @Test
-    @Test
     fun `change password command keeps both normal passwords`() {
         val execution = execute(
             registrationName = "changepassword",
