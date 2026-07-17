@@ -23,19 +23,16 @@ package icu.h2l.login.vServer.backend.compat
 
 import com.velocitypowered.api.event.Subscribe
 import icu.h2l.api.event.profile.VerifyInitialGameProfileEvent
-import icu.h2l.api.util.RemapUtils
 import icu.h2l.login.HyperZoneLoginMain
 
 /**
  * backend 模式专用：
- * - 在 GameProfileRequest 阶段校验客户端档案没有被其它插件篡改。
+ * - 放行客户端初始 GameProfile（不再使用随机临时档案，无需 remap 校验）。
  *
  * outpre 全链路由自身桥接控制，不再复用这层兼容逻辑。
  */
 class BackendProfileLayerCompatListener {
     companion object {
-        private const val EXPECTED_NAME_PREFIX = RemapUtils.EXPECTED_NAME_PREFIX
-        private const val REMAP_PREFIX = RemapUtils.REMAP_PREFIX
         const val PLUGIN_CONFLICT_MESSAGE = "登录失败：检测到插件冲突。"
     }
 
@@ -43,13 +40,7 @@ class BackendProfileLayerCompatListener {
     fun onVerifyInitialGameProfileEvent(event: VerifyInitialGameProfileEvent) {
         if (!isEnabled()) return
 
-        val incomingProfile = event.gameProfile
-        val incomingName = incomingProfile.name
-
-        if (!incomingName.startsWith(EXPECTED_NAME_PREFIX)) return
-        val expectedUuid = RemapUtils.genUUID(incomingName, REMAP_PREFIX)
-        if (incomingProfile.id != expectedUuid) return
-
+        // 客户端上报的原始档案直接放行（不再使用随机临时档案，无需 remap 校验）
         event.pass = true
     }
 
