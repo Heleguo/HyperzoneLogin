@@ -62,12 +62,6 @@ class UpgradeCommand : HyperChatCommandExecutor {
             return
         }
 
-        val authChannelId = hyperZonePlayer.authChannelId
-        if (authChannelId == null) {
-            messages.send(source, MessageKeys.Upgrade.NOT_AUTHENTICATED)
-            return
-        }
-
         // 前提 2: 查询 auth_mode 表，auth_type 必须为 OFFLINE
         val attachedProfile = main.profileService.getAttachedProfile(hyperZonePlayer)
         if (attachedProfile == null) {
@@ -83,20 +77,17 @@ class UpgradeCommand : HyperChatCommandExecutor {
             return
         }
 
-        // 前提 3: 当前连接方式为在线（凭证渠道必须是 yggdrasil 或其他在线渠道）
-        if (authChannelId != "yggdrasil") {
+        // 前提 3: 当前连接方式必须为在线（使用 isOnlinePlayer 判断原始连接方式，
+        //         而不是 authChannelId——因为用户可能通过在线方式连接后使用 /login 登录，
+        //         此时 authChannelId 被离线凭证覆盖为 "offline"）
+        if (!hyperZonePlayer.isOnlinePlayer) {
             messages.send(source, MessageKeys.Upgrade.NOT_ONLINE_CONNECTION)
             return
         }
 
-        // 确定目标 auth_type：根据当前凭证渠道
-        val targetAuthType = when (authChannelId) {
-            "yggdrasil" -> "YGGDRASIL"
-            else -> {
-                messages.send(source, MessageKeys.Upgrade.NOT_ONLINE_CONNECTION)
-                return
-            }
-        }
+        // 确定目标 auth_type：根据玩家的在线认证来源判断
+        // 通过 OpenStartAuthEvent 的 isOnline 判断——目前仅支持 YGGDRASIL
+        val targetAuthType = "YGGDRASIL"
 
         // 执行升级：更新 auth_mode 表
         val updated = main.authModeRepository.updateAuthType(playerUuid, targetAuthType)
