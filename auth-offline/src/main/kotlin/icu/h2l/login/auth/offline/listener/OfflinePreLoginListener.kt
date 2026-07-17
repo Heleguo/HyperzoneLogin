@@ -26,9 +26,11 @@ package icu.h2l.login.auth.offline.listener
 import com.velocitypowered.api.event.Subscribe
 import icu.h2l.api.event.connection.OpenPreLoginEvent
 import icu.h2l.api.log.info
+import icu.h2l.login.HyperZoneLoginMain
 import icu.h2l.login.auth.offline.config.AuthOfflineConfigLoader
 import icu.h2l.login.auth.offline.type.OfflineUUIDType
 import icu.h2l.login.auth.offline.util.ExtraUuidUtils
+import net.kyori.adventure.text.Component
 
 class OfflinePreLoginListener {
     @Subscribe
@@ -47,7 +49,22 @@ class OfflinePreLoginListener {
         }
         val offlineUUIDType = ExtraUuidUtils.matchType(uuid, name)
 
-        event.isOnline = !(offlineUUIDType != OfflineUUIDType.UNKNOWN || offlineHost)
+        val isOnline = !(offlineUUIDType != OfflineUUIDType.UNKNOWN || offlineHost)
+
+        // 认证方式锁定检查：如果玩家尝试离线连接但该账号已绑定在线认证，则拒绝
+        if (!isOnline) {
+            val main = runCatching { HyperZoneLoginMain.getInstance() }.getOrNull()
+            if (main != null && ::main.authModeRepository.isInitialized) {
+                val entry = main.authModeRepository.getByName(name)
+                if (entry != null && (entry.authType == "MOJANG" || entry.authType == "YGGDRASIL")) {
+                    event.allow = false
+                    event.disconnectMessage = Component.text("此账号已绑定正版/皮肤站认证，请使用对应方式登录")
+                    return
+                }
+            }
+        }
+
+        event.isOnline = isOnline
         info { "传入 UUID 信息玩家: $name UUID:$uuid 类型: $offlineUUIDType 在线:${event.isOnline}" }
     }
 }

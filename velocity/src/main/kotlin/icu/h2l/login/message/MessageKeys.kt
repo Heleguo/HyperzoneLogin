@@ -57,28 +57,6 @@ object MessageKeys {
         const val EVENT_FAILED = "reuuid.event-failed"
     }
 
-    object BindCode {
-        const val COMMAND_USAGE = "bindcode.command-usage"
-        const val COMMAND_USE_USAGE = "bindcode.command-use-usage"
-        const val GENERATE_NO_PROFILE = "bindcode.generate.no-profile"
-        const val GENERATE_FAILED = "bindcode.generate.failed"
-        const val EXISTING_HEADER = "bindcode.existing.header"
-        const val EXISTING_FOOTER = "bindcode.existing.footer"
-        const val GENERATED_HEADER = "bindcode.generated.header"
-        const val GENERATED_HOVER_COPY = "bindcode.generated.hover-copy"
-        const val GENERATED_FOOTER = "bindcode.generated.footer"
-        const val USE_VERIFY_FIRST = "bindcode.use.verify-first"
-        const val USE_ALREADY_BOUND = "bindcode.use.already-bound"
-        const val USE_NO_CREDENTIALS = "bindcode.use.no-credentials"
-        const val USE_EMPTY = "bindcode.use.empty"
-        const val USE_INVALID = "bindcode.use.invalid"
-        const val USE_BIND_FAILED = "bindcode.use.bind-failed"
-        const val USE_BIND_FAILED_WITH_REASON = "bindcode.use.bind-failed-with-reason"
-        const val USE_CONSUME_FAILED = "bindcode.use.consume-failed"
-        const val USE_ATTACH_FAILED = "bindcode.use.attach-failed"
-        const val USE_SUCCESS = "bindcode.use.success"
-    }
-
     object HzlCommand {
         const val USAGE_RELOAD = "hzl.usage.reload"
         const val USAGE_RE = "hzl.usage.re"
@@ -105,6 +83,16 @@ object MessageKeys {
         const val PROFILE_CONFLICT_OTHER = "player.profile-conflict-other"
     }
 
+    object Upgrade {
+        const val USAGE = "upgrade.usage"
+        const val NOT_AUTHENTICATED = "upgrade.not-authenticated"
+        const val NOT_OFFLINE_ACCOUNT = "upgrade.not-offline-account"
+        const val NOT_ONLINE_CONNECTION = "upgrade.not-online-connection"
+        const val SUCCESS_MOJANG = "upgrade.success-mojang"
+        const val SUCCESS_YGGDRASIL = "upgrade.success-yggdrasil"
+        const val FAILED = "upgrade.failed"
+    }
+
     object BackendAuth {
         const val NO_AUTH_SERVER = "backend-auth.no-auth-server"
         const val ENTER_FAILED_EXCEPTION = "backend-auth.enter-failed.exception"
@@ -112,6 +100,7 @@ object MessageKeys {
         const val MISCONFIGURED_DISCONNECT = "backend-auth.misconfigured-disconnect"
         const val UNAVAILABLE_DISCONNECT = "backend-auth.unavailable-disconnect"
         const val MUST_VERIFY_BEFORE_TRANSFER = "backend-auth.must-verify-before-transfer"
+        const val AUTH_TIMEOUT_KICK = "backend-auth.auth-timeout-kick"
         const val EXIT_NO_TARGET = "backend-auth.exit.no-target"
         const val EXIT_SERVER_MISSING = "backend-auth.exit.server-missing"
         const val EXIT_FAILURE_EXCEPTION = "backend-auth.exit.failure-exception"
@@ -126,6 +115,10 @@ object MessageKeys {
         const val STILL_IN_WAITING_AREA = "exit.still-in-waiting-area"
         const val NOT_IN_WAITING_AREA = "exit.not-in-waiting-area"
         const val ATTEMPTED = "exit.attempted"
+    }
+
+    object AuthMode {
+        const val OFFLINE_DISALLOWED = "auth-mode.offline-disallowed"
     }
 
     object Over {

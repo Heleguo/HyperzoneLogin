@@ -36,7 +36,6 @@ object OfflineAuthBrigadierCommands {
                     context.execute(commandContext.source)
                 }
                 .then(loginPassword(context))
-                .then(loginAs(context))
         }
     }
 
@@ -61,39 +60,6 @@ object OfflineAuthBrigadierCommands {
                             )
                         )
                     }
-            )
-
-    private fun loginAs(context: HyperChatBrigadierContext) =
-        BrigadierCommand.literalArgumentBuilder("as")
-            .then(
-                word("username")
-                    .then(
-                        word("password")
-                            .executes { commandContext ->
-                                context.execute(
-                                    commandContext.source,
-                                    args = arrayOf(
-                                        "as",
-                                        StringArgumentType.getString(commandContext, "username"),
-                                        StringArgumentType.getString(commandContext, "password")
-                                    )
-                                )
-                            }
-                            .then(
-                                word("code")
-                                    .executes { commandContext ->
-                                        context.execute(
-                                            commandContext.source,
-                                            args = arrayOf(
-                                                "as",
-                                                StringArgumentType.getString(commandContext, "username"),
-                                                StringArgumentType.getString(commandContext, "password"),
-                                                StringArgumentType.getString(commandContext, "code")
-                                            )
-                                        )
-                                    }
-                            )
-                    )
             )
 
     fun register(): HyperChatBrigadierRegistration {

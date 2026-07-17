@@ -186,21 +186,17 @@ class OfflineAuthService(
     }
 
     fun login(player: Player, password: String, totpCode: String? = null): Result {
-        return loginInternal(player, null, password, totpCode)
+        return loginInternal(player, password, totpCode)
     }
 
-    fun loginAs(player: Player, username: String, password: String, totpCode: String? = null): Result {
-        return loginInternal(player, username, password, totpCode)
-    }
-
-    private fun loginInternal(player: Player, username: String?, password: String, totpCode: String? = null): Result {
+    private fun loginInternal(player: Player, password: String, totpCode: String? = null): Result {
         val hyperPlayer = playerAccessor.getByPlayer(player)
         if (!hyperPlayer.isInWaitingArea()) {
             return Result(false, OfflineAuthMessages.ALREADY_LOGGED_IN)
         }
 
-        val entry = resolveLoginEntry(player, username)
-            ?: return Result(false, missingLoginEntryMessage(hyperPlayer.clientOriginalName, username))
+        val entry = resolveEntryByPlayer(player)
+            ?: return Result(false, OfflineAuthMessages.UNREGISTERED)
 
         val now = System.currentTimeMillis()
         val blockedUntil = entry.loginBlockedUntil
@@ -578,7 +574,6 @@ class OfflineAuthService(
             }
 
             prompts += OfflineAuthMessages.REGISTER_REQUEST
-            prompts += OfflineAuthMessages.LOGIN_OTHER_USERNAME_PROMPT
             return prompts
         }
 
@@ -700,27 +695,6 @@ class OfflineAuthService(
         }
 
         return null
-    }
-
-    private fun resolveLoginEntry(player: Player, explicitUsername: String?): OfflineAuthEntry? {
-        val normalizedExplicitName = explicitUsername
-            ?.trim()
-            ?.takeUnless { it.isEmpty() }
-            ?.lowercase(Locale.ROOT)
-        if (normalizedExplicitName != null) {
-            return repository.getByName(normalizedExplicitName)
-        }
-
-        return resolveEntryByPlayer(player)
-    }
-
-    private fun missingLoginEntryMessage(currentName: String, explicitUsername: String?): Component {
-        val requestedUsername = explicitUsername?.trim()?.takeUnless { it.isEmpty() }
-        return if (requestedUsername != null) {
-            OfflineAuthMessages.loginAccountNotFound(requestedUsername)
-        } else {
-            OfflineAuthMessages.loginCurrentNameNotRegistered(currentName)
-        }
     }
 
     private fun resolveEntryByPlayer(player: Player, allowNameFallback: Boolean = true): OfflineAuthEntry? {

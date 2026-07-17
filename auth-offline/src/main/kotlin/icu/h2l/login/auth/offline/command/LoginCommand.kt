@@ -37,38 +37,12 @@ class LoginCommand(
 		}
 
 		val args = invocation.arguments()
-		val request = parseRequest(args)
-		if (request == null) {
+		if (args.isEmpty()) {
 			source.sendMessage(OfflineAuthMessages.LOGIN_USAGE)
 			return
 		}
 
-		val result = when (request) {
-			is LoginRequest.Default -> authService.login(source, request.password, request.totpCode)
-			is LoginRequest.ExplicitUser -> authService.loginAs(source, request.username, request.password, request.totpCode)
-		}
+		val result = authService.login(source, args[0], args.getOrNull(1))
 		source.sendMessage(result.message)
-	}
-
-	private fun parseRequest(args: Array<String>): LoginRequest? {
-		return when {
-			args.isNotEmpty() && args[0].equals("as", ignoreCase = true) && args.size in 3..4 -> LoginRequest.ExplicitUser(
-				username = args[1],
-				password = args[2],
-				totpCode = args.getOrNull(3)
-			)
-			args.isNotEmpty() && args[0].equals("as", ignoreCase = true) -> null
-			args.size in 1..2 -> LoginRequest.Default(
-				password = args[0],
-				totpCode = args.getOrNull(1)
-			)
-			else -> null
-		}
-	}
-
-	private sealed interface LoginRequest {
-		data class Default(val password: String, val totpCode: String?) : LoginRequest
-
-		data class ExplicitUser(val username: String, val password: String, val totpCode: String?) : LoginRequest
 	}
 }

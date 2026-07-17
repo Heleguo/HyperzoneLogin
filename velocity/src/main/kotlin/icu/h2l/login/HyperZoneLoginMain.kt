@@ -39,12 +39,12 @@ import icu.h2l.api.util.ConfigFormatProvider
 import icu.h2l.api.util.ConfigLoader
 import icu.h2l.login.config.i18n.ConfigCommentI18nService
 import icu.h2l.api.vServer.HyperZoneVServerAdapter
-import icu.h2l.login.command.BindCodeCommandRegistrar
 import icu.h2l.login.command.HyperZoneLoginCommand
 import icu.h2l.login.command.ReUuidCommand
 import icu.h2l.login.command.RenameCommand
+import icu.h2l.login.command.UpgradeCommand
 import icu.h2l.login.config.*
-import icu.h2l.login.database.BindingCodeRepository
+import icu.h2l.login.auth.mode.db.AuthModeRepository
 import icu.h2l.login.database.DatabaseConfig
 import icu.h2l.login.database.DatabaseHelper
 import icu.h2l.login.inject.network.VelocityNetworkModule
@@ -56,7 +56,6 @@ import icu.h2l.login.message.MessageService
 import icu.h2l.login.module.EmbeddedModuleRegistry
 import icu.h2l.login.module.EmbeddedModuleSpec
 import icu.h2l.login.profile.CredentialChannelRegistryImpl
-import icu.h2l.login.profile.ProfileBindingCodeService
 import icu.h2l.login.profile.VelocityHyperZoneProfileService
 import icu.h2l.login.util.registerApiLogger
 import icu.h2l.login.vServer.backend.BackendAuthHoldListener
@@ -91,7 +90,7 @@ class HyperZoneLoginMain(
     lateinit var profileService: VelocityHyperZoneProfileService
     lateinit var backendRuntimeProfileCompensator: BackendRuntimeProfileCompensator
     lateinit var credentialChannelRegistry: CredentialChannelRegistryImpl
-    lateinit var bindingCodeService: ProfileBindingCodeService
+    lateinit var authModeRepository: AuthModeRepository
     lateinit var messageService: MessageService
     val serverAdapter: HyperZoneVServerAdapter?
         get() = activeVServerAdapter
@@ -148,9 +147,9 @@ class HyperZoneLoginMain(
         createBaseTables()
         profileService = VelocityHyperZoneProfileService(databaseHelper)
         backendRuntimeProfileCompensator = BackendRuntimeProfileCompensator(profileService, logger)
-        bindingCodeService = ProfileBindingCodeService(
-            BindingCodeRepository(databaseManager, databaseManager.getBindingCodeTable()),
-            profileService
+        authModeRepository = AuthModeRepository(
+            databaseManager,
+            databaseManager.getAuthModeTable()
         )
         HyperZoneProfileServiceProvider.bind(profileService)
         CredentialChannelRegistryProvider.bind(credentialChannelRegistry)
@@ -206,7 +205,13 @@ class HyperZoneLoginMain(
                 brigadier = ReUuidCommand.brigadier()
             )
         )
-        BindCodeCommandRegistrar.register(chatCommandManager, bindingCodeService)
+        chatCommandManager.register(
+            HyperChatCommandRegistration(
+                name = "upgrade",
+                executor = UpgradeCommand(),
+                brigadier = UpgradeCommand.brigadier()
+            )
+        )
         syncSlowTestCommands()
 
 //        最后加载模块
@@ -216,7 +221,7 @@ class HyperZoneLoginMain(
         // External modules (auth-offline, auth-yggd, data-merge) will be loaded as
         // separate Velocity plugins and should call `registerModule(...)` on this
         // main plugin during their own initialization.
-        val hzlCommand = HyperZoneLoginCommand(bindingCodeService).createCommand()
+        val hzlCommand = HyperZoneLoginCommand().createCommand()
         val hzlCommandMeta = proxy.commandManager.metaBuilder(hzlCommand).build()
         proxy.commandManager.register(hzlCommandMeta, hzlCommand)
         if (activeVServerAdapter?.needsBackendInitialProfileCompat() == true) {
@@ -229,6 +234,7 @@ class HyperZoneLoginMain(
         proxy.eventManager.register(plugin, LoginRenameListener())
         proxy.eventManager.register(plugin, LoginReUuidListener())
         proxy.eventManager.register(plugin, LoginVerifyListener())
+        proxy.eventManager.register(plugin, AuthModeWriteListener())
         proxy.eventManager.register(plugin, PlayerAreaLifecycleListener)
         proxy.eventManager.register(plugin, HyperZonePlayerManager)
 
