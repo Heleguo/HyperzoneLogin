@@ -21,54 +21,7 @@
 
 package icu.h2l.login.command
 
-import com.velocitypowered.api.proxy.Player
-import icu.h2l.api.command.HyperChatCommandExecutor
-import icu.h2l.api.command.HyperChatCommandInvocation
-import icu.h2l.login.HyperZoneLoginMain
-import icu.h2l.login.manager.HyperZonePlayerManager
-import icu.h2l.login.message.MessageKeys
-import icu.h2l.login.profile.ProfileBindingCodeService
-
-class BindCodeCommand(
-    private val bindingCodeService: ProfileBindingCodeService
-) : HyperChatCommandExecutor {
-    override fun execute(invocation: HyperChatCommandInvocation) {
-        val messages = HyperZoneLoginMain.getInstance().messageService
-        val source = invocation.source()
-        if (source !is Player) {
-            messages.send(source, MessageKeys.Common.ONLY_PLAYER)
-            return
-        }
-
-        val hyperPlayer = runCatching {
-            HyperZonePlayerManager.getByPlayer(source)
-        }.getOrElse {
-            messages.send(source, MessageKeys.Common.PLAYER_STATE_UNAVAILABLE)
-            return
-        }
-
-        val args = invocation.arguments()
-        if (args.isEmpty()) {
-            messages.send(source, MessageKeys.BindCode.COMMAND_USAGE)
-            return
-        }
-
-        val result = when (args[0].lowercase()) {
-            "generate", "gen", "create" -> bindingCodeService.generate(hyperPlayer)
-            "use" -> {
-                if (args.size < 2) {
-                    messages.send(source, MessageKeys.BindCode.COMMAND_USE_USAGE)
-                    return
-                }
-                bindingCodeService.use(hyperPlayer, args[1])
-            }
-            else -> {
-                messages.send(source, MessageKeys.BindCode.COMMAND_USAGE)
-                return
-            }
-        }
-
-        source.sendMessage(result.message)
-    }
-}
+// BindCode functionality has been removed.
+// This file is kept as an empty stub to avoid compilation issues.
+// TODO: Remove this file after confirming no references remain.
 

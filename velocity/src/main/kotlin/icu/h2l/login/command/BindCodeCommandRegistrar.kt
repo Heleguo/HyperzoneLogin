@@ -21,20 +21,7 @@
 
 package icu.h2l.login.command
 
-import icu.h2l.api.command.HyperChatCommandManager
-import icu.h2l.api.command.HyperChatCommandRegistration
-import icu.h2l.login.profile.ProfileBindingCodeService
-
-object BindCodeCommandRegistrar {
-    fun register(commandManager: HyperChatCommandManager, bindingCodeService: ProfileBindingCodeService) {
-        commandManager.register(
-            HyperChatCommandRegistration(
-                name = "bindcode",
-                aliases = setOf("bcode"),
-                executor = BindCodeCommand(bindingCodeService),
-                brigadier = BindCodeBrigadierCommands.bindCode()
-            )
-        )
-    }
-}
+// BindCodeCommandRegistrar has been removed (bindcode functionality removed).
+// This file is kept as an empty stub to avoid compilation issues.
+// TODO: Remove this file after confirming no references remain.
 

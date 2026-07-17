@@ -34,7 +34,7 @@ class AuthModeWriteListener {
     @Subscribe
     fun onProfileAttached(event: ProfileAttachedEvent) {
         val main = HyperZoneLoginMain.getInstance()
-        if (!::main.authModeRepository.isInitialized) return
+        val authModeRepo = main.authModeRepository
 
         val hyperPlayer = event.hyperZonePlayer
         val profile = event.profile
@@ -52,16 +52,16 @@ class AuthModeWriteListener {
         val playerName = profile.name
 
         // 检查是否已存在记录
-        val existingEntry = main.authModeRepository.getByUuid(playerUuid)
+        val existingEntry = authModeRepo.getByUuid(playerUuid)
         if (existingEntry != null) {
             // 更新已有记录
-            main.authModeRepository.updatePlayerName(playerUuid, playerName)
+            authModeRepo.updatePlayerName(playerUuid, playerName)
             if (existingEntry.authType == "OFFLINE" && authType != "OFFLINE") {
-                main.authModeRepository.updateAuthType(playerUuid, authType)
+                authModeRepo.updateAuthType(playerUuid, authType)
             }
         } else {
             // 创建新记录
-            main.authModeRepository.create(playerUuid, playerName, authType)
+            authModeRepo.create(playerUuid, playerName, authType)
         }
     }
 }

@@ -21,27 +21,32 @@
 
 package icu.h2l.login.profile
 
-import icu.h2l.api.message.HyperZoneMessagePlaceholder
 import icu.h2l.api.player.HyperZonePlayer
 import icu.h2l.api.profile.HyperZoneProfileService
-import icu.h2l.login.HyperZoneLoginMain
 import icu.h2l.login.database.BindingCodeStore
-import icu.h2l.login.message.MessageKeys
 import net.kyori.adventure.text.Component
-import net.kyori.adventure.text.event.ClickEvent
-import net.kyori.adventure.text.event.HoverEvent
-import net.kyori.adventure.text.format.NamedTextColor
-import net.kyori.adventure.text.format.TextDecoration
-import java.security.SecureRandom
-import java.util.*
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.locks.ReentrantLock
-import kotlin.concurrent.withLock
 
+/**
+ * @deprecated BindCode functionality has been removed. This class is kept as a stub
+ * for backward compatibility only.
+ */
 class ProfileBindingCodeService(
     private val repository: BindingCodeStore,
     private val profileService: HyperZoneProfileService
 ) {
+    data class Result(
+        val success: Boolean,
+        val message: Component
+    )
+
+    fun generate(hyperZonePlayer: HyperZonePlayer): Result {
+        return Result(false, Component.text("BindCode has been disabled."))
+    }
+
+    fun use(hyperZonePlayer: HyperZonePlayer, code: String): Result {
+        return Result(false, Component.text("BindCode has been disabled."))
+    }
+}
     data class Result(
         val success: Boolean,
         val message: Component
