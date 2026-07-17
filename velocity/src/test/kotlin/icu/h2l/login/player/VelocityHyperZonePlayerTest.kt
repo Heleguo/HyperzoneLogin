@@ -35,8 +35,8 @@ class VelocityHyperZonePlayerTest {
             isOnlinePlayer = false,
         )
 
-        val first = player.getTemporaryGameProfile()
-        val second = player.getTemporaryGameProfile()
+        val first = player.getInitialGameProfile()
+        val second = player.getInitialGameProfile()
 
         assertSame(first, second)
         assertTrue(first.name.startsWith(RemapUtils.EXPECTED_NAME_PREFIX))

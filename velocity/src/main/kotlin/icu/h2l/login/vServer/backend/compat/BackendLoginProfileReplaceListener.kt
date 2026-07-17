@@ -43,7 +43,7 @@ class BackendLoginProfileReplaceListener {
         if (!isLoginServerTarget(event.targetServerName)) return
 
         val hyperPlayer = event.hyperZonePlayer
-        val tempProfile = hyperPlayer.getTemporaryGameProfile()
+        val tempProfile = hyperPlayer.getInitialGameProfile()
         event.profile = tempProfile
         event.modified = true
     }

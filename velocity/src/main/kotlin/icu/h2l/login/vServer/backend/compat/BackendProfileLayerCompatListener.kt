@@ -46,7 +46,7 @@ class BackendProfileLayerCompatListener {
     fun onStartAuth(event: OpenStartAuthEvent) {
         if (!isEnabled()) return
 
-        event.gameProfile = HyperZonePlayerManager.getByChannel(event.channel).getTemporaryGameProfile()
+        event.gameProfile = HyperZonePlayerManager.getByChannel(event.channel).getInitialGameProfile()
     }
 
     @Subscribe

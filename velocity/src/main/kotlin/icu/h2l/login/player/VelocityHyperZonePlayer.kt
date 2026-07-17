@@ -90,12 +90,19 @@ class VelocityHyperZonePlayer(
     private val lastReadyConflictPlayerIds = AtomicReference<Set<UUID>>(emptySet())
 
     /**
-     * 等待区转发用的临时档案。
+     * 等待区阶段使用的初始 GameProfile（客户端上报的原始档案）。
      *
-     * 该档案在当前登录会话创建时即生成完成；
-     * 当玩家仍在等待区时，应优先使用该档案而不是正式游戏档案。
+     * 初始值为随机占位档，在 GameProfileRequestEvent 触发后会被覆盖为真实客户端档案。
      */
-    private val temporaryGameProfile: GameProfile = RemapUtils.randomProfile()
+    @Volatile
+    private var initialGameProfile: GameProfile = RemapUtils.randomProfile()
+
+    /**
+     * 当客户端真实 GameProfile 可用时，覆盖初始占位档案。
+     */
+    fun updateInitialGameProfile(profile: GameProfile) {
+        initialGameProfile = profile
+    }
 
     /**
      * 当前会话通过认证的凭证渠道 ID；submitCredential 时自动记录，resetVerify 时清空。
@@ -216,8 +223,8 @@ class VelocityHyperZonePlayer(
         return proxyPlayer
     }
 
-    override fun getTemporaryGameProfile(): GameProfile {
-        return temporaryGameProfile
+    override fun getInitialGameProfile(): GameProfile {
+        return initialGameProfile
     }
 
     override fun getAttachedGameProfile(): GameProfile {

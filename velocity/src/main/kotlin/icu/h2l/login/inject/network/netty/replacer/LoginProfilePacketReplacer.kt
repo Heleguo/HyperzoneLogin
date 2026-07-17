@@ -157,7 +157,7 @@ class LoginProfilePacketReplacer(
      */
     private fun resolveInitialForwardingProfile(): GameProfile {
         if (hyperPlayer.isInWaitingArea()) {
-            return hyperPlayer.getTemporaryGameProfile()
+            return hyperPlayer.getInitialGameProfile()
         }
         return requireNotNull(hyperPlayer.getApplyGameProfile()) {
             "Formal profile is unavailable while resolving initial forwarding profile for clientOriginal=${hyperPlayer.clientOriginalName}"

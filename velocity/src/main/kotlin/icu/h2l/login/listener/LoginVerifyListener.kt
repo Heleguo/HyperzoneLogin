@@ -60,6 +60,14 @@ class LoginVerifyListener {
         }
 
         if (verifyEvent.pass) {
+            // 将客户端真实 GameProfile 保存到玩家会话中，替代随机生成的临时档案
+            runCatching {
+                val channel = event.connection.getNettyChannel()
+                val hyperPlayer = icu.h2l.login.manager.HyperZonePlayerManager.getByChannelOrNull(channel)
+                if (hyperPlayer is icu.h2l.login.player.VelocityHyperZonePlayer) {
+                    hyperPlayer.updateInitialGameProfile(incomingProfile)
+                }
+            }
             return
         }else{
             disconnectWithError(

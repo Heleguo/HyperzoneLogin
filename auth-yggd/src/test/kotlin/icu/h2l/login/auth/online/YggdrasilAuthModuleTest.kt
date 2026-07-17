@@ -276,7 +276,7 @@ class YggdrasilAuthModuleTest {
 
         override fun sendMessage(message: Component) = Unit
 
-        override fun getTemporaryGameProfile(): GameProfile = temporaryProfile
+        override fun getInitialGameProfile(): GameProfile = temporaryProfile
 
         override fun getAttachedGameProfile(): GameProfile = temporaryProfile
     }

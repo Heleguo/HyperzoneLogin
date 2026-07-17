@@ -49,7 +49,7 @@ class FloodgateLoginProfileReplaceListener {
         }
 
         val targetProfile: GameProfile = if (hyperPlayer.isInWaitingArea()) {
-            hyperPlayer.getTemporaryGameProfile()
+            hyperPlayer.getInitialGameProfile()
         } else {
             runCatching { hyperPlayer.getApplyGameProfile() }.getOrElse { throwable ->
                 debug(HyperZoneDebugType.FLOODGATE) {

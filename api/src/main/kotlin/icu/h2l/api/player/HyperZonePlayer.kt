@@ -173,13 +173,12 @@ interface HyperZonePlayer {
     }
 
     /**
-     * 获取玩家在等待区阶段应使用的临时 GameProfile。
+     * 获取玩家在等待区阶段应使用的初始 GameProfile（客户端上报的原始档案）。
      *
-     * 该档案必须在当前登录会话创建时由系统主动生成并受控持有；
-     * 后续流程只能读取，不应在运行中再次改写；
-     * 认证阶段拿到的初始档案、客户端上报档案等都不应作为等待区身份直接对外使用。
+     * 该档案在玩家连接时由系统记录，后续流程只能读取，不应改写；
+     * 等待区阶段应优先使用此档案代替随机生成的临时档案。
      */
-    fun getTemporaryGameProfile(): GameProfile
+    fun getInitialGameProfile(): GameProfile
 
     /**
      * 获取玩家的正式身份档案（仅含用户名与 UUID，**不含皮肤纹理**）。
