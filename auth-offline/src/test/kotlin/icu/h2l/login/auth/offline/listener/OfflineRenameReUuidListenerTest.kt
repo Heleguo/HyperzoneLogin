@@ -192,7 +192,7 @@ class OfflineRenameReUuidListenerTest {
         override fun overVerify() {}
         override fun resetVerify() { credentials.clear() }
         override fun sendMessage(message: Component) {}
-        override fun getInitialGameProfile(): GameProfile = error("not used")
+
         override fun getAttachedGameProfile(): GameProfile = error("not used")
 
         override fun submitCredential(credential: HyperZoneCredential) {

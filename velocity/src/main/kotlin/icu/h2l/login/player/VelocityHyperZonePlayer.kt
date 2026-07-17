@@ -28,7 +28,6 @@ import icu.h2l.api.log.HyperZoneDebugType
 import icu.h2l.api.log.debug
 import icu.h2l.api.player.HyperZonePlayer
 import icu.h2l.api.profile.HyperZoneCredential
-import icu.h2l.api.util.RemapUtils
 import icu.h2l.login.HyperZoneLoginMain
 import icu.h2l.login.listener.PlayerAreaLifecycleListener
 import icu.h2l.login.manager.HyperZonePlayerManager
@@ -88,21 +87,6 @@ class VelocityHyperZonePlayer(
      */
     private val messageQueue = ConcurrentLinkedQueue<Component>()
     private val lastReadyConflictPlayerIds = AtomicReference<Set<UUID>>(emptySet())
-
-    /**
-     * 等待区阶段使用的初始 GameProfile（客户端上报的原始档案）。
-     *
-     * 初始值为随机占位档，在 GameProfileRequestEvent 触发后会被覆盖为真实客户端档案。
-     */
-    @Volatile
-    private var initialGameProfile: GameProfile = RemapUtils.randomProfile()
-
-    /**
-     * 当客户端真实 GameProfile 可用时，覆盖初始占位档案。
-     */
-    fun updateInitialGameProfile(profile: GameProfile) {
-        initialGameProfile = profile
-    }
 
     /**
      * 当前会话通过认证的凭证渠道 ID；submitCredential 时自动记录，resetVerify 时清空。
@@ -221,10 +205,6 @@ class VelocityHyperZonePlayer(
 
     override fun getProxyPlayerOrNull(): Player? {
         return proxyPlayer
-    }
-
-    override fun getInitialGameProfile(): GameProfile {
-        return initialGameProfile
     }
 
     override fun getAttachedGameProfile(): GameProfile {

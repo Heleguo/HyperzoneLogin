@@ -37,17 +37,6 @@ import icu.h2l.login.HyperZoneLoginMain
  */
 class BackendLoginProfileReplaceListener {
 
-    @Subscribe(order = PostOrder.LATE)
-    fun onLoginProfileReplace(event: LoginProfileReplaceEvent) {
-        if (!isEnabled()) return
-        if (!isLoginServerTarget(event.targetServerName)) return
-
-        val hyperPlayer = event.hyperZonePlayer
-        val tempProfile = hyperPlayer.getInitialGameProfile()
-        event.profile = tempProfile
-        event.modified = true
-    }
-
     private fun isLoginServerTarget(targetServerName: String): Boolean {
         val loginServerName = HyperZoneLoginMain.getCoreConfig().vServer.backend.fallbackAuthServer.trim()
         if (loginServerName.isBlank()) return false

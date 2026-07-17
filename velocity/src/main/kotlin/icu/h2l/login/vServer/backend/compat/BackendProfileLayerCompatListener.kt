@@ -22,16 +22,13 @@
 package icu.h2l.login.vServer.backend.compat
 
 import com.velocitypowered.api.event.Subscribe
-import icu.h2l.api.event.connection.OpenStartAuthEvent
 import icu.h2l.api.event.profile.VerifyInitialGameProfileEvent
 import icu.h2l.api.util.RemapUtils
 import icu.h2l.login.HyperZoneLoginMain
-import icu.h2l.login.manager.HyperZonePlayerManager
 
 /**
  * backend 模式专用：
- * - 在 OpenStartAuth 阶段把玩家切到可信临时档案；
- * - 在 GameProfileRequest 阶段校验该临时档案没有被其它插件篡改。
+ * - 在 GameProfileRequest 阶段校验客户端档案没有被其它插件篡改。
  *
  * outpre 全链路由自身桥接控制，不再复用这层兼容逻辑。
  */
@@ -40,13 +37,6 @@ class BackendProfileLayerCompatListener {
         private const val EXPECTED_NAME_PREFIX = RemapUtils.EXPECTED_NAME_PREFIX
         private const val REMAP_PREFIX = RemapUtils.REMAP_PREFIX
         const val PLUGIN_CONFLICT_MESSAGE = "登录失败：检测到插件冲突。"
-    }
-
-    @Subscribe
-    fun onStartAuth(event: OpenStartAuthEvent) {
-        if (!isEnabled()) return
-
-        event.gameProfile = HyperZonePlayerManager.getByChannel(event.channel).getInitialGameProfile()
     }
 
     @Subscribe

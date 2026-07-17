@@ -21,26 +21,22 @@
 
 package icu.h2l.login.player
 
-import icu.h2l.api.util.RemapUtils
 import org.junit.jupiter.api.Assertions.*
 import org.junit.jupiter.api.Test
 import java.util.*
 
 class VelocityHyperZonePlayerTest {
     @Test
-    fun `temporary profile is created eagerly and remains stable for the session`() {
+    fun `player basic properties are stored correctly`() {
         val player = VelocityHyperZonePlayer(
             clientOriginalName = "ClientName",
             clientOriginalUUID = UUID.fromString("77777777-7777-4777-8777-777777777777"),
             isOnlinePlayer = false,
         )
 
-        val first = player.getInitialGameProfile()
-        val second = player.getInitialGameProfile()
-
-        assertSame(first, second)
-        assertTrue(first.name.startsWith(RemapUtils.EXPECTED_NAME_PREFIX))
-        assertEquals(RemapUtils.genUUID(first.name, RemapUtils.REMAP_PREFIX), first.id)
+        assertEquals("ClientName", player.clientOriginalName)
+        assertEquals(UUID.fromString("77777777-7777-4777-8777-777777777777"), player.clientOriginalUUID)
+        assertFalse(player.isOnlinePlayer)
     }
 }
 
