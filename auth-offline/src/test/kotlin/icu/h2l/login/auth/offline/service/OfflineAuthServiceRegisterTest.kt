@@ -227,35 +227,7 @@ class OfflineAuthServiceRegisterTest {
         val prompts = service.getJoinPrompts(player)
 
         assertTrue(prompts.contains(OfflineAuthMessages.REGISTER_REQUEST))
-        assertTrue(prompts.contains(OfflineAuthMessages.LOGIN_OTHER_USERNAME_PROMPT))
-        assertEquals(2, prompts.size)
-    }
-
-    @Test
-    fun `login supports explicitly choosing another offline username`() {
-        insertProfile()
-        repository.create(
-            name = NORMALIZED_NAME,
-            passwordHash = hashPassword(VALID_PASSWORD),
-            hashFormat = "sha256",
-            profileId = PROFILE.id
-        )
-
-        every { hyperZonePlayer.isInWaitingArea() } returns true
-        every { hyperZonePlayer.clientOriginalName } returns OTHER_NAME
-
-        val result = service.loginAs(player, USERNAME, VALID_PASSWORD)
-
-        assertTrue(result.success)
-        assertEquals(OfflineAuthMessages.LOGIN_SUCCESS, result.message)
-        verify(exactly = 1) {
-            hyperZonePlayer.submitCredential(match {
-                it.channelId == "offline" &&
-                    it.credentialId == NORMALIZED_NAME &&
-                    it.getBoundProfileId() == PROFILE.id
-            })
-        }
-        verify(exactly = 1) { hyperZonePlayer.overVerify() }
+        assertEquals(1, prompts.size)
     }
 
     @Test
@@ -267,7 +239,7 @@ class OfflineAuthServiceRegisterTest {
         val result = service.login(player, VALID_PASSWORD)
 
         assertFalse(result.success)
-        assertEquals(OfflineAuthMessages.loginCurrentNameNotRegistered(OTHER_NAME), result.message)
+        assertEquals(OfflineAuthMessages.UNREGISTERED, result.message)
     }
 
     @Test

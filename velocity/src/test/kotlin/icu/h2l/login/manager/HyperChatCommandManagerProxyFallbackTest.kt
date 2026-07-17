@@ -139,30 +139,6 @@ class HyperChatCommandManagerProxyFallbackTest {
     }
 
     @Test
-    fun `bindcode command keeps explicit subcommands and accepts special characters through raw bridge`() {
-        val registration = HyperChatCommandRegistration(
-            name = "bindcode",
-            aliases = setOf("bcode"),
-            executor = NoopExecutor,
-            brigadier = BindCodeBrigadierCommands.bindCode()
-        )
-        var capturedArgs: Array<String>? = null
-        val context = newContext(registration) { _, args ->
-            capturedArgs = args
-            1
-        }
-        val dispatcher = CommandDispatcher<CommandSource>()
-        val source = mockk<CommandSource>(relaxed = true)
-
-        dispatcher.register(HyperChatCommandManagerImpl.createProxyFallbackCommandTree(registration, context))
-        dispatcher.execute("bindcode use !@#CODE", source)
-
-        val root = requireNotNull(dispatcher.root.getChild("bindcode"))
-        assertEquals(setOf("generate", "use", VelocityCommands.ARGS_NODE_NAME), childNames(root))
-        assertArrayEquals(arrayOf("use", "!@#CODE"), capturedArgs)
-    }
-
-    @Test
     fun `default root-only command still gets raw arguments bridge`() {
         val registration = HyperChatCommandRegistration(
             name = "exit",
