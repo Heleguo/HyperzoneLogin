@@ -69,13 +69,15 @@ class UpgradeCommand : HyperChatCommandExecutor {
         }
 
         // 前提 2: 查询 auth_mode 表，auth_type 必须为 OFFLINE
-        val profileId = main.profileService.getAttachedProfile(hyperZonePlayer)?.id
-        if (profileId == null) {
+        val attachedProfile = main.profileService.getAttachedProfile(hyperZonePlayer)
+        if (attachedProfile == null) {
             messages.send(source, MessageKeys.Upgrade.FAILED)
             return
         }
 
-        val entry = main.authModeRepository.getByUuid(profileId)
+        // auth_mode 表使用 profile.uuid（游戏 UUID）作为 player_uuid，不是 profile.id（主键）
+        val playerUuid = attachedProfile.uuid
+        val entry = main.authModeRepository.getByUuid(playerUuid)
         if (entry == null || entry.authType != "OFFLINE") {
             messages.send(source, MessageKeys.Upgrade.NOT_OFFLINE_ACCOUNT)
             return
@@ -97,7 +99,7 @@ class UpgradeCommand : HyperChatCommandExecutor {
         }
 
         // 执行升级：更新 auth_mode 表
-        val updated = main.authModeRepository.updateAuthType(profileId, targetAuthType)
+        val updated = main.authModeRepository.updateAuthType(playerUuid, targetAuthType)
         if (!updated) {
             messages.send(source, MessageKeys.Upgrade.FAILED)
             return
