@@ -19,6 +19,10 @@
  *
  */
 
-// AuthModeTable has been moved to api module: icu.h2l.api.db.table.AuthModeTable
-// This file is kept empty to avoid breaking imports during transition.
-// TODO: Remove this file after confirming compilation succeeds.
+package icu.h2l.login.auth.mode.db
+
+/**
+ * Re-export from API module. Kept for backward compatibility.
+ * @see icu.h2l.api.db.table.AuthModeTable
+ */
+typealias AuthModeTable = icu.h2l.api.db.table.AuthModeTable
