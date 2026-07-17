@@ -42,7 +42,7 @@ class AuthModeTable(prefix: String = "") : Table("${prefix}auth_mode") {
 
     init {
         uniqueIndex("${tableName}_player_uuid", playerUuid)
-        index("${tableName}_player_name", playerName)
+        index(false, playerName)
     }
 
     override val primaryKey = PrimaryKey(id)
