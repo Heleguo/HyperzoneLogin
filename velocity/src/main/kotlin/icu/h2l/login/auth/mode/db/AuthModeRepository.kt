@@ -25,6 +25,7 @@ import icu.h2l.api.db.HyperZoneDatabaseManager
 import icu.h2l.api.db.table.AuthModeTable
 import icu.h2l.api.log.warn
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
+import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
