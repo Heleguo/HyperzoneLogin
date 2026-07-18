@@ -582,23 +582,28 @@ class YggdrasilAuthModule(
      * 检查 auth_mode 表：如果玩家已通过 /upgrade 从离线升级为在线认证，
      * 但 Yggdrasil Entry 表尚未创建对应记录（升级只改 auth_mode 表不写 Entry 表），
      * 则根据 Yggdrasil 认证返回的名称查找已有 Profile 并返回其 ID。
+     *
+     * 查询失败时（如无数据库连接）返回 null，不阻断正常认证流程。
      */
     private fun resolveUpgradedProfileId(authenticatedName: String): UUID? {
-        val authModeTable = AuthModeTable(databaseManager.tablePrefix)
-        val profileTable = ProfileTable(databaseManager.tablePrefix)
-        return databaseManager.executeTransaction {
-            val authModeRow = authModeTable.selectAll().where {
-                authModeTable.playerName eq authenticatedName
-            }.limit(1).singleOrNull()
-            if (authModeRow == null) return@executeTransaction null
-            val authType = authModeRow[authModeTable.authType]
-            if (authType == "OFFLINE") return@executeTransaction null
+        return try {
+            val authModeTable = AuthModeTable(databaseManager.tablePrefix)
+            val profileTable = ProfileTable(databaseManager.tablePrefix)
+            databaseManager.executeTransaction {
+                val authModeRow = authModeTable.selectAll().where {
+                    authModeTable.playerName eq authenticatedName
+                }.limit(1).singleOrNull()
+                if (authModeRow == null) return@executeTransaction null
+                val authType = authModeRow[authModeTable.authType]
+                if (authType == "OFFLINE") return@executeTransaction null
 
-            // 根据名称从 Profile 表查找
-            val profileRow = profileTable.selectAll().where {
-                profileTable.name eq authenticatedName
-            }.limit(1).singleOrNull() ?: return@executeTransaction null
-            profileRow[profileTable.id]
+                val profileRow = profileTable.selectAll().where {
+                    profileTable.name eq authenticatedName
+                }.limit(1).singleOrNull() ?: return@executeTransaction null
+                profileRow[profileTable.id]
+            }
+        } catch (_: Exception) {
+            null
         }
     }
 
