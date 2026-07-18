@@ -37,6 +37,8 @@ import icu.h2l.api.player.HyperZonePlayer
 import icu.h2l.api.player.HyperZonePlayerAccessor
 import icu.h2l.api.profile.CredentialChannelRegistryProvider
 import icu.h2l.api.profile.HyperZoneProfileService
+import icu.h2l.api.db.table.AuthModeTable
+import icu.h2l.api.db.table.ProfileTable
 import icu.h2l.api.profile.skin.ProfileSkinModel
 import icu.h2l.api.profile.skin.ProfileSkinSource
 import icu.h2l.api.profile.skin.ProfileSkinTextures
@@ -46,6 +48,7 @@ import icu.h2l.login.auth.online.db.EntryTableManager
 import icu.h2l.login.auth.online.manager.EntryConfigManager
 import icu.h2l.login.auth.online.req.*
 import kotlinx.coroutines.*
+import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
 import java.net.http.HttpClient
@@ -268,6 +271,28 @@ class YggdrasilAuthModule(
                     authenticatedUuid = result.profile.id,
                     suggestedProfileCreateUuid = resolveProfileResolveUuid(result),
                     knownProfileId = existingBoundProfileId
+                )
+            )
+            return null
+        }
+
+        // 检查 auth_mode 表：如果玩家已通过 /upgrade 升级但 Entry 表尚未创建记录，
+        // 则根据认证名查找已有 Profile 并绑定（同时补录 Entry 表）
+        val upgradedProfileId = resolveUpgradedProfileId(result.profile.name)
+        if (upgradedProfileId != null) {
+            entryDatabaseHelper.createEntry(
+                entryId = result.entryId,
+                name = result.profile.name,
+                uuid = result.profile.id,
+                pid = upgradedProfileId
+            )
+            handler.submitCredential(
+                yggdrasilCredential(
+                    entryId = result.entryId,
+                    authenticatedName = result.profile.name,
+                    authenticatedUuid = result.profile.id,
+                    suggestedProfileCreateUuid = resolveProfileResolveUuid(result),
+                    knownProfileId = upgradedProfileId
                 )
             )
             return null
@@ -551,6 +576,30 @@ class YggdrasilAuthModule(
         )
 
         return profileId
+    }
+
+    /**
+     * 检查 auth_mode 表：如果玩家已通过 /upgrade 从离线升级为在线认证，
+     * 但 Yggdrasil Entry 表尚未创建对应记录（升级只改 auth_mode 表不写 Entry 表），
+     * 则根据 Yggdrasil 认证返回的名称查找已有 Profile 并返回其 ID。
+     */
+    private fun resolveUpgradedProfileId(authenticatedName: String): UUID? {
+        val authModeTable = AuthModeTable(databaseManager.tablePrefix)
+        val profileTable = ProfileTable(databaseManager.tablePrefix)
+        return databaseManager.executeTransaction {
+            val authModeRow = authModeTable.selectAll().where {
+                authModeTable.playerName eq authenticatedName
+            }.limit(1).singleOrNull()
+            if (authModeRow == null) return@executeTransaction null
+            val authType = authModeRow[authModeTable.authType]
+            if (authType == "OFFLINE") return@executeTransaction null
+
+            // 根据名称从 Profile 表查找
+            val profileRow = profileTable.selectAll().where {
+                profileTable.name eq authenticatedName
+            }.limit(1).singleOrNull() ?: return@executeTransaction null
+            profileRow[profileTable.id]
+        }
     }
 
     private fun findCandidateEntriesByClientIdentity(username: String, uuid: UUID): List<String> {
