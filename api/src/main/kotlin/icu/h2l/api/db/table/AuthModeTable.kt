@@ -37,6 +37,7 @@ class AuthModeTable(prefix: String = "") : Table("${prefix}auth_mode") {
     val playerUuid = uuid("player_uuid")
     val playerName = varchar("player_name", 16)
     val authType = varchar("auth_type", 16).default("OFFLINE")
+    val authEntryId = varchar("auth_entry_id", 64).nullable().default(null)
     val createdAt = long("created_at")
     val updatedAt = long("updated_at")
 

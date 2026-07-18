@@ -202,4 +202,15 @@ interface HyperZonePlayer {
     fun getApplyGameProfile(): GameProfile? {
         return runCatching { getAttachedGameProfile() }.getOrNull()
     }
+
+    /**
+     * 获取当前会话中临时存储的认证来源 Entry ID。
+     * 用于 /upgrade 流程记录玩家是通过哪个 Yggdrasil Entry 连接的。
+     */
+    fun getAuthEntryId(): String? = null
+
+    /**
+     * 设置当前会话的认证来源 Entry ID。
+     */
+    fun setAuthEntryId(entryId: String?) {}
 }

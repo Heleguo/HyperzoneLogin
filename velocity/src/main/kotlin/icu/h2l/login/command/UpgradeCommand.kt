@@ -85,23 +85,26 @@ class UpgradeCommand : HyperChatCommandExecutor {
             return
         }
 
-        // 确定目标 auth_type：根据玩家的在线认证来源判断
-        // 通过 OpenStartAuthEvent 的 isOnline 判断——目前仅支持 YGGDRASIL
+        // 确定目标 auth_type 和 entryId：根据 Yggdrasil 认证时记录的来源
         val targetAuthType = "YGGDRASIL"
+        val authEntryId = hyperZonePlayer.getAuthEntryId()
 
-        // 执行升级：更新 auth_mode 表
-        val updated = main.authModeRepository.updateAuthType(playerUuid, targetAuthType)
+        // 执行升级：更新 auth_mode 表 auth_type 和 auth_entry_id
+        var updated = main.authModeRepository.updateAuthType(playerUuid, targetAuthType)
         if (!updated) {
             messages.send(source, MessageKeys.Upgrade.FAILED)
             return
         }
+        if (authEntryId != null) {
+            updated = main.authModeRepository.updateAuthEntryId(playerUuid, authEntryId)
+            if (!updated) {
+                messages.send(source, MessageKeys.Upgrade.FAILED)
+                return
+            }
+        }
 
         // 发送成功提示
-        val successKey = when (targetAuthType) {
-            "MOJANG" -> MessageKeys.Upgrade.SUCCESS_MOJANG
-            "YGGDRASIL" -> MessageKeys.Upgrade.SUCCESS_YGGDRASIL
-            else -> MessageKeys.Upgrade.SUCCESS_MOJANG
-        }
+        val successKey = MessageKeys.Upgrade.SUCCESS_YGGDRASIL
         messages.send(source, successKey)
     }
 

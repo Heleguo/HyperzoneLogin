@@ -36,6 +36,7 @@ data class AuthModeEntry(
     val playerUuid: UUID,
     val playerName: String,
     val authType: String,
+    val authEntryId: String? = null,
     val createdAt: Long,
     val updatedAt: Long
 )
@@ -44,7 +45,7 @@ class AuthModeRepository(
     private val databaseManager: HyperZoneDatabaseManager,
     private val table: AuthModeTable
 ) {
-    fun create(playerUuid: UUID, playerName: String, authType: String): Boolean {
+    fun create(playerUuid: UUID, playerName: String, authType: String, authEntryId: String? = null): Boolean {
         val now = System.currentTimeMillis()
         return try {
             databaseManager.executeTransaction {
@@ -52,6 +53,7 @@ class AuthModeRepository(
                     it[this.playerUuid] = playerUuid
                     it[this.playerName] = playerName
                     it[this.authType] = authType
+                    it[this.authEntryId] = authEntryId
                     it[this.createdAt] = now
                     it[this.updatedAt] = now
                 }
@@ -96,6 +98,29 @@ class AuthModeRepository(
         }
     }
 
+    fun updateAuthEntryId(playerUuid: UUID, authEntryId: String): Boolean {
+        val now = System.currentTimeMillis()
+        return try {
+            databaseManager.executeTransaction {
+                table.update({ table.playerUuid eq playerUuid }) {
+                    it[this.authEntryId] = authEntryId
+                    it[this.updatedAt] = now
+                }
+            } > 0
+        } catch (e: Exception) {
+            warn { "更新认证来源ID失败: ${e.message}" }
+            false
+        }
+    }
+
+    fun getByNameAndEntryId(playerName: String, entryId: String): AuthModeEntry? {
+        return databaseManager.executeTransaction {
+            table.selectAll().where {
+                (table.playerName eq playerName) and (table.authEntryId eq entryId)
+            }.limit(1).map(::toEntry).firstOrNull()
+        }
+    }
+
     fun updatePlayerName(playerUuid: UUID, newName: String): Boolean {
         val now = System.currentTimeMillis()
         return try {
@@ -136,6 +161,7 @@ class AuthModeRepository(
             playerUuid = row[table.playerUuid],
             playerName = row[table.playerName],
             authType = row[table.authType],
+            authEntryId = row[table.authEntryId],
             createdAt = row[table.createdAt],
             updatedAt = row[table.updatedAt]
         )

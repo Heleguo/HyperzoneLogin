@@ -262,6 +262,14 @@ class YggdrasilAuthModule(
             return null
         }
 
+        // 检查 auth_mode：玩家有 OFFLINE 记录时（升级场景），
+        // 不创建新 Profile，只记录认证来源 Entry ID，保留玩家在等待区
+        if (hasOfflineAuthMode(result.profile.name)) {
+            info { "玩家 ${result.profile.name} 存在离线注册记录，Yggdrasil 认证跳过建档，记录 Entry=${result.entryId}" }
+            handler.setAuthEntryId(result.entryId)
+            return null
+        }
+
         val existingBoundProfileId = findBoundProfileIdByAuthenticatedEntry(result)
         if (existingBoundProfileId != null) {
             handler.submitCredential(
@@ -278,7 +286,8 @@ class YggdrasilAuthModule(
 
         // 检查 auth_mode 表：如果玩家已通过 /upgrade 升级但 Entry 表尚未创建记录，
         // 则根据认证名查找已有 Profile 并绑定（同时补录 Entry 表）
-        val upgradedProfileId = resolveUpgradedProfileId(result.profile.name)
+        // 同时校验 auth_entry_id 匹配，防止非同源 Entry 登录
+        val upgradedProfileId = resolveUpgradedProfileId(result.profile.name, result.entryId)
         if (upgradedProfileId != null) {
             entryDatabaseHelper.createEntry(
                 entryId = result.entryId,
@@ -585,7 +594,30 @@ class YggdrasilAuthModule(
      *
      * 查询失败时（如无数据库连接）返回 null，不阻断正常认证流程。
      */
-    private fun resolveUpgradedProfileId(authenticatedName: String): UUID? {
+    /**
+     * 检查 auth_mode 表，判断玩家是否已有离线注册记录。
+     */
+    private fun hasOfflineAuthMode(playerName: String): Boolean {
+        return try {
+            val authModeTable = AuthModeTable(databaseManager.tablePrefix)
+            databaseManager.executeTransaction {
+                authModeTable.selectAll().where {
+                    authModeTable.playerName eq playerName
+                }.limit(1).singleOrNull()?.let { row ->
+                    row[authModeTable.authType] == "OFFLINE"
+                } ?: false
+            }
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    /**
+     * 检查 auth_mode 表：如果玩家已通过 /upgrade 升级，且 auth_entry_id 匹配当前认证来源，
+     * 则根据认证名查找已有 Profile 并返回其 ID。
+     * 若 auth_entry_id 不匹配（非同源 Entry 尝试登录），返回 null 表示拒绝。
+     */
+    private fun resolveUpgradedProfileId(authenticatedName: String, entryId: String): UUID? {
         return try {
             val authModeTable = AuthModeTable(databaseManager.tablePrefix)
             val profileTable = ProfileTable(databaseManager.tablePrefix)
@@ -596,6 +628,13 @@ class YggdrasilAuthModule(
                 if (authModeRow == null) return@executeTransaction null
                 val authType = authModeRow[authModeTable.authType]
                 if (authType == "OFFLINE") return@executeTransaction null
+
+                // 校验 auth_entry_id：如果已记录认证来源，必须与本次连接来源一致
+                val storedEntryId = authModeRow[authModeTable.authEntryId]
+                if (storedEntryId != null && storedEntryId != entryId) {
+                    info { "玩家 $authenticatedName 的认证来源不匹配：期望=$storedEntryId，实际=$entryId，拒绝连接" }
+                    return@executeTransaction null
+                }
 
                 val profileRow = profileTable.selectAll().where {
                     profileTable.name eq authenticatedName

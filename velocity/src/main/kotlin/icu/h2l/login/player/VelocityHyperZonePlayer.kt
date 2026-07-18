@@ -203,6 +203,15 @@ class VelocityHyperZonePlayer(
         messageQueue.offer(message)
     }
 
+    @Volatile
+    private var sessionAuthEntryId: String? = null
+
+    override fun getAuthEntryId(): String? = sessionAuthEntryId
+
+    override fun setAuthEntryId(entryId: String?) {
+        sessionAuthEntryId = entryId
+    }
+
     override fun getProxyPlayerOrNull(): Player? {
         return proxyPlayer
     }
