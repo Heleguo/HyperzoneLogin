@@ -141,23 +141,28 @@ class OutPreVServerAuth(
             return
         }
 
+        val outpreConfig = HyperZoneLoginMain.getCoreConfig().vServer.outpre
+        val isStruck = outpreConfig.struckOnlineMode && hyperPlayer.isOnlinePlayer
+
+        // Struck: pre-mark as if bridge already joined so onVerified can call
+        // completeAfterVerification directly without waiting for a bridge connection.
         val state = OutPreState(
             authTargetLabel = configuredAuthTargetLabel(),
             initialFlowPending = true,
+            inAuthHold = !isStruck,
+            hasConnectedToAuthServerOnce = isStruck,
         )
         states[player.getChannel()] = state
         pendingInitialHandlers[player.getChannel()] = handler
         hyperPlayer.suspendMessageDelivery()
         trace(
-            "beginInitialJoin state-created channel=${player.getChannel().id()} player=${player.username} ${
-                describeState(
-                    state
-                )
+            "beginInitialJoin state-created channel=${player.getChannel().id()} player=${player.username} struck=$isStruck ${
+                describeState(state)
             }"
         )
 
         val authStartEvent = VServerAuthStartEvent(player, hyperPlayer)
-        server.eventManager.fire(authStartEvent).join()
+        server.eventManager.fire(authStartEvent)
         trace(
             "beginInitialJoin after-authStart channel=${
                 player.getChannel().id()
@@ -175,6 +180,17 @@ class OutPreVServerAuth(
                 } player=${player.username} clearing-initial-state"
             )
             clearInitialJoinState(player, state, hyperPlayer)
+            return
+        }
+
+        if (isStruck) {
+            // Auth result arrives asynchronously — just suspend here.
+            // onVerified will call completeAfterVerification when auth completes.
+            trace(
+                "beginInitialJoin struck-suspended channel=${
+                    player.getChannel().id()
+                } player=${player.username} ${describeState(state)}"
+            )
             return
         }
 
