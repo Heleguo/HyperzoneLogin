@@ -133,6 +133,10 @@ class DatabaseManager(
             // 创建档案表
             SchemaUtils.create(profileTable, authModeTable)
         }
+        // auth_mode 表列迁移：为已有表补增 auth_entry_id 列
+        transaction(database) {
+            SchemaUtils.createMissingTablesAndColumns(authModeTable)
+        }
     }
     
     /**
