@@ -248,7 +248,7 @@ open class OutPreAuthSessionHandlerLogic(
                             NettyReflectionHelper.setPermissionFunction(connectedPlayer, function)
                         }
 
-                        server.eventManager.fire(LoginEvent(connectedPlayer)).thenAcceptAsync({ loginEvent ->
+                        server.eventManager.fire(LoginEvent(connectedPlayer, serverIdHash)).thenAcceptAsync({ loginEvent ->
                             if (mcConnection.isClosed) {
                                 server.eventManager.fireAndForget(
                                     DisconnectEvent(

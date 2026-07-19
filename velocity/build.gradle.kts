@@ -43,7 +43,7 @@ val embeddedModuleProjects = listOf(
     project(":profile-skin"),
 )
 
-val relocateBstatsCompileOnlyJar by tasks.registering(ShadowJar::class) {
+val relocateBstatsCompileOnlyJar = tasks.register<ShadowJar>("relocateBstatsCompileOnlyJar") {
     archiveBaseName.set("bstats-relocated-compileonly")
     archiveClassifier.set("")
     archiveVersion.set("")

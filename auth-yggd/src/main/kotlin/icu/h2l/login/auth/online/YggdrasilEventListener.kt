@@ -26,6 +26,7 @@ import com.velocitypowered.api.event.connection.DisconnectEvent
 import icu.h2l.api.db.HyperZoneDatabaseManager
 import icu.h2l.api.db.table.AuthModeTable
 import icu.h2l.api.event.connection.OpenStartAuthEvent
+import icu.h2l.api.event.vServer.VServerAuthStartEvent
 import icu.h2l.api.event.vServer.VServerJoinEvent
 import icu.h2l.api.log.HyperZoneDebugType
 import icu.h2l.api.log.debug
@@ -60,7 +61,7 @@ class YggdrasilEventListener(
     }
 
     @Subscribe
-    fun onWaitingAreaJoin(event: VServerJoinEvent) {
+    fun onWaitingAreaJoin(event: VServerAuthStartEvent) {
         if (!event.proxyPlayer.isOnlineMode) return
         if (!event.hyperZonePlayer.isInWaitingArea()) return
 

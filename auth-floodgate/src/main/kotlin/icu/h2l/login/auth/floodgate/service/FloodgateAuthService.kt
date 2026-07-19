@@ -84,30 +84,6 @@ class FloodgateAuthService(
         sessionHolder.remember(channel, normalizedUserName, userUUID, xuid)
         trace("acceptInitialProfile session remembered channel=$channel normalizedName=$normalizedUserName userUUID=$userUUID xuid=$xuid")
 
-        try {
-            api.hyperZonePlayers.create(channel, normalizedUserName, userUUID, FLOODGATE_CHANNEL_PLACEHOLDER_MODE)
-            trace("acceptInitialProfile hyper player created channel=$channel normalizedName=$normalizedUserName userUUID=$userUUID")
-        } catch (throwable: Throwable) {
-            val isDuplicateCreate = throwable.message?.contains("重复创建 HyperZonePlayer") == true
-            if (isDuplicateCreate) {
-                trace("acceptInitialProfile duplicate hyper player create channel=$channel normalizedName=$normalizedUserName userUUID=$userUUID")
-                runCatching { api.hyperZonePlayers.getByChannel(channel) }.getOrElse { lookupError ->
-                    logger.warning(
-                        "Floodgate 玩家 $normalizedUserName($userUUID) 初始化登录对象重复后回收失败: ${lookupError.message}"
-                    )
-                    sessionHolder.remove(channel)
-                    return VerifyResult.Failed(FloodgateMessages.initPlayerFailed())
-                }
-            } else {
-                logger.warning("Floodgate 玩家 $normalizedUserName($userUUID) 初始化登录对象失败: ${throwable.message}")
-                sessionHolder.remove(channel)
-                return VerifyResult.Failed(FloodgateMessages.initPlayerFailed())
-            }
-        }
-
-
-        trace("acceptInitialProfile accepted channel=$channel normalizedName=$normalizedUserName userUUID=$userUUID")
-
         return VerifyResult.Accepted
     }
 
@@ -262,15 +238,6 @@ class FloodgateAuthService(
 
     private fun resolveProfileUuid(userUUID: UUID): UUID? {
         return if (config.passFloodgateUuidToProfileResolve) userUUID else null
-    }
-
-    companion object {
-        /**
-         * Floodgate 作为独立渠道会跳过自订 OpenPreLogin/OpenStartAuth，
-         * 这里仅传入一个占位布尔值以满足现有 HyperZonePlayer 创建签名；
-         * 不应把它解读为 Floodgate 的在线/离线语义。
-         */
-        private const val FLOODGATE_CHANNEL_PLACEHOLDER_MODE = false
     }
 }
 
