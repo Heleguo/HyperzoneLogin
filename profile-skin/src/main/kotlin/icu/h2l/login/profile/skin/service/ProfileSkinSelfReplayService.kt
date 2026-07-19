@@ -141,7 +141,7 @@ class ProfileSkinSelfReplayService(
         ) ?: return
         state.latestTextures.set(textures)
 
-        val player = event.player() ?: return
+        val player = event.player()
         sendSelfAddPlayer(
             hyperZonePlayer = hyperZonePlayer,
             player = player,

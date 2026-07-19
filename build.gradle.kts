@@ -235,6 +235,23 @@ subprojects {
             expand("pluginVersion" to pluginVersion)
         }
     }
+
+    tasks.withType(Test::class.java).configureEach {
+        // MockK uses Byte Buddy for mocking; Java 25 is newer than Byte Buddy's
+        // officially supported range, so the experimental flag is required.
+        // The additional flags suppress JVM-level runtime warnings emitted when
+        // running on Java 23+:
+        //   - velocity-proxy pulls jline-terminal-ffm into the test classpath;
+        //     --enable-native-access=ALL-UNNAMED suppresses its FFM warning
+        //   - sun.misc.Unsafe::objectFieldOffset is terminally deprecated (JEP 471)
+        //   - Class-Data Sharing conflicts with bootstrap classpath injection
+        jvmArgs(
+            "-Dnet.bytebuddy.experimental=true",
+            "--enable-native-access=ALL-UNNAMED",
+            "--sun-misc-unsafe-memory-access=allow",
+            "-Xshare:off",
+        )
+    }
 }
 
 val pluginBundleDir = layout.buildDirectory.dir("HZL")

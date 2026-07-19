@@ -136,6 +136,7 @@ class MlDataMigrator(
                     }
                 }
 
+                @Suppress("DEPRECATION")
                 SchemaUtils.createMissingTablesAndColumns(floodgateAuthTable)
 
                 for (sourceUser in sourceUsers) {
