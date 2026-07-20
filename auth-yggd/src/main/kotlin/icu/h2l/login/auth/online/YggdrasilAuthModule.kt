@@ -361,6 +361,12 @@ class YggdrasilAuthModule(
             }
         }
 
+        // 最终安全网：再次检查 auth_entry_id 是否与当前 Entry 匹配
+        val finalRejected = isAuthEntryMismatch(result.profile.name, result.entryId)
+        if (finalRejected) {
+            return "此账号已绑定到其他认证来源，无法使用当前 Entry（${result.entryId}）登录"
+        }
+
         handler.submitCredential(
             yggdrasilCredential(
                 entryId = result.entryId,
@@ -622,6 +628,7 @@ class YggdrasilAuthModule(
                 }.limit(1).singleOrNull() ?: return@executeTransaction false
                 val storedEntryId = row[authModeTable.authEntryId]
                 val authType = row[authModeTable.authType]
+                info { "isAuthEntryMismatch: player=$playerName storedEntryId=$storedEntryId currentEntryId=$entryId authType=$authType" }
                 if (storedEntryId == null) {
                     // 旧记录未存储 auth_entry_id：补录当前 Entry，放行本次连接
                     if (authType == "MOJANG" || authType == "YGGDRASIL") {
@@ -629,10 +636,13 @@ class YggdrasilAuthModule(
                         authModeTable.update({ authModeTable.playerUuid eq uuid }) {
                             it[authModeTable.authEntryId] = entryId
                         }
+                        info { "isAuthEntryMismatch: captured entryId=$entryId for player=$playerName (was null)" }
                     }
                     return@executeTransaction false
                 }
-                storedEntryId != entryId
+                val mismatched = storedEntryId != entryId
+                info { "isAuthEntryMismatch: player=$playerName result=$mismatched (stored=$storedEntryId, current=$entryId)" }
+                mismatched
             }
         } catch (_: Exception) {
             false
