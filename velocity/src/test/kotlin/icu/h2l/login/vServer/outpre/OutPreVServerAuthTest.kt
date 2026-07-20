@@ -38,6 +38,7 @@ import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.runs
+import io.mockk.spyk
 import io.mockk.verify
 import io.netty.channel.embedded.EmbeddedChannel
 import net.kyori.adventure.text.logger.slf4j.ComponentLogger
@@ -58,13 +59,15 @@ class OutPreVServerAuthTest {
         val proxyServer = mockk<ProxyServer>()
         every { proxyServer.eventManager } returns eventManager
 
-        val outPre = OutPreVServerAuth(proxyServer)
+        val outPre = spyk(OutPreVServerAuth(proxyServer))
         bootstrapMain(proxyServer, outPre)
         val session = createSession(isActiveStates = listOf(true))
         val bridge = mockk<OutPreBackendBridge>(relaxed = true)
         every { bridge.connect() } returns CompletableFuture.completedFuture(mockk(relaxed = true))
+        val bridgeCallbackSlot = io.mockk.slot<OutPreBackendBridge.Callback>()
+        every { bridge.bindSession(capture(bridgeCallbackSlot)) } just runs
+        every { outPre.createBridge(any()) } returns bridge
         val handler = mockk<OutPreAuthSessionHandler>(relaxed = true)
-        every { handler.bridge } returns bridge
         val statesField = OutPreVServerAuth::class.java.getDeclaredField("states").apply {
             isAccessible = true
         }
@@ -80,7 +83,7 @@ class OutPreVServerAuthTest {
             val session = createSession(isActiveStates = listOf(true), isOnline = true)
             val bridge = mockk<OutPreBackendBridge>(relaxed = true)
             val handler = mockk<OutPreAuthSessionHandler>(relaxed = true)
-            every { handler.bridge } returns bridge
+            every { outPre.createBridge(any()) } returns bridge
             var authStartFired = false
 
             every { eventManager.fire(any<Any>()) } answers {
@@ -114,7 +117,7 @@ class OutPreVServerAuthTest {
         outPre.beginInitialJoin(session.player, handler)
         assertFalse(authStartFired)
 
-        outPre.onInitialBridgeJoined(bridge, session.player)
+        bridgeCallbackSlot.captured.onJoined()
 
         assertTrue(authStartFired)
         assertTrue(stateWasVisibleDuringAuthStart)

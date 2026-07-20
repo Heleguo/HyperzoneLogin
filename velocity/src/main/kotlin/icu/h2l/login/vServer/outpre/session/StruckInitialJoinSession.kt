@@ -37,9 +37,12 @@ import icu.h2l.login.vServer.outpre.handler.OutPreAuthSessionHandler
 internal class StruckInitialJoinSession(
     override val player: ConnectedPlayer,
     override val hyperPlayer: VelocityHyperZonePlayer,
-    override val handler: OutPreAuthSessionHandler,
+    internal val handler: OutPreAuthSessionHandler,
     override val state: OutPreState,
 ) : OutPreInitialJoinSession {
+
+    override fun destroy() = Unit
+
     override fun begin(owner: OutPreVServerAuth) {
         owner.publishAuthStartEvent(player, hyperPlayer, state, "beginInitialJoin")
         owner.trace(
@@ -49,6 +52,11 @@ internal class StruckInitialJoinSession(
         )
     }
 
+    override fun release(owner: OutPreVServerAuth, handler: OutPreAuthSessionHandler, preferredTargetServerName: String?) {
+        owner.closeInitialSession(player)
+        handler.onReleased(preferredTargetServerName)
+    }
+
     override fun onVerified(owner: OutPreVServerAuth) {
         owner.continueVerifiedInitialJoin(player, handler, state)
     }
@@ -56,7 +64,15 @@ internal class StruckInitialJoinSession(
     override fun onAuthServerJoined(owner: OutPreVServerAuth) = Unit
 
     override fun onAuthenticationFailure(owner: OutPreVServerAuth, event: AuthenticationFailureEvent): Boolean {
-        owner.switchStruckSessionToBridgeWaitingArea(this, event)
+        if (!player.isActive) return true
+        val fallbackSession = OutPreInitialJoinSessionFactory.waitingAreaFallbackFrom(this)
+        owner.replaceInitialSession(player.getChannel(), fallbackSession)
+        owner.trace(
+            "outpre.struck fallback-to-waiting-area channel=${player.getChannel().id()} player=${player.username} reason=${event.reason} message=${event.reasonMessage} ${
+                owner.describeState(fallbackSession.state)
+            }"
+        )
+        fallbackSession.begin(owner)
         return true
     }
 }

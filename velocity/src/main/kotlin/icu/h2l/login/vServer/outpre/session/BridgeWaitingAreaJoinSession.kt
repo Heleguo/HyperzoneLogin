@@ -21,12 +21,26 @@
 
 package icu.h2l.login.vServer.outpre.session
 
+import com.velocitypowered.proxy.connection.backend.VelocityServerConnection
 import com.velocitypowered.proxy.connection.client.ConnectedPlayer
+import com.velocitypowered.proxy.protocol.StateRegistry
+import icu.h2l.api.message.HyperZoneMessagePlaceholder
 import icu.h2l.api.player.getChannel
+import icu.h2l.login.HyperZoneLoginMain
+import icu.h2l.login.inject.network.NettyReflectionHelper
+import icu.h2l.login.message.MessageKeys
 import icu.h2l.login.player.VelocityHyperZonePlayer
+import icu.h2l.login.reflect.VelocityInternalAccess
+import icu.h2l.login.vServer.outpre.OutPreBackendBridge
 import icu.h2l.login.vServer.outpre.OutPreState
 import icu.h2l.login.vServer.outpre.OutPreVServerAuth
 import icu.h2l.login.vServer.outpre.handler.OutPreAuthSessionHandler
+import icu.h2l.login.vServer.outpre.handler.bridge.OutPreClientBridgeSessionHandler
+import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.format.NamedTextColor
+import org.apache.logging.log4j.LogManager
+
+private val logger = LogManager.getLogger(BridgeWaitingAreaJoinSession::class.java)
 
 /**
  * 需要先进入认证服桥接、再开始等待区认证的模式会话。
@@ -34,17 +48,88 @@ import icu.h2l.login.vServer.outpre.handler.OutPreAuthSessionHandler
 internal class BridgeWaitingAreaJoinSession(
     override val player: ConnectedPlayer,
     override val hyperPlayer: VelocityHyperZonePlayer,
-    override val handler: OutPreAuthSessionHandler,
+    internal val handler: OutPreAuthSessionHandler,
     override val state: OutPreState,
     private val shouldPublishAuthStartAfterJoin: Boolean,
-) : OutPreInitialJoinSession {
+) : OutPreInitialJoinSession, OutPreBackendBridge.Callback {
+
+    @Volatile
+    private var boundOwner: OutPreVServerAuth? = null
+
+    @Volatile
+    private var _bridge: OutPreBackendBridge? = null
+
+    @Volatile
+    private var velocityServerConnection: VelocityServerConnection? = null
+
+    override fun destroy() {
+        _bridge?.disconnect()
+        _bridge = null
+    }
+
     override fun begin(owner: OutPreVServerAuth) {
+        boundOwner = owner
+        val bridge = owner.createBridge(player).also { _bridge = it }
+        velocityServerConnection = bridge.serverConnection
+        NettyReflectionHelper.setConnectionInFlight(player, bridge.serverConnection)
+        handler.mcConnection.setActiveSessionHandler(
+            if (handler.supportConfig) StateRegistry.CONFIG else StateRegistry.LOGIN,
+            OutPreClientBridgeSessionHandler(player, bridge, handler.supportConfig)
+        )
+        bridge.bindSession(this)
         owner.trace(
             "beginInitialJoin connect-bridge channel=${player.getChannel().id()} player=${player.username} ${
                 owner.describeState(state)
             }"
         )
-        owner.startAuthBridgeJoin(player, hyperPlayer, handler.bridge, state)
+        bridge.connect().whenCompleteAsync({ _, throwable ->
+            if (throwable != null) {
+                val messages = HyperZoneLoginMain.getInstance().messageService
+                owner.clearInitialSession(player.getChannel(), state)
+                hyperPlayer.resumeMessageDelivery()
+                player.sendMessage(
+                    messages.render(
+                        player,
+                        MessageKeys.BackendAuth.ENTER_FAILED_EXCEPTION,
+                        HyperZoneMessagePlaceholder.text("reason", throwable.message ?: "Unknown error"),
+                    )
+                )
+                player.disconnect(Component.text("OutPre auth backend connection failed", NamedTextColor.RED))
+                return@whenCompleteAsync
+            }
+        }, player.connection.eventLoop())
+    }
+
+    override fun onJoined() {
+        val serverConn = velocityServerConnection ?: return
+        NettyReflectionHelper.setConnectionInFlight(player, null)
+        VelocityInternalAccess.setConnectedServer(player, serverConn)
+        serverConn.completeJoin()
+        boundOwner?.let { onAuthServerJoined(it) }
+    }
+
+    override fun release(owner: OutPreVServerAuth, handler: OutPreAuthSessionHandler, preferredTargetServerName: String?) {
+        owner.closeInitialSession(player)
+        val clientHandler = handler.mcConnection.activeSessionHandler as? OutPreClientBridgeSessionHandler
+            ?: throw IllegalStateException("no Required clientHandler for bridge release")
+        clientHandler.releaseToVelocity(handler.server) {
+            handler.onReleased(preferredTargetServerName)
+        }
+    }
+
+    override fun onDisconnected(reason: String?) {
+        val owner = boundOwner ?: return
+        val wasPresent = owner.clearInitialSession(player.getChannel(), state)
+        if (player.isActive) {
+            player.disconnect(Component.text(reason ?: "OutPre auth bridge disconnected", NamedTextColor.RED))
+        }
+        if (wasPresent) {
+            logger.warn(
+                "OutPre initial backend bridge disconnected before verification: player={}, reason={}",
+                player.username,
+                reason
+            )
+        }
     }
 
     override fun onVerified(owner: OutPreVServerAuth) {

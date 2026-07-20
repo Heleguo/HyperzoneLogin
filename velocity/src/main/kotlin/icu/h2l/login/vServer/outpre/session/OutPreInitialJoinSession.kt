@@ -24,7 +24,6 @@ package icu.h2l.login.vServer.outpre.session
 import com.velocitypowered.proxy.connection.client.ConnectedPlayer
 import icu.h2l.api.event.auth.AuthenticationFailureEvent
 import icu.h2l.login.player.VelocityHyperZonePlayer
-import icu.h2l.login.vServer.outpre.OutPreBackendBridge
 import icu.h2l.login.vServer.outpre.OutPreState
 import icu.h2l.login.vServer.outpre.OutPreVServerAuth
 import icu.h2l.login.vServer.outpre.handler.OutPreAuthSessionHandler
@@ -38,8 +37,9 @@ import icu.h2l.login.vServer.outpre.handler.OutPreAuthSessionHandler
 internal sealed interface OutPreInitialJoinSession {
     val player: ConnectedPlayer
     val hyperPlayer: VelocityHyperZonePlayer
-    val handler: OutPreAuthSessionHandler
     val state: OutPreState
+
+    fun destroy()
 
     fun begin(owner: OutPreVServerAuth)
 
@@ -49,7 +49,7 @@ internal sealed interface OutPreInitialJoinSession {
 
     fun onAuthenticationFailure(owner: OutPreVServerAuth, event: AuthenticationFailureEvent): Boolean = false
 
-    fun matchesBridge(bridge: OutPreBackendBridge): Boolean = handler.bridge === bridge
+    fun release(owner: OutPreVServerAuth, handler: OutPreAuthSessionHandler, preferredTargetServerName: String?)
 
     fun matchesFailure(event: AuthenticationFailureEvent): Boolean {
         return event.authType == AuthenticationFailureEvent.AuthType.YGGDRASIL &&

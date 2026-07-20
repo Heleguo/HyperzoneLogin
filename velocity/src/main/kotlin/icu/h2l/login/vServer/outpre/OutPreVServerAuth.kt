@@ -37,7 +37,6 @@ import icu.h2l.api.event.vServer.VServerAuthStartEvent
 import icu.h2l.api.event.vServer.VServerJoinEvent
 import icu.h2l.api.log.HyperZoneDebugType
 import icu.h2l.api.log.debug
-import icu.h2l.api.message.HyperZoneMessagePlaceholder
 import icu.h2l.api.player.getChannel
 import icu.h2l.api.vServer.HyperZoneVServerAdapter
 import icu.h2l.login.HyperZoneLoginMain
@@ -45,8 +44,9 @@ import icu.h2l.login.listener.PlayerAreaLifecycleListener
 import icu.h2l.login.manager.HyperZonePlayerManager
 import icu.h2l.login.message.MessageKeys
 import icu.h2l.login.player.VelocityHyperZonePlayer
+import icu.h2l.login.util.ConnectMessageKeys
+import icu.h2l.login.util.connectPlayerToServer
 import icu.h2l.login.vServer.outpre.handler.OutPreAuthSessionHandler
-import icu.h2l.login.vServer.outpre.session.BridgeWaitingAreaJoinSession
 import icu.h2l.login.vServer.outpre.session.OutPreInitialJoinSession
 import icu.h2l.login.vServer.outpre.session.OutPreInitialJoinSessionFactory
 import icu.h2l.login.vServer.outpre.session.StruckInitialJoinSession
@@ -67,6 +67,23 @@ class OutPreVServerAuth(
         get() = HyperZoneLoginMain.getInstance().logger
     private val states = ConcurrentHashMap<Channel, OutPreState>()
     private val initialJoinSessions = ConcurrentHashMap<Channel, OutPreInitialJoinSession>()
+
+    private fun clearInitialSession(channel: Channel) {
+        initialJoinSessions.remove(channel)?.destroy()
+        states.remove(channel)
+    }
+
+    internal fun clearInitialSession(channel: Channel, state: OutPreState): Boolean {
+        initialJoinSessions.remove(channel)?.destroy()
+        return states.remove(channel, state)
+    }
+
+    internal fun replaceInitialSession(channel: Channel, session: OutPreInitialJoinSession) {
+        initialJoinSessions.put(channel, session)?.destroy()
+    }
+
+    internal fun getInitialSession(player: ConnectedPlayer): OutPreInitialJoinSession? =
+        initialJoinSessions[player.getChannel()]
 
     var registeredServer: RegisteredServer? = null
         private set
@@ -108,7 +125,7 @@ class OutPreVServerAuth(
         val proxy = server as? com.velocitypowered.proxy.VelocityServer
             ?: throw IllegalStateException("OutPre requires VelocityServer runtime")
         return OutPreBackendBridge(
-            proxy, authAddress, player, this,
+            proxy, authAddress, player,
             registeredServer as VelocityRegisteredServer
         )
     }
@@ -147,7 +164,9 @@ class OutPreVServerAuth(
         initialJoinSessions[player.getChannel()] = session
         hyperPlayer.suspendMessageDelivery()
         trace(
-            "beginInitialJoin state-created channel=${player.getChannel().id()} player=${player.username} struck=$isStruck ${
+            "beginInitialJoin state-created channel=${
+                player.getChannel().id()
+            } player=${player.username} struck=$isStruck ${
                 describeState(state)
             }"
         )
@@ -158,7 +177,8 @@ class OutPreVServerAuth(
                     player.getChannel().id()
                 } player=${player.username} clearing-initial-state"
             )
-            discardInitialJoinState(player, state, hyperPlayer)
+            clearInitialSession(player.getChannel(), state)
+            hyperPlayer.resumeMessageDelivery()
             return
         }
 
@@ -178,13 +198,11 @@ class OutPreVServerAuth(
         session.begin(this)
     }
 
-    fun finishInitialBridgePhase(player: ConnectedPlayer) {
-        // 初始 outpre 登录阶段已经释放到 Velocity 正常链路，桥接职责到此结束。
-        initialJoinSessions.remove(player.getChannel())?.handler?.bridge?.disconnect()
-        states.computeIfPresent(player.getChannel()) { _, state ->
-            state.initialFlowPending = false
-            state
-        }
+    internal fun closeInitialSession(player: ConnectedPlayer) {
+        // 初始 outpre 会话已完成职责，清理映射并标记 initialFlowPending 结束。
+        val session = initialJoinSessions.remove(player.getChannel()) ?: return
+        session.destroy()
+        session.state.initialFlowPending = false
     }
 
     fun resolveReleaseTarget(player: ConnectedPlayer, preferredTargetServerName: String?): RegisteredServer? {
@@ -239,15 +257,7 @@ class OutPreVServerAuth(
         }
 
         PlayerAreaLifecycleListener.markWaitingAreaLeavePending(player, PlayerAreaTransitionReason.EXIT_REQUEST)
-        return connectPlayerToTarget(
-            player = player,
-            targetServerName = state.returnTargetServerName,
-            authServerName = state.authTargetLabel,
-            missingTargetKey = MessageKeys.BackendAuth.EXIT_NO_TARGET,
-            missingServerKey = MessageKeys.BackendAuth.EXIT_SERVER_MISSING,
-            failureExceptionKey = MessageKeys.BackendAuth.EXIT_FAILURE_EXCEPTION,
-            failureReasonKey = MessageKeys.BackendAuth.EXIT_FAILURE_REASON,
-        )
+        return connectPlayerToServer(player, server, resolveTargetServerName(state), ConnectMessageKeys.EXIT)
     }
 
     override fun onVerified(player: Player) {
@@ -314,15 +324,13 @@ class OutPreVServerAuth(
         val player = event.player
         val state = states[player.getChannel()] ?: return
         if (!state.inAuthHold && !state.initialFlowPending) {
-            states.remove(player.getChannel(), state)
-            initialJoinSessions.remove(player.getChannel())
+            clearInitialSession(player.getChannel(), state)
         }
     }
 
     @Subscribe
     fun onDisconnect(event: DisconnectEvent) {
-        states.remove(event.player.getChannel())
-        initialJoinSessions.remove(event.player.getChannel())?.handler?.bridge?.disconnect()
+        clearInitialSession(event.player.getChannel())
     }
 
     @Subscribe
@@ -336,76 +344,7 @@ class OutPreVServerAuth(
     // ---- 模式会话协作 ----
 
     /**
-     * 启动到认证服的初始桥接连接。
-     */
-    internal fun startAuthBridgeJoin(
-        player: ConnectedPlayer,
-        hyperPlayer: VelocityHyperZonePlayer,
-        bridge: OutPreBackendBridge,
-        state: OutPreState,
-    ) {
-        val messages = HyperZoneLoginMain.getInstance().messageService
-
-        bridge.connect().whenCompleteAsync({ _, throwable ->
-            if (throwable != null) {
-                initialJoinSessions.remove(player.getChannel())
-                states.remove(player.getChannel(), state)
-                hyperPlayer.resumeMessageDelivery()
-                player.sendMessage(
-                    messages.render(
-                        player,
-                        MessageKeys.BackendAuth.ENTER_FAILED_EXCEPTION,
-                        HyperZoneMessagePlaceholder.text("reason", throwable.message ?: "Unknown error"),
-                    )
-                )
-                player.disconnect(Component.text("OutPre auth backend connection failed", NamedTextColor.RED))
-                return@whenCompleteAsync
-            }
-        }, player.connection.eventLoop())
-    }
-
-    /**
-     * 丢弃尚未真正开始的初始进入会话。
-     */
-    private fun discardInitialJoinState(
-        player: ConnectedPlayer,
-        state: OutPreState,
-        hyperPlayer: VelocityHyperZonePlayer,
-    ) {
-        initialJoinSessions.remove(player.getChannel())?.handler?.bridge?.disconnect()
-        states.remove(player.getChannel(), state)
-        hyperPlayer.resumeMessageDelivery()
-    }
-
-    fun onInitialBridgeJoined(bridge: OutPreBackendBridge, player: ConnectedPlayer) {
-        val session = initialJoinSessions[player.getChannel()] as? BridgeWaitingAreaJoinSession ?: return
-        if (!session.matchesBridge(bridge)) {
-            return
-        }
-        session.onAuthServerJoined(this)
-    }
-
-    fun onInitialBridgeDisconnected(bridge: OutPreBackendBridge, player: ConnectedPlayer, reason: String?) {
-        val session = initialJoinSessions[player.getChannel()] ?: return
-        if (!session.matchesBridge(bridge)) {
-            return
-        }
-        val state = states.remove(player.getChannel())
-        initialJoinSessions.remove(player.getChannel())
-        if (player.isActive) {
-            player.disconnect(Component.text(reason ?: "OutPre auth bridge disconnected", NamedTextColor.RED))
-        }
-        if (state != null) {
-            logger.warn(
-                "OutPre initial backend bridge disconnected before verification: player={}, reason={}",
-                player.username,
-                reason
-            )
-        }
-    }
-
-    /**
-     * 向等待区链路广播“已经进入认证服/等待区”的加入事件。
+     * 向等待区链路广播"已经进入认证服/等待区"的加入事件。
      */
     internal fun publishWaitingAreaJoinEvent(player: Player, hyperPlayer: VelocityHyperZonePlayer) {
         server.eventManager.fire(VServerJoinEvent(player, hyperPlayer))
@@ -459,110 +398,11 @@ class OutPreVServerAuth(
         }
     }
 
-    /**
-     * struck 模式未能及时完成线上认证时，切换为“进入认证服等待区”的桥接模式。
-     */
-    internal fun switchStruckSessionToBridgeWaitingArea(
-        session: StruckInitialJoinSession,
-        event: AuthenticationFailureEvent
-    ) {
-        val player = session.player
-        if (!player.isActive) {
-            return
-        }
-        val fallbackSession = OutPreInitialJoinSessionFactory.waitingAreaFallbackFrom(session)
-        initialJoinSessions[player.getChannel()] = fallbackSession
-        trace(
-            "outpre.struck fallback-to-waiting-area channel=${player.getChannel().id()} player=${player.username} reason=${event.reason} message=${event.reasonMessage} ${
-                describeState(
-                    fallbackSession.state
-                )
-            }"
-        )
-        startAuthBridgeJoin(player, fallbackSession.hyperPlayer, fallbackSession.handler.bridge, fallbackSession.state)
-    }
-
     // ---- 目标服转发 ----
 
     private fun connectVerifiedPlayerToResolvedTarget(player: Player, state: OutPreState): Boolean {
-        initialJoinSessions.remove(player.getChannel())?.handler?.bridge?.disconnect()
-        states.remove(player.getChannel(), state)
-        return connectPlayerToTarget(
-            player = player,
-            targetServerName = state.returnTargetServerName,
-            authServerName = state.authTargetLabel,
-            missingTargetKey = MessageKeys.BackendAuth.VERIFIED_NO_TARGET,
-            missingServerKey = MessageKeys.BackendAuth.VERIFIED_SERVER_MISSING,
-            failureExceptionKey = MessageKeys.BackendAuth.VERIFIED_FAILURE_EXCEPTION,
-            failureReasonKey = MessageKeys.BackendAuth.VERIFIED_FAILURE_REASON,
-        )
-    }
-
-    private fun connectPlayerToTarget(
-        player: Player,
-        targetServerName: String?,
-        authServerName: String,
-        missingTargetKey: String,
-        missingServerKey: String,
-        failureExceptionKey: String,
-        failureReasonKey: String,
-    ): Boolean {
-        val messages = HyperZoneLoginMain.getInstance().messageService
-        val resolvedTarget = targetServerName
-            ?.takeUnless { it.isBlank() || it.equals(authServerName, ignoreCase = true) }
-            ?: resolveFallbackTargetServerName(authServerName)
-        val hyperPlayer = getHyperPlayer(player)
-
-        if (resolvedTarget == null) {
-            PlayerAreaLifecycleListener.clearPendingWaitingAreaLeave(player)
-            hyperPlayer?.resumeMessageDelivery()
-            player.sendMessage(messages.render(player, missingTargetKey))
-            return false
-        }
-
-        val target = server.getServer(resolvedTarget).orElse(null)
-        if (target == null) {
-            PlayerAreaLifecycleListener.clearPendingWaitingAreaLeave(player)
-            hyperPlayer?.resumeMessageDelivery()
-            player.sendMessage(
-                messages.render(
-                    player,
-                    missingServerKey,
-                    HyperZoneMessagePlaceholder.text("server", resolvedTarget),
-                )
-            )
-            return false
-        }
-
-        hyperPlayer?.suspendMessageDelivery()
-        player.createConnectionRequest(target).connect().whenComplete { result, throwable ->
-            if (throwable != null) {
-                PlayerAreaLifecycleListener.clearPendingWaitingAreaLeave(player)
-                hyperPlayer?.resumeMessageDelivery()
-                player.sendMessage(
-                    messages.render(
-                        player,
-                        failureExceptionKey,
-                        HyperZoneMessagePlaceholder.text("reason", throwable.message ?: "Unknown error"),
-                    )
-                )
-                return@whenComplete
-            }
-
-            if (result == null || !result.isSuccessful) {
-                PlayerAreaLifecycleListener.clearPendingWaitingAreaLeave(player)
-                hyperPlayer?.resumeMessageDelivery()
-                val reason = result.reasonComponent?.map { it.toString() }?.orElse("未知原因") ?: "未知原因"
-                player.sendMessage(
-                    messages.render(
-                        player,
-                        failureReasonKey,
-                        HyperZoneMessagePlaceholder.text("reason", reason),
-                    )
-                )
-            }
-        }
-        return true
+        clearInitialSession(player.getChannel(), state)
+        return connectPlayerToServer(player, server, resolveTargetServerName(state), ConnectMessageKeys.VERIFIED)
     }
 
     // ---- 状态 / 配置辅助 ----
@@ -586,6 +426,11 @@ class OutPreVServerAuth(
     private fun rememberRequestedServerDuringAuth(): Boolean {
         return HyperZoneLoginMain.getCoreConfig().vServer.rememberRequestedServerDuringAuth
     }
+
+    private fun resolveTargetServerName(state: OutPreState): String? =
+        state.returnTargetServerName
+            ?.takeUnless { it.isBlank() || it.equals(state.authTargetLabel, ignoreCase = true) }
+            ?: resolveFallbackTargetServerName(state.authTargetLabel)
 
     private fun resolveFallbackTargetServerName(authServerName: String): String? {
         val directConfiguredTarget = HyperZoneLoginMain.getCoreConfig().vServer.postAuthDefaultServer
