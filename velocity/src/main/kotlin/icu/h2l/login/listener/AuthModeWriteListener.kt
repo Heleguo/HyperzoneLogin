@@ -40,9 +40,13 @@ class AuthModeWriteListener {
         val profile = event.profile
         val authChannelId = hyperPlayer.authChannelId ?: return
 
-        // 根据认证渠道确定 auth_type
+        // 获取 Yggdrasil Entry ID（由认证模块在 submitCredential 前通过 setAuthEntryId 记录）
+        val authEntryId = hyperPlayer.getAuthEntryId()
+
+        // 根据认证渠道和 Entry ID 确定 auth_type
+        // "mojang" Entry → MOJANG，其他 Yggdrasil Entry → YGGDRASIL
         val authType = when (authChannelId) {
-            "yggdrasil" -> "YGGDRASIL"
+            "yggdrasil" -> if (authEntryId == "mojang") "MOJANG" else "YGGDRASIL"
             "offline" -> "OFFLINE"
             "floodgate" -> "FLOODGATE"
             else -> return // 未知渠道，不写入
@@ -59,9 +63,13 @@ class AuthModeWriteListener {
             if (existingEntry.authType == "OFFLINE" && authType != "OFFLINE") {
                 authModeRepo.updateAuthType(playerUuid, authType)
             }
+            // 补录 auth_entry_id（首次连接时可能为 null）
+            if (authEntryId != null && existingEntry.authEntryId != authEntryId) {
+                authModeRepo.updateAuthEntryId(playerUuid, authEntryId)
+            }
         } else {
             // 创建新记录
-            authModeRepo.create(playerUuid, playerName, authType)
+            authModeRepo.create(playerUuid, playerName, authType, authEntryId)
         }
     }
 }

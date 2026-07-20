@@ -272,6 +272,7 @@ class YggdrasilAuthModule(
 
         val existingBoundProfileId = findBoundProfileIdByAuthenticatedEntry(result)
         if (existingBoundProfileId != null) {
+            handler.setAuthEntryId(result.entryId)
             handler.submitCredential(
                 yggdrasilCredential(
                     entryId = result.entryId,
@@ -295,6 +296,7 @@ class YggdrasilAuthModule(
                 uuid = result.profile.id,
                 pid = upgradedProfileId
             )
+            handler.setAuthEntryId(result.entryId)
             handler.submitCredential(
                 yggdrasilCredential(
                     entryId = result.entryId,
@@ -338,6 +340,7 @@ class YggdrasilAuthModule(
                 pid = createdProfile.id
             )
             if (bound) {
+                handler.setAuthEntryId(result.entryId)
                 handler.submitCredential(
                     yggdrasilCredential(
                         entryId = result.entryId,
