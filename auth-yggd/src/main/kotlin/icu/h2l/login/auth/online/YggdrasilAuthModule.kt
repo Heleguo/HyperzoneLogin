@@ -263,6 +263,18 @@ class YggdrasilAuthModule(
             return null
         }
 
+        // 检查 auth_mode：如果已绑定非当前 Entry 或 UUID 不匹配，直接拒绝
+        if (isAuthEntryMismatch(result.profile.name, result.entryId, result.profile.id)) {
+            val existingAuthType = queryExistingAuthType(result.profile.name)
+            val message = when (existingAuthType) {
+                "MOJANG" -> "此 ID 已绑定正版（Mojang/Microsoft）认证，请使用正版方式登录。"
+                "YGGDRASIL" -> "此 ID 已绑定皮肤站认证，请使用皮肤站方式登录。"
+                else -> "此账号已绑定到其他认证来源，无法使用当前 Entry（${result.entryId}）登录"
+            }
+            info { "玩家 ${result.profile.name} 认证冲突 (auth_type=$existingAuthType, entry=${result.entryId})，拒绝连接" }
+            return message
+        }
+
         // 检查 auth_mode：玩家有 OFFLINE 记录时（升级场景），
         // 不创建新 Profile，只记录认证来源 Entry ID，保留玩家在等待区
         if (hasOfflineAuthMode(result.profile.name)) {
@@ -310,10 +322,15 @@ class YggdrasilAuthModule(
             return null
         }
 
-        // auth_mode 表已记录认证来源但当前 Entry 不匹配时，拒绝连接
-        val entryRejected = isAuthEntryMismatch(result.profile.name, result.entryId)
+        // auth_mode 表已记录认证来源但当前 Entry 不匹配或 UUID 不匹配时，拒绝连接
+        val entryRejected = isAuthEntryMismatch(result.profile.name, result.entryId, result.profile.id)
         if (entryRejected) {
-            return "此账号已绑定到其他认证来源，无法使用当前 Entry（${result.entryId}）登录"
+            val existingAuthType = queryExistingAuthType(result.profile.name)
+            return when (existingAuthType) {
+                "MOJANG" -> "此 ID 已绑定正版（Mojang/Microsoft）认证，请使用正版方式登录。"
+                "YGGDRASIL" -> "此 ID 已绑定皮肤站认证，请使用皮肤站方式登录。"
+                else -> "此账号已绑定到其他认证来源，无法使用当前 Entry（${result.entryId}）登录"
+            }
         }
 
         val profileResolveUuid = resolveProfileResolveUuid(result)
@@ -361,10 +378,15 @@ class YggdrasilAuthModule(
             }
         }
 
-        // 最终安全网：再次检查 auth_entry_id 是否与当前 Entry 匹配
-        val finalRejected = isAuthEntryMismatch(result.profile.name, result.entryId)
+        // 最终安全网：再次检查 auth_entry_id / UUID 是否匹配
+        val finalRejected = isAuthEntryMismatch(result.profile.name, result.entryId, result.profile.id)
         if (finalRejected) {
-            return "此账号已绑定到其他认证来源，无法使用当前 Entry（${result.entryId}）登录"
+            val existingAuthType = queryExistingAuthType(result.profile.name)
+            return when (existingAuthType) {
+                "MOJANG" -> "此 ID 已绑定正版（Mojang/Microsoft）认证，请使用正版方式登录。"
+                "YGGDRASIL" -> "此 ID 已绑定皮肤站认证，请使用皮肤站方式登录。"
+                else -> "此账号已绑定到其他认证来源，无法使用当前 Entry（${result.entryId}）登录"
+            }
         }
 
         handler.submitCredential(
@@ -611,32 +633,43 @@ class YggdrasilAuthModule(
      * 查询失败时（如无数据库连接）返回 null，不阻断正常认证流程。
      */
     /**
-     * 检查 auth_mode 表：如果已记录 auth_entry_id 且与当前 Entry 不匹配，返回 true。
+     * 检查 auth_mode 表：以 player_name 查询已有记录，校验认证来源和 UUID 一致性。
+     *
+     * 校验逻辑：
+     * 1. 当 auth_type 为 MOJANG 或 YGGDRASIL 时，比对存储的 player_uuid 与当前连接的 UUID。
+     *    UUID 不匹配视为真正的名称冲突，返回 true 拒绝连接。
+     * 2. 当 auth_entry_id 不为 null 时，比对存储的 auth_entry_id 与当前 Entry。
+     *    Entry 不匹配返回 true 拒绝连接。
+     * 3. 当 auth_entry_id 为 null 且 auth_type 为 MOJANG/YGGDRASIL（旧版未记录），
+     *    UUID 匹配则补录 Entry 并放行；UUID 不匹配则拒绝。
      */
-    /**
-     * 检查 auth_mode 表：如果已记录 auth_entry_id 且与当前 Entry 不匹配，返回 true。
-     * 如果 auth_entry_id 为 null 但 auth_type 不是 OFFLINE（旧版未记录），
-     * 则用当前 Entry 补录到数据库并返回 false（放行本次连接，后续即受保护）。
-     */
-    private fun isAuthEntryMismatch(playerName: String, entryId: String): Boolean {
+    private fun isAuthEntryMismatch(playerName: String, entryId: String, playerUuid: UUID): Boolean {
         return try {
             val authModeTable = AuthModeTable(databaseManager.tablePrefix)
-            val playerUuidCol = authModeTable.playerUuid
             databaseManager.executeTransaction {
                 val row = authModeTable.selectAll().where {
                     authModeTable.playerName eq playerName
                 }.limit(1).singleOrNull() ?: return@executeTransaction false
+                val storedUuid = row[authModeTable.playerUuid]
                 val storedEntryId = row[authModeTable.authEntryId]
                 val authType = row[authModeTable.authType]
-                info { "isAuthEntryMismatch: player=$playerName storedEntryId=$storedEntryId currentEntryId=$entryId authType=$authType" }
+                info { "isAuthEntryMismatch: player=$playerName storedUuid=$storedUuid currentUuid=$playerUuid storedEntryId=$storedEntryId currentEntryId=$entryId authType=$authType" }
+
+                // 在线认证（MOJANG/YGGDRASIL）必须比对 UUID
+                if (authType == "MOJANG" || authType == "YGGDRASIL") {
+                    if (storedUuid != playerUuid) {
+                        info { "isAuthEntryMismatch: UUID 不匹配，拒绝连接 player=$playerName storedUuid=$storedUuid currentUuid=$playerUuid authType=$authType" }
+                        return@executeTransaction true
+                    }
+                }
+
                 if (storedEntryId == null) {
-                    // 旧记录未存储 auth_entry_id：补录当前 Entry，放行本次连接
+                    // 旧记录未存储 auth_entry_id：UUID 已匹配，补录当前 Entry，放行
                     if (authType == "MOJANG" || authType == "YGGDRASIL") {
-                        val uuid = row[authModeTable.playerUuid]
-                        authModeTable.update({ authModeTable.playerUuid eq uuid }) {
+                        authModeTable.update({ authModeTable.playerUuid eq storedUuid }) {
                             it[authModeTable.authEntryId] = entryId
                         }
-                        info { "isAuthEntryMismatch: captured entryId=$entryId for player=$playerName (was null)" }
+                        info { "isAuthEntryMismatch: captured entryId=$entryId for player=$playerName (was null, UUID matched)" }
                     }
                     return@executeTransaction false
                 }
@@ -646,6 +679,24 @@ class YggdrasilAuthModule(
             }
         } catch (_: Exception) {
             false
+        }
+    }
+
+    /**
+     * 查询 auth_mode 表中指定玩家的 auth_type，用于生成针对性拒绝提示。
+     */
+    private fun queryExistingAuthType(playerName: String): String? {
+        return try {
+            val authModeTable = AuthModeTable(databaseManager.tablePrefix)
+            databaseManager.executeTransaction {
+                authModeTable.selectAll().where {
+                    authModeTable.playerName eq playerName
+                }.limit(1).singleOrNull()?.let { row ->
+                    row[authModeTable.authType]
+                }
+            }
+        } catch (_: Exception) {
+            null
         }
     }
 

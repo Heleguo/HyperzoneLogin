@@ -55,18 +55,19 @@ class AuthModeWriteListener {
         val playerUuid = profile.uuid
         val playerName = profile.name
 
-        // 检查是否已存在记录
-        val existingEntry = authModeRepo.getByUuid(playerUuid)
+        // 检查是否已存在记录（以 player_name 为依据查询，防止同名不同 UUID 的冲突被忽略）
+        val existingEntry = authModeRepo.getByName(playerName)
         if (existingEntry != null) {
-            // 更新已有记录
-            authModeRepo.updatePlayerName(playerUuid, playerName)
+            // 使用已有记录的 UUID 进行更新（防止不同 UUID 的同名玩家覆盖已有记录）
+            val existingUuid = existingEntry.playerUuid
+            authModeRepo.updatePlayerName(existingUuid, playerName)
             if (existingEntry.authType == "OFFLINE" && authType != "OFFLINE") {
-                authModeRepo.updateAuthType(playerUuid, authType)
+                authModeRepo.updateAuthType(existingUuid, authType)
             }
             // 仅在 auth_entry_id 为 null 时补录（首次连接/旧记录迁移）
             // 禁止覆盖已有 entry——防止非同源 Entry 覆盖已绑定来源
             if (authEntryId != null && existingEntry.authEntryId == null) {
-                authModeRepo.updateAuthEntryId(playerUuid, authEntryId)
+                authModeRepo.updateAuthEntryId(existingUuid, authEntryId)
             }
         } else {
             // 创建新记录
