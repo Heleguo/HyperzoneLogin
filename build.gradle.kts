@@ -37,6 +37,11 @@ enum class ReleaseChannel(val suffix: String) {
     SNAPSHOT("-SNAPSHOT"),
 }
 
+enum class ApiReleaseChannel(val suffix: String) {
+    RELEASE(""),
+    SNAPSHOT("-SNAPSHOT"),
+}
+
 fun toBlockCommentHeader(headerFile: File): String {
     val body = headerFile
         .readLines()
@@ -143,6 +148,11 @@ fun formatBaseVersion(
     else -> "${monthlyClock.year % 100}.${monthlyClock.monthValue}.$versionPatch"
 }
 
+fun formatApiVersion(
+    apiVersionBase: String,
+    apiReleaseChannel: ApiReleaseChannel,
+): String = apiVersionBase + apiReleaseChannel.suffix
+
 val versionClock: YearMonth = YearMonth.now()
 val weeklyVersionClock: LocalDate = LocalDate.now()
 val versionPatch = requireStringProperty("versionPatch").toIntOrNull()
@@ -165,6 +175,15 @@ val computedVersion = buildString {
 }
 
 version = computedVersion
+
+val apiVersionBase = requireStringProperty("apiVersion")
+val apiReleaseChannel = runCatching {
+    ApiReleaseChannel.valueOf(requireStringProperty("apiReleaseChannel").uppercase())
+}.getOrElse {
+    error("Property 'apiReleaseChannel' must be one of: ${ApiReleaseChannel.entries.joinToString()}.")
+}
+val apiPublishedVersion = formatApiVersion(apiVersionBase, apiReleaseChannel)
+extra["apiPublishedVersion"] = apiPublishedVersion
 
 val kotlinLicenseHeader = toBlockCommentHeader(rootProject.file("HEADER.txt"))
 val kotlinSourceHeaderDelimiter = "^(package|@file:|import)"
@@ -323,6 +342,9 @@ val printVersionInfo = tasks.register("printVersionInfo") {
         println("  baseVersion    = $baseVersion")
         println("  releaseChannel = ${releaseChannel.name}")
         println("  gitIdentifier  = ${gitIdentifier ?: "<none>"}")
+        println("API version: $apiPublishedVersion")
+        println("  apiVersion     = $apiVersionBase")
+        println("  apiChannel     = ${apiReleaseChannel.name}")
     }
 }
 
