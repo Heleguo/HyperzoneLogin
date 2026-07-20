@@ -52,6 +52,8 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.update
+import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.format.NamedTextColor
 import java.net.http.HttpClient
 import java.nio.charset.StandardCharsets
 import java.time.Duration
@@ -263,7 +265,7 @@ class YggdrasilAuthModule(
             return null
         }
 
-        // 检查 auth_mode：如果已绑定非当前 Entry 或 UUID 不匹配，直接拒绝
+        // 检查 auth_mode：如果已绑定非当前 Entry 或 UUID 不匹配，直接拒绝并踢出
         if (isAuthEntryMismatch(result.profile.name, result.entryId, result.profile.id)) {
             val existingAuthType = queryExistingAuthType(result.profile.name)
             val message = when (existingAuthType) {
@@ -272,6 +274,7 @@ class YggdrasilAuthModule(
                 else -> "此账号已绑定到其他认证来源，无法使用当前 Entry（${result.entryId}）登录"
             }
             info { "玩家 ${result.profile.name} 认证冲突 (auth_type=$existingAuthType, entry=${result.entryId})，拒绝连接" }
+            handler.getProxyPlayerOrNull()?.disconnect(Component.text(message, NamedTextColor.RED))
             return message
         }
 
@@ -322,15 +325,17 @@ class YggdrasilAuthModule(
             return null
         }
 
-        // auth_mode 表已记录认证来源但当前 Entry 不匹配或 UUID 不匹配时，拒绝连接
+        // auth_mode 表已记录认证来源但当前 Entry 不匹配或 UUID 不匹配时，拒绝并踢出
         val entryRejected = isAuthEntryMismatch(result.profile.name, result.entryId, result.profile.id)
         if (entryRejected) {
             val existingAuthType = queryExistingAuthType(result.profile.name)
-            return when (existingAuthType) {
+            val message = when (existingAuthType) {
                 "MOJANG" -> "此 ID 已绑定正版（Mojang/Microsoft）认证，请使用正版方式登录。"
                 "YGGDRASIL" -> "此 ID 已绑定皮肤站认证，请使用皮肤站方式登录。"
                 else -> "此账号已绑定到其他认证来源，无法使用当前 Entry（${result.entryId}）登录"
             }
+            handler.getProxyPlayerOrNull()?.disconnect(Component.text(message, NamedTextColor.RED))
+            return message
         }
 
         val profileResolveUuid = resolveProfileResolveUuid(result)
@@ -378,15 +383,17 @@ class YggdrasilAuthModule(
             }
         }
 
-        // 最终安全网：再次检查 auth_entry_id / UUID 是否匹配
+        // 最终安全网：再次检查 auth_entry_id / UUID 是否匹配，不匹配则踢出
         val finalRejected = isAuthEntryMismatch(result.profile.name, result.entryId, result.profile.id)
         if (finalRejected) {
             val existingAuthType = queryExistingAuthType(result.profile.name)
-            return when (existingAuthType) {
+            val message = when (existingAuthType) {
                 "MOJANG" -> "此 ID 已绑定正版（Mojang/Microsoft）认证，请使用正版方式登录。"
                 "YGGDRASIL" -> "此 ID 已绑定皮肤站认证，请使用皮肤站方式登录。"
                 else -> "此账号已绑定到其他认证来源，无法使用当前 Entry（${result.entryId}）登录"
             }
+            handler.getProxyPlayerOrNull()?.disconnect(Component.text(message, NamedTextColor.RED))
+            return message
         }
 
         handler.submitCredential(
