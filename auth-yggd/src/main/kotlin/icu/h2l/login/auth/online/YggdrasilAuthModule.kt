@@ -309,6 +309,12 @@ class YggdrasilAuthModule(
             return null
         }
 
+        // auth_mode 表已记录认证来源但当前 Entry 不匹配时，拒绝连接
+        val entryRejected = isAuthEntryMismatch(result.profile.name, result.entryId)
+        if (entryRejected) {
+            return "此账号已绑定到其他认证来源，无法使用当前 Entry（${result.entryId}）登录"
+        }
+
         val profileResolveUuid = resolveProfileResolveUuid(result)
 
         // 使用凭证探针与 ProfileService 交互，避免裸露传递注册名与 UUID
@@ -597,6 +603,24 @@ class YggdrasilAuthModule(
      *
      * 查询失败时（如无数据库连接）返回 null，不阻断正常认证流程。
      */
+    /**
+     * 检查 auth_mode 表：如果已记录 auth_entry_id 且与当前 Entry 不匹配，返回 true。
+     */
+    private fun isAuthEntryMismatch(playerName: String, entryId: String): Boolean {
+        return try {
+            val authModeTable = AuthModeTable(databaseManager.tablePrefix)
+            databaseManager.executeTransaction {
+                val row = authModeTable.selectAll().where {
+                    authModeTable.playerName eq playerName
+                }.limit(1).singleOrNull() ?: return@executeTransaction false
+                val storedEntryId = row[authModeTable.authEntryId] ?: return@executeTransaction false
+                storedEntryId != entryId
+            }
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     /**
      * 检查 auth_mode 表，判断玩家是否已有离线注册记录。
      */
