@@ -204,7 +204,6 @@ class NettyLoginSessionHandler(
                     injector.proxy.eventManager.fire(openPreLoginEvent).thenRun {
                         val resolvedOnlineMode = openPreLoginEvent.isOnline
                             && !result.isForceOfflineMode
-                            && (injector.proxy.configuration.isOnlineMode || result.isOnlineModeAllowed)
                         debug(HyperZoneDebugType.OUTPRE_TRACE) {
                             "netty.handleServerLogin after-OpenPreLogin channel=${mcConnection.channel} username=$userName allow=${openPreLoginEvent.allow} requestedOnline=${openPreLoginEvent.isOnline} resolvedOnline=$resolvedOnlineMode forceOffline=${result.isForceOfflineMode} onlineAllowed=${result.isOnlineModeAllowed} host=$host playerIp=$playerIp"
                         }
