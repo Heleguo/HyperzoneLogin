@@ -58,18 +58,10 @@ import kotlin.jvm.optionals.getOrNull
 class OutPreVServerAuth(
     private val server: ProxyServer,
 ) : HyperZoneVServerAdapter {
-    private data class OutPreState(
-        var authTargetLabel: String,
-        var returnTargetServerName: String? = null,
-        var inAuthHold: Boolean = true,
-        var hasConnectedToAuthServerOnce: Boolean = false,
-        var verifiedExitPending: Boolean = false,
-        var initialFlowPending: Boolean = false,
-    )
-
     private val logger
         get() = HyperZoneLoginMain.getInstance().logger
     private val states = ConcurrentHashMap<Channel, OutPreState>()
+    private val initialJoinFlows = ConcurrentHashMap<Channel, OutPreInitialJoinFlow>()
     private val pendingInitialHandlers = ConcurrentHashMap<Channel, OutPreAuthSessionHandler>()
     private val initialBridges = ConcurrentHashMap<Channel, OutPreBackendBridge>()
 
@@ -143,16 +135,11 @@ class OutPreVServerAuth(
 
         val outpreConfig = HyperZoneLoginMain.getCoreConfig().vServer.outpre
         val isStruck = outpreConfig.struckOnlineMode && hyperPlayer.isOnlinePlayer
+        val initialJoinFlow = OutPreInitialJoinFlows.select(isStruck)
 
-        // Struck: pre-mark as if bridge already joined so onVerified can call
-        // completeAfterVerification directly without waiting for a bridge connection.
-        val state = OutPreState(
-            authTargetLabel = configuredAuthTargetLabel(),
-            initialFlowPending = true,
-            inAuthHold = !isStruck,
-            hasConnectedToAuthServerOnce = isStruck,
-        )
+        val state = initialJoinFlow.createState(configuredAuthTargetLabel())
         states[player.getChannel()] = state
+        initialJoinFlows[player.getChannel()] = initialJoinFlow
         pendingInitialHandlers[player.getChannel()] = handler
         hyperPlayer.suspendMessageDelivery()
         trace(
@@ -160,18 +147,9 @@ class OutPreVServerAuth(
                 describeState(state)
             }"
         )
-
-        val authStartEvent = VServerAuthStartEvent(player, hyperPlayer)
-        server.eventManager.fire(authStartEvent)
-        trace(
-            "beginInitialJoin after-authStart channel=${
-                player.getChannel().id()
-            } player=${player.username} waitingArea=${hyperPlayer.isInWaitingArea()} verified=${hyperPlayer.isVerified()} attachedProfile=${hyperPlayer.hasAttachedProfile()} ${
-                describeState(
-                    state
-                )
-            }"
-        )
+        initialJoinFlow.onStatePrepared {
+            fireAuthStartEvent(player, hyperPlayer, state, "beginInitialJoin")
+        }
 
         if (!player.isActive) {
             trace(
@@ -183,9 +161,7 @@ class OutPreVServerAuth(
             return
         }
 
-        if (isStruck) {
-            // Auth result arrives asynchronously — just suspend here.
-            // onVerified will call completeAfterVerification when auth completes.
+        if (!initialJoinFlow.requiresAuthServerBridge) {
             trace(
                 "beginInitialJoin struck-suspended channel=${
                     player.getChannel().id()
@@ -221,6 +197,7 @@ class OutPreVServerAuth(
     fun markInitialFlowReleased(player: ConnectedPlayer) {
         pendingInitialHandlers.remove(player.getChannel())
         initialBridges.remove(player.getChannel())?.disconnect()
+        initialJoinFlows.remove(player.getChannel())
         states.computeIfPresent(player.getChannel()) { _, state ->
             state.initialFlowPending = false
             state
@@ -393,6 +370,7 @@ class OutPreVServerAuth(
     @Subscribe
     fun onDisconnect(event: DisconnectEvent) {
         states.remove(event.player.getChannel())
+        initialJoinFlows.remove(event.player.getChannel())
         pendingInitialHandlers.remove(event.player.getChannel())
         initialBridges.remove(event.player.getChannel())?.disconnect()
     }
@@ -410,6 +388,7 @@ class OutPreVServerAuth(
             if (throwable != null) {
                 pendingInitialHandlers.remove(player.getChannel())
                 initialBridges.remove(player.getChannel())
+                initialJoinFlows.remove(player.getChannel())
                 states.remove(player.getChannel(), state)
                 hyperPlayer.resumeMessageDelivery()
                 player.sendMessage(
@@ -432,6 +411,7 @@ class OutPreVServerAuth(
     ) {
         pendingInitialHandlers.remove(player.getChannel())
         initialBridges.remove(player.getChannel())?.disconnect()
+        initialJoinFlows.remove(player.getChannel())
         states.remove(player.getChannel(), state)
         hyperPlayer.resumeMessageDelivery()
     }
@@ -452,6 +432,7 @@ class OutPreVServerAuth(
         val state = states.remove(player.getChannel())
         pendingInitialHandlers.remove(player.getChannel())
         initialBridges.remove(player.getChannel())
+        initialJoinFlows.remove(player.getChannel())
         if (player.isActive) {
             player.disconnect(Component.text(reason ?: "OutPre auth bridge disconnected", NamedTextColor.RED))
         }
@@ -480,6 +461,9 @@ class OutPreVServerAuth(
             }"
         )
         hyperPlayer.resumeMessageDelivery()
+        initialJoinFlows[player.getChannel()]?.onAuthServerJoined {
+            fireAuthStartEvent(player, hyperPlayer, state, "onAuthServerJoined")
+        }
         server.eventManager.fire(VServerJoinEvent(player, hyperPlayer))
 
         if (state.verifiedExitPending) {
@@ -501,9 +485,29 @@ class OutPreVServerAuth(
         }
     }
 
+    private fun fireAuthStartEvent(
+        player: Player,
+        hyperPlayer: VelocityHyperZonePlayer,
+        state: OutPreState,
+        source: String
+    ) {
+        val authStartEvent = VServerAuthStartEvent(player, hyperPlayer)
+        server.eventManager.fire(authStartEvent)
+        trace(
+            "$source after-authStart channel=${
+                player.getChannel().id()
+            } player=${player.username} waitingArea=${hyperPlayer.isInWaitingArea()} verified=${hyperPlayer.isVerified()} attachedProfile=${hyperPlayer.hasAttachedProfile()} ${
+                describeState(
+                    state
+                )
+            }"
+        )
+    }
+
     private fun connectVerifiedPlayerToTarget(player: Player, state: OutPreState): Boolean {
         pendingInitialHandlers.remove(player.getChannel())
         initialBridges.remove(player.getChannel())?.disconnect()
+        initialJoinFlows.remove(player.getChannel())
         states.remove(player.getChannel(), state)
         return connectPlayerToTarget(
             player = player,
