@@ -311,7 +311,7 @@ open class OutPreAuthSessionHandlerLogic(
 //        com.velocitypowered.proxy.connection.client.ConnectedPlayer.ConnectionRequestBuilderImpl.internalConnect
 //        应该使用这套逻辑，所以不需要设置SessionHandler
         val clientHandler = mcConnection.activeSessionHandler as? OutPreClientBridgeSessionHandler
-        outPre.markInitialFlowReleased(player)
+        outPre.finishInitialBridgePhase(player)
         if (clientHandler == null) {
 //            没有的话是bug
             throw IllegalStateException(

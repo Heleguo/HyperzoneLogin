@@ -134,6 +134,12 @@ object HyperChatCommandManagerImpl : HyperChatCommandManager {
         return populateAvailableCommandsPacket(AvailableCommandsPacket(), source)
     }
 
+    fun createEmptyAvailableCommandsPacket(): AvailableCommandsPacket {
+        val packet = AvailableCommandsPacket()
+        availableCommandsRootNodeSetter.invoke(packet, RootCommandNode<CommandSource>())
+        return packet
+    }
+
     fun populateAvailableCommandsPacket(packet: AvailableCommandsPacket, source: Player): AvailableCommandsPacket {
         val root = buildProxyFallbackCommandRoot(source)
         availableCommandsRootNodeSetter.invoke(packet, root)

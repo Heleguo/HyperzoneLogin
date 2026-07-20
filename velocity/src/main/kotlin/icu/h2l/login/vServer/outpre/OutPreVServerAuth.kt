@@ -32,6 +32,7 @@ import com.velocitypowered.api.proxy.server.ServerInfo
 import com.velocitypowered.proxy.connection.client.ConnectedPlayer
 import com.velocitypowered.proxy.server.VelocityRegisteredServer
 import icu.h2l.api.event.area.PlayerAreaTransitionReason
+import icu.h2l.api.event.auth.AuthenticationFailureEvent
 import icu.h2l.api.event.vServer.VServerAuthStartEvent
 import icu.h2l.api.event.vServer.VServerJoinEvent
 import icu.h2l.api.log.HyperZoneDebugType
@@ -45,6 +46,10 @@ import icu.h2l.login.manager.HyperZonePlayerManager
 import icu.h2l.login.message.MessageKeys
 import icu.h2l.login.player.VelocityHyperZonePlayer
 import icu.h2l.login.vServer.outpre.handler.OutPreAuthSessionHandler
+import icu.h2l.login.vServer.outpre.session.BridgeWaitingAreaJoinSession
+import icu.h2l.login.vServer.outpre.session.OutPreInitialJoinSession
+import icu.h2l.login.vServer.outpre.session.OutPreInitialJoinSessionFactory
+import icu.h2l.login.vServer.outpre.session.StruckInitialJoinSession
 import io.netty.channel.Channel
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.format.NamedTextColor
@@ -61,9 +66,7 @@ class OutPreVServerAuth(
     private val logger
         get() = HyperZoneLoginMain.getInstance().logger
     private val states = ConcurrentHashMap<Channel, OutPreState>()
-    private val initialJoinFlows = ConcurrentHashMap<Channel, OutPreInitialJoinFlow>()
-    private val pendingInitialHandlers = ConcurrentHashMap<Channel, OutPreAuthSessionHandler>()
-    private val initialBridges = ConcurrentHashMap<Channel, OutPreBackendBridge>()
+    private val initialJoinSessions = ConcurrentHashMap<Channel, OutPreInitialJoinSession>()
 
     var registeredServer: RegisteredServer? = null
         private set
@@ -82,11 +85,11 @@ class OutPreVServerAuth(
 
     }
 
-    private fun trace(message: String) {
+    internal fun trace(message: String) {
         debug(HyperZoneDebugType.OUTPRE_TRACE, message)
     }
 
-    private fun describeState(state: OutPreState?): String {
+    internal fun describeState(state: OutPreState?): String {
         if (state == null) {
             return "state=null"
         }
@@ -97,10 +100,9 @@ class OutPreVServerAuth(
         return configuredAuthAddress() != null
     }
 
+    // ---- 桥接创建 / 初始化入口 ----
 
-    //    创建后端桥接
     fun createBridge(player: ConnectedPlayer): OutPreBackendBridge {
-        initialBridges[player.getChannel()]?.let { return it }
         val authAddress = configuredAuthAddress()
             ?: throw IllegalStateException("OutPre auth endpoint is not configured")
         val proxy = server as? com.velocitypowered.proxy.VelocityServer
@@ -108,9 +110,7 @@ class OutPreVServerAuth(
         return OutPreBackendBridge(
             proxy, authAddress, player, this,
             registeredServer as VelocityRegisteredServer
-        ).also {
-            initialBridges[player.getChannel()] = it
-        }
+        )
     }
 
     fun beginInitialJoin(player: ConnectedPlayer, handler: OutPreAuthSessionHandler) {
@@ -135,21 +135,22 @@ class OutPreVServerAuth(
 
         val outpreConfig = HyperZoneLoginMain.getCoreConfig().vServer.outpre
         val isStruck = outpreConfig.struckOnlineMode && hyperPlayer.isOnlinePlayer
-        val initialJoinFlow = OutPreInitialJoinFlows.select(isStruck)
-
-        val state = initialJoinFlow.createState(configuredAuthTargetLabel())
+        val session = OutPreInitialJoinSessionFactory.create(
+            struck = isStruck,
+            player = player,
+            hyperPlayer = hyperPlayer,
+            handler = handler,
+            authTargetLabel = configuredAuthTargetLabel(),
+        )
+        val state = session.state
         states[player.getChannel()] = state
-        initialJoinFlows[player.getChannel()] = initialJoinFlow
-        pendingInitialHandlers[player.getChannel()] = handler
+        initialJoinSessions[player.getChannel()] = session
         hyperPlayer.suspendMessageDelivery()
         trace(
             "beginInitialJoin state-created channel=${player.getChannel().id()} player=${player.username} struck=$isStruck ${
                 describeState(state)
             }"
         )
-        initialJoinFlow.onStatePrepared {
-            fireAuthStartEvent(player, hyperPlayer, state, "beginInitialJoin")
-        }
 
         if (!player.isActive) {
             trace(
@@ -157,16 +158,7 @@ class OutPreVServerAuth(
                     player.getChannel().id()
                 } player=${player.username} clearing-initial-state"
             )
-            clearInitialJoinState(player, state, hyperPlayer)
-            return
-        }
-
-        if (!initialJoinFlow.requiresAuthServerBridge) {
-            trace(
-                "beginInitialJoin struck-suspended channel=${
-                    player.getChannel().id()
-                } player=${player.username} ${describeState(state)}"
-            )
+            discardInitialJoinState(player, state, hyperPlayer)
             return
         }
 
@@ -183,21 +175,12 @@ class OutPreVServerAuth(
                 }"
             )
         }
-
-        trace(
-            "beginInitialJoin connect-bridge channel=${player.getChannel().id()} player=${player.username} ${
-                describeState(
-                    state
-                )
-            }"
-        )
-        connectToAuthBridge(player, hyperPlayer, handler.bridge, state)
+        session.begin(this)
     }
 
-    fun markInitialFlowReleased(player: ConnectedPlayer) {
-        pendingInitialHandlers.remove(player.getChannel())
-        initialBridges.remove(player.getChannel())?.disconnect()
-        initialJoinFlows.remove(player.getChannel())
+    fun finishInitialBridgePhase(player: ConnectedPlayer) {
+        // 初始 outpre 登录阶段已经释放到 Velocity 正常链路，桥接职责到此结束。
+        initialJoinSessions.remove(player.getChannel())?.handler?.bridge?.disconnect()
         states.computeIfPresent(player.getChannel()) { _, state ->
             state.initialFlowPending = false
             state
@@ -269,6 +252,7 @@ class OutPreVServerAuth(
 
     override fun onVerified(player: Player) {
         val state = states[player.getChannel()] ?: return
+        val session = initialJoinSessions[player.getChannel()]
         trace(
             "outpre.onVerified before channel=${player.getChannel().id()} player=${player.username} ${
                 describeState(
@@ -278,42 +262,8 @@ class OutPreVServerAuth(
         )
         state.inAuthHold = false
 
-        if (state.initialFlowPending) {
-            if (!state.hasConnectedToAuthServerOnce) {
-                state.verifiedExitPending = true
-                trace(
-                    "outpre.onVerified deferred-until-auth-join channel=${
-                        player.getChannel().id()
-                    } player=${player.username} ${
-                        describeState(
-                            state
-                        )
-                    }"
-                )
-                return
-            }
-            val handler = pendingInitialHandlers[player.getChannel()]
-            if (handler == null) {
-                state.verifiedExitPending = true
-                trace(
-                    "outpre.onVerified missing-handler channel=${player.getChannel().id()} player=${player.username} ${
-                        describeState(
-                            state
-                        )
-                    }"
-                )
-                return
-            }
-            trace(
-                "outpre.onVerified completing-initial-flow channel=${
-                    player.getChannel().id()
-                } player=${player.username} target=${state.returnTargetServerName} ${
-                    describeState(
-                        state
-                    )
-                }"
-            )
-            handler.completeAfterVerification(state.returnTargetServerName)
+        if (state.initialFlowPending && session != null) {
+            session.onVerified(this)
             return
         }
 
@@ -338,8 +288,10 @@ class OutPreVServerAuth(
                 )
             }"
         )
-        connectVerifiedPlayerToTarget(player, state)
+        connectVerifiedPlayerToResolvedTarget(player, state)
     }
+
+    // ---- 运行时事件 ----
 
     @Subscribe
     fun onServerPreConnect(event: ServerPreConnectEvent) {
@@ -363,32 +315,40 @@ class OutPreVServerAuth(
         val state = states[player.getChannel()] ?: return
         if (!state.inAuthHold && !state.initialFlowPending) {
             states.remove(player.getChannel(), state)
-            pendingInitialHandlers.remove(player.getChannel())
+            initialJoinSessions.remove(player.getChannel())
         }
     }
 
     @Subscribe
     fun onDisconnect(event: DisconnectEvent) {
         states.remove(event.player.getChannel())
-        initialJoinFlows.remove(event.player.getChannel())
-        pendingInitialHandlers.remove(event.player.getChannel())
-        initialBridges.remove(event.player.getChannel())?.disconnect()
+        initialJoinSessions.remove(event.player.getChannel())?.handler?.bridge?.disconnect()
     }
 
-    private fun connectToAuthBridge(
+    @Subscribe
+    fun onAuthenticationFailure(event: AuthenticationFailureEvent) {
+        initialJoinSessions.values
+            .filterIsInstance<StruckInitialJoinSession>()
+            .firstOrNull { it.matchesFailure(event) }
+            ?.onAuthenticationFailure(this, event)
+    }
+
+    // ---- 模式会话协作 ----
+
+    /**
+     * 启动到认证服的初始桥接连接。
+     */
+    internal fun startAuthBridgeJoin(
         player: ConnectedPlayer,
         hyperPlayer: VelocityHyperZonePlayer,
         bridge: OutPreBackendBridge,
         state: OutPreState,
     ) {
         val messages = HyperZoneLoginMain.getInstance().messageService
-        initialBridges[player.getChannel()] = bridge
 
         bridge.connect().whenCompleteAsync({ _, throwable ->
             if (throwable != null) {
-                pendingInitialHandlers.remove(player.getChannel())
-                initialBridges.remove(player.getChannel())
-                initialJoinFlows.remove(player.getChannel())
+                initialJoinSessions.remove(player.getChannel())
                 states.remove(player.getChannel(), state)
                 hyperPlayer.resumeMessageDelivery()
                 player.sendMessage(
@@ -404,35 +364,34 @@ class OutPreVServerAuth(
         }, player.connection.eventLoop())
     }
 
-    private fun clearInitialJoinState(
+    /**
+     * 丢弃尚未真正开始的初始进入会话。
+     */
+    private fun discardInitialJoinState(
         player: ConnectedPlayer,
         state: OutPreState,
         hyperPlayer: VelocityHyperZonePlayer,
     ) {
-        pendingInitialHandlers.remove(player.getChannel())
-        initialBridges.remove(player.getChannel())?.disconnect()
-        initialJoinFlows.remove(player.getChannel())
+        initialJoinSessions.remove(player.getChannel())?.handler?.bridge?.disconnect()
         states.remove(player.getChannel(), state)
         hyperPlayer.resumeMessageDelivery()
     }
 
     fun onInitialBridgeJoined(bridge: OutPreBackendBridge, player: ConnectedPlayer) {
-        if (initialBridges[player.getChannel()] !== bridge) {
+        val session = initialJoinSessions[player.getChannel()] as? BridgeWaitingAreaJoinSession ?: return
+        if (!session.matchesBridge(bridge)) {
             return
         }
-        val hyperPlayer = getHyperPlayer(player) ?: return
-        val state = states[player.getChannel()] ?: return
-        onAuthServerJoined(player, hyperPlayer, state)
+        session.onAuthServerJoined(this)
     }
 
     fun onInitialBridgeDisconnected(bridge: OutPreBackendBridge, player: ConnectedPlayer, reason: String?) {
-        if (initialBridges[player.getChannel()] !== bridge) {
+        val session = initialJoinSessions[player.getChannel()] ?: return
+        if (!session.matchesBridge(bridge)) {
             return
         }
         val state = states.remove(player.getChannel())
-        pendingInitialHandlers.remove(player.getChannel())
-        initialBridges.remove(player.getChannel())
-        initialJoinFlows.remove(player.getChannel())
+        initialJoinSessions.remove(player.getChannel())
         if (player.isActive) {
             player.disconnect(Component.text(reason ?: "OutPre auth bridge disconnected", NamedTextColor.RED))
         }
@@ -445,47 +404,17 @@ class OutPreVServerAuth(
         }
     }
 
-    private fun onAuthServerJoined(
-        player: Player,
-        hyperPlayer: VelocityHyperZonePlayer,
-        state: OutPreState,
-    ) {
-        state.hasConnectedToAuthServerOnce = true
-        trace(
-            "outpre.onAuthServerJoined channel=${
-                player.getChannel().id()
-            } player=${player.username} waitingArea=${hyperPlayer.isInWaitingArea()} verified=${hyperPlayer.isVerified()} attachedProfile=${hyperPlayer.hasAttachedProfile()} ${
-                describeState(
-                    state
-                )
-            }"
-        )
-        hyperPlayer.resumeMessageDelivery()
-        initialJoinFlows[player.getChannel()]?.onAuthServerJoined {
-            fireAuthStartEvent(player, hyperPlayer, state, "onAuthServerJoined")
-        }
+    /**
+     * 向等待区链路广播“已经进入认证服/等待区”的加入事件。
+     */
+    internal fun publishWaitingAreaJoinEvent(player: Player, hyperPlayer: VelocityHyperZonePlayer) {
         server.eventManager.fire(VServerJoinEvent(player, hyperPlayer))
-
-        if (state.verifiedExitPending) {
-            state.verifiedExitPending = false
-            trace(
-                "outpre.onAuthServerJoined consume-verifiedExitPending channel=${
-                    player.getChannel().id()
-                } player=${player.username} ${
-                    describeState(
-                        state
-                    )
-                }"
-            )
-            if (state.initialFlowPending) {
-                pendingInitialHandlers[player.getChannel()]?.completeAfterVerification(state.returnTargetServerName)
-            } else {
-                connectVerifiedPlayerToTarget(player, state)
-            }
-        }
     }
 
-    private fun fireAuthStartEvent(
+    /**
+     * 向认证模块广播“现在允许以等待区视角接管认证”的开始事件。
+     */
+    internal fun publishAuthStartEvent(
         player: Player,
         hyperPlayer: VelocityHyperZonePlayer,
         state: OutPreState,
@@ -504,10 +433,59 @@ class OutPreVServerAuth(
         )
     }
 
-    private fun connectVerifiedPlayerToTarget(player: Player, state: OutPreState): Boolean {
-        pendingInitialHandlers.remove(player.getChannel())
-        initialBridges.remove(player.getChannel())?.disconnect()
-        initialJoinFlows.remove(player.getChannel())
+    /**
+     * 处理“初始进入阶段已完成验证”后的后续动作：
+     * - 如果仍处于初始登录桥接期，就继续完成 outpre 释放；
+     * - 否则按已验证玩家直接转发到目标服。
+     */
+    internal fun continueVerifiedInitialJoin(
+        player: Player,
+        handler: OutPreAuthSessionHandler,
+        state: OutPreState
+    ) {
+        trace(
+            "outpre.onVerified completing-initial-flow channel=${
+                player.getChannel().id()
+            } player=${player.username} target=${state.returnTargetServerName} ${
+                describeState(
+                    state
+                )
+            }"
+        )
+        if (state.initialFlowPending) {
+            handler.completeAfterVerification(state.returnTargetServerName)
+        } else {
+            connectVerifiedPlayerToResolvedTarget(player, state)
+        }
+    }
+
+    /**
+     * struck 模式未能及时完成线上认证时，切换为“进入认证服等待区”的桥接模式。
+     */
+    internal fun switchStruckSessionToBridgeWaitingArea(
+        session: StruckInitialJoinSession,
+        event: AuthenticationFailureEvent
+    ) {
+        val player = session.player
+        if (!player.isActive) {
+            return
+        }
+        val fallbackSession = OutPreInitialJoinSessionFactory.waitingAreaFallbackFrom(session)
+        initialJoinSessions[player.getChannel()] = fallbackSession
+        trace(
+            "outpre.struck fallback-to-waiting-area channel=${player.getChannel().id()} player=${player.username} reason=${event.reason} message=${event.reasonMessage} ${
+                describeState(
+                    fallbackSession.state
+                )
+            }"
+        )
+        startAuthBridgeJoin(player, fallbackSession.hyperPlayer, fallbackSession.handler.bridge, fallbackSession.state)
+    }
+
+    // ---- 目标服转发 ----
+
+    private fun connectVerifiedPlayerToResolvedTarget(player: Player, state: OutPreState): Boolean {
+        initialJoinSessions.remove(player.getChannel())?.handler?.bridge?.disconnect()
         states.remove(player.getChannel(), state)
         return connectPlayerToTarget(
             player = player,
@@ -586,6 +564,8 @@ class OutPreVServerAuth(
         }
         return true
     }
+
+    // ---- 状态 / 配置辅助 ----
 
     private fun needsAuthServerProtection(state: OutPreState): Boolean {
         return state.inAuthHold || !state.hasConnectedToAuthServerOnce || state.initialFlowPending
