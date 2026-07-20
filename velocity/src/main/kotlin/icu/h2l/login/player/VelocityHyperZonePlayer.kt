@@ -171,7 +171,6 @@ class VelocityHyperZonePlayer(
         if (!hasAttachedProfile()) {
             sendMessage(HyperZoneLoginMain.getInstance().messageService.render(this, MessageKeys.Player.VERIFIED_UNBOUND))
         }
-        tryLeaveWaiting()
     }
 
     internal fun runCoreAuthorizedOverVerify() {
