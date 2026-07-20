@@ -199,6 +199,7 @@ spotless {
             "data-merge/src/**/*.kt",
             "profile-skin/src/**/*.kt",
             "safe/src/**/*.kt",
+            "vc-runtest/src/**/*.kt",
             "velocity/src/**/*.kt",
         )
         licenseHeader(kotlinLicenseHeader, kotlinSourceHeaderDelimiter)
@@ -215,6 +216,7 @@ spotless {
             "data-merge/build.gradle.kts",
             "profile-skin/build.gradle.kts",
             "safe/build.gradle.kts",
+            "vc-runtest/build.gradle.kts",
             "velocity/build.gradle.kts",
         )
         licenseHeader(kotlinLicenseHeader, kotlinGradleHeaderDelimiter)
@@ -309,7 +311,7 @@ val collectSplitPluginJars = tasks.register<Sync>("collectSplitPluginJars") {
     from(velocityProject.tasks.named("jar", Jar::class).flatMap { it.archiveFile })
 
     subprojects
-        .filter { it.path != ":api" && it.path != ":velocity" }
+        .filter { it.path != ":api" && it.path != ":velocity" && it.path != ":vc-runtest" }
         .forEach { subproject ->
             val archiveTaskName = "jar"
             dependsOn(subproject.tasks.named(archiveTaskName))
