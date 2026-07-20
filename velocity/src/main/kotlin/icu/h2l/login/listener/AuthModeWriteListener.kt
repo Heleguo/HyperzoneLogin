@@ -63,8 +63,9 @@ class AuthModeWriteListener {
             if (existingEntry.authType == "OFFLINE" && authType != "OFFLINE") {
                 authModeRepo.updateAuthType(playerUuid, authType)
             }
-            // 补录 auth_entry_id（首次连接时可能为 null）
-            if (authEntryId != null && existingEntry.authEntryId != authEntryId) {
+            // 仅在 auth_entry_id 为 null 时补录（首次连接/旧记录迁移）
+            // 禁止覆盖已有 entry——防止非同源 Entry 覆盖已绑定来源
+            if (authEntryId != null && existingEntry.authEntryId == null) {
                 authModeRepo.updateAuthEntryId(playerUuid, authEntryId)
             }
         } else {
