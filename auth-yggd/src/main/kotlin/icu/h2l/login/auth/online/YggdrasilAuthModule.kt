@@ -51,6 +51,7 @@ import kotlinx.coroutines.*
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.eq
 import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.selectAll
+import org.jetbrains.exposed.sql.update
 import java.net.http.HttpClient
 import java.nio.charset.StandardCharsets
 import java.time.Duration
@@ -606,14 +607,31 @@ class YggdrasilAuthModule(
     /**
      * 检查 auth_mode 表：如果已记录 auth_entry_id 且与当前 Entry 不匹配，返回 true。
      */
+    /**
+     * 检查 auth_mode 表：如果已记录 auth_entry_id 且与当前 Entry 不匹配，返回 true。
+     * 如果 auth_entry_id 为 null 但 auth_type 不是 OFFLINE（旧版未记录），
+     * 则用当前 Entry 补录到数据库并返回 false（放行本次连接，后续即受保护）。
+     */
     private fun isAuthEntryMismatch(playerName: String, entryId: String): Boolean {
         return try {
             val authModeTable = AuthModeTable(databaseManager.tablePrefix)
+            val playerUuidCol = authModeTable.playerUuid
             databaseManager.executeTransaction {
                 val row = authModeTable.selectAll().where {
                     authModeTable.playerName eq playerName
                 }.limit(1).singleOrNull() ?: return@executeTransaction false
-                val storedEntryId = row[authModeTable.authEntryId] ?: return@executeTransaction false
+                val storedEntryId = row[authModeTable.authEntryId]
+                val authType = row[authModeTable.authType]
+                if (storedEntryId == null) {
+                    // 旧记录未存储 auth_entry_id：补录当前 Entry，放行本次连接
+                    if (authType == "MOJANG" || authType == "YGGDRASIL") {
+                        val uuid = row[authModeTable.playerUuid]
+                        authModeTable.update({ authModeTable.playerUuid eq uuid }) {
+                            it[authModeTable.authEntryId] = entryId
+                        }
+                    }
+                    return@executeTransaction false
+                }
                 storedEntryId != entryId
             }
         } catch (_: Exception) {
