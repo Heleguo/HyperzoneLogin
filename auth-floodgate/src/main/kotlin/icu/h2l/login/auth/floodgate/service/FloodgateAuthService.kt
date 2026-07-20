@@ -90,7 +90,7 @@ class FloodgateAuthService(
     fun complete(channel: Channel, hyperZonePlayer: HyperZonePlayer): CompleteResult {
         val session = sessionHolder.get(channel)
         trace(
-            "complete start channel=$channel player=${hyperZonePlayer.clientOriginalName} sessionPresent=${session != null} waitingArea=${hyperZonePlayer.isInWaitingArea()} verified=${hyperZonePlayer.isVerified()} attachedProfile=${profileService.getAttachedProfile(hyperZonePlayer)?.id} credentialTypes=${hyperZonePlayer.getSubmittedCredentials().map { it.javaClass.simpleName }}"
+            "complete start channel=$channel player=${hyperZonePlayer.clientOriginalName} sessionPresent=${session != null} attachedProfile=${profileService.getAttachedProfile(hyperZonePlayer)?.id} credentialTypes=${hyperZonePlayer.getSubmittedCredentials().map { it.javaClass.simpleName }}"
         )
         if (session == null && !hasFloodgateCredential(hyperZonePlayer)) {
             trace("complete ignored channel=$channel player=${hyperZonePlayer.clientOriginalName}: no session and no floodgate credential")
@@ -142,11 +142,11 @@ class FloodgateAuthService(
                 }
             }
             trace(
-                "complete before overVerify channel=$channel player=${hyperZonePlayer.clientOriginalName} waitingArea=${hyperZonePlayer.isInWaitingArea()} attachedProfile=${profileService.getAttachedProfile(hyperZonePlayer)?.id}"
+                "complete before overVerify channel=$channel player=${hyperZonePlayer.clientOriginalName} attachedProfile=${profileService.getAttachedProfile(hyperZonePlayer)?.id}"
             )
             hyperZonePlayer.overVerify()
             trace(
-                "complete after overVerify channel=$channel player=${hyperZonePlayer.clientOriginalName} waitingArea=${hyperZonePlayer.isInWaitingArea()} verified=${hyperZonePlayer.isVerified()} attachedProfile=${profileService.getAttachedProfile(hyperZonePlayer)?.id}"
+                "complete after overVerify channel=$channel player=${hyperZonePlayer.clientOriginalName} attachedProfile=${profileService.getAttachedProfile(hyperZonePlayer)?.id}"
             )
             sessionHolder.remove(channel)
             trace("complete success channel=$channel player=${hyperZonePlayer.clientOriginalName} sessionCleared=true")
@@ -154,7 +154,7 @@ class FloodgateAuthService(
         } catch (throwable: Throwable) {
             logger.warning("Floodgate 玩家 ${hyperZonePlayer.clientOriginalName} 完成认证失败: ${throwable.message}")
             trace(
-                "complete failed channel=$channel player=${hyperZonePlayer.clientOriginalName} waitingArea=${hyperZonePlayer.isInWaitingArea()} verified=${hyperZonePlayer.isVerified()} attachedProfile=${profileService.getAttachedProfile(hyperZonePlayer)?.id} error=${throwable.message}"
+                "complete failed channel=$channel player=${hyperZonePlayer.clientOriginalName} attachedProfile=${profileService.getAttachedProfile(hyperZonePlayer)?.id} error=${throwable.message}"
             )
             CompleteResult(
                 handled = true,
@@ -240,4 +240,3 @@ class FloodgateAuthService(
         return if (config.passFloodgateUuidToProfileResolve) userUUID else null
     }
 }
-

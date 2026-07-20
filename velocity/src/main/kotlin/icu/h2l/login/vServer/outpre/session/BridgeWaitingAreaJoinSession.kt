@@ -148,7 +148,7 @@ internal class BridgeWaitingAreaJoinSession(
     override fun onAuthServerJoined(owner: OutPreVServerAuth) {
         state.hasConnectedToAuthServerOnce = true
         owner.trace(
-            "outpre.onAuthServerJoined channel=${player.getChannel().id()} player=${player.username} waitingArea=${hyperPlayer.isInWaitingArea()} verified=${hyperPlayer.isVerified()} attachedProfile=${hyperPlayer.hasAttachedProfile()} ${
+            "outpre.onAuthServerJoined channel=${player.getChannel().id()} player=${player.username} attachedProfile=${hyperPlayer.hasAttachedProfile()} ${
                 owner.describeState(state)
             }"
         )

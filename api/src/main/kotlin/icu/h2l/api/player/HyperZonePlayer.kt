@@ -112,24 +112,6 @@ interface HyperZonePlayer {
     fun getSubmittedCredentials(): List<HyperZoneCredential>
 
     /**
-     * 当前玩家是否仍处于等待区。
-     *
-     * 等待区判定同时取决于两条链路：
-     * 1. 认证链路：必须完成验证；
-     * 2. Profile 链路：必须已经 attach 游戏档案。
-     *
-     * 任一条件不满足，都必须继续停留在等待区。
-     */
-    fun isInWaitingArea(): Boolean {
-        return !isVerified() || !hasAttachedProfile()
-    }
-
-    /**
-     * 当前玩家是否已完成验证。
-     */
-    fun isVerified(): Boolean
-
-    /**
      * 判断是否允许进行绑定流程。
      *
      * 该判断通常用于“当前会话已有可信凭证，但尚未 attach 正式档案”的场景。

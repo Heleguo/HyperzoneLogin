@@ -279,7 +279,7 @@ class YggdrasilAuthModule(
     ) {
         try {
             preparedAuth.credentialToSubmit?.let(handler::submitCredential)
-            if (!preparedAuth.shouldOverVerify || !handler.isInWaitingArea()) {
+            if (!preparedAuth.shouldOverVerify || handler.hasAttachedProfile()) {
                 return
             }
 

@@ -150,7 +150,6 @@ class ReUuidListenerTest {
         private val credentials = mutableListOf<HyperZoneCredential>()
 
         override fun hasAttachedProfile(): Boolean = false
-        override fun isVerified(): Boolean = false
         override fun canBind(): Boolean = false
         override fun overVerify() {}
         override fun resetVerify() { credentials.clear() }

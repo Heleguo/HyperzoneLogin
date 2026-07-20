@@ -136,7 +136,7 @@ class OutPreVServerAuth(
         trace(
             "beginInitialJoin start channel=${
                 player.getChannel().id()
-            } player=${player.username} waitingArea=${hyperPlayer.isInWaitingArea()} verified=${hyperPlayer.isVerified()} attachedProfile=${hyperPlayer.hasAttachedProfile()}"
+            } player=${player.username} attachedProfile=${hyperPlayer.hasAttachedProfile()}"
         )
 
         runCatching {
@@ -182,7 +182,7 @@ class OutPreVServerAuth(
             return
         }
 
-        if (!hyperPlayer.isInWaitingArea()) {
+        if (hyperPlayer.hasAttachedProfile()) {
             state.inAuthHold = false
             state.verifiedExitPending = true
             trace(
@@ -224,7 +224,7 @@ class OutPreVServerAuth(
 
         val authStartEvent = VServerAuthStartEvent(player, hyperPlayer)
         server.eventManager.fire(authStartEvent).join()
-        if (!hyperPlayer.isInWaitingArea()) {
+        if (hyperPlayer.hasAttachedProfile()) {
             return
         }
 
@@ -364,7 +364,7 @@ class OutPreVServerAuth(
         trace(
             "$source after-authStart channel=${
                 player.getChannel().id()
-            } player=${player.username} waitingArea=${hyperPlayer.isInWaitingArea()} verified=${hyperPlayer.isVerified()} attachedProfile=${hyperPlayer.hasAttachedProfile()} ${
+            } player=${player.username} attachedProfile=${hyperPlayer.hasAttachedProfile()} ${
                 describeState(
                     state
                 )

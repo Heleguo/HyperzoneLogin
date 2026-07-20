@@ -112,7 +112,7 @@ class ProfileSkinSelfReplayService(
 
     @Subscribe(priority = Short.MIN_VALUE)
     fun onProfileSkinPreprocessInitialSend(event: ProfileSkinPreprocessEvent) {
-        if (event.hyperZonePlayer.isInWaitingArea()) {
+        if (!event.hyperZonePlayer.hasAttachedProfile()) {
             return
         }
 

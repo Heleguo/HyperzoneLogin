@@ -260,8 +260,6 @@ class YggdrasilCredentialServiceTest {
 
         override fun getSubmittedCredentials(): List<HyperZoneCredential> = submittedCredentials.toList()
 
-        override fun isVerified(): Boolean = false
-
         override fun canBind(): Boolean = true
 
         override fun overVerify() = Unit

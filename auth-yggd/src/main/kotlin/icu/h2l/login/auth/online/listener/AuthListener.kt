@@ -73,7 +73,7 @@ class AuthListener(
 
     internal fun onWaitingAreaJoin(channel: Channel, proxyPlayer: Player, hyperZonePlayer: HyperZonePlayer) {
         if (!proxyPlayer.isOnlineMode) return
-        if (!hyperZonePlayer.isInWaitingArea()) return
+        if (hyperZonePlayer.hasAttachedProfile()) return
 
         val pending = pendingContexts.remove(channel)
         if (pending == null) {

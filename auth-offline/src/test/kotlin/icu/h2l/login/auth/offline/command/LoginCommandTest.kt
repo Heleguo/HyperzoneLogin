@@ -116,7 +116,7 @@ class LoginCommandTest {
             profileId = PROFILE.id
         )
 
-        every { hyperZonePlayer.isInWaitingArea() } returns true
+        every { hyperZonePlayer.hasAttachedProfile() } returns false
         every { profileService.getAttachedProfile(hyperZonePlayer) } returns null
         every { invocation.source() } returns player
         every { invocation.arguments() } returns arrayOf(VALID_PASSWORD)
@@ -137,7 +137,7 @@ class LoginCommandTest {
             profileId = PROFILE.id
         )
 
-        every { hyperZonePlayer.isInWaitingArea() } returns true
+        every { hyperZonePlayer.hasAttachedProfile() } returns false
         every { hyperZonePlayer.clientOriginalName } returns OTHER_NAME
         every { profileService.getAttachedProfile(hyperZonePlayer) } returns null
         every { invocation.source() } returns player
@@ -215,5 +215,4 @@ class LoginCommandTest {
         }
     }
 }
-
 
