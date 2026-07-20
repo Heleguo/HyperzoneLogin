@@ -19,23 +19,11 @@
  *
  */
 
-package icu.h2l.login.auth.online
+package icu.h2l.login.auth.online.record
 
-import com.velocitypowered.api.proxy.Player
-import icu.h2l.api.player.HyperZonePlayer
-import io.netty.channel.Channel
-import java.util.*
+import icu.h2l.login.auth.online.credential.YggdrasilHyperZoneCredential
 
-interface YggdrasilAuthFlow {
-    fun startYggdrasilAuth(
-        channel: Channel,
-        username: String,
-        uuid: UUID,
-        serverId: String,
-        playerIp: String? = null
-    )
-
-    fun registerWaitingAreaPlayer(player: Player, waitingAreaPlayer: HyperZonePlayer)
-
-    fun clearPlayerCacheOnDisconnect(player: Player)
-}
+data class YggdrasilCredentialPreparation(
+    val credentialToSubmit: YggdrasilHyperZoneCredential?,
+    val failureReason: String? = null
+)

@@ -112,6 +112,10 @@ class ProfileSkinSelfReplayService(
 
     @Subscribe(priority = Short.MIN_VALUE)
     fun onProfileSkinPreprocessInitialSend(event: ProfileSkinPreprocessEvent) {
+        if (event.hyperZonePlayer.isInWaitingArea()) {
+            return
+        }
+
         val state = replayStates[event.hyperZonePlayer] ?: return
         val textures = state.latestTextures.get()?.takeIf(::canReplayTextures) ?: return
         if (state.selfAddPlayerSent.get()) {

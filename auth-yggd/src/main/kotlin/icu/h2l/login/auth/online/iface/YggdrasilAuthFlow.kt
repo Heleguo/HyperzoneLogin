@@ -19,25 +19,23 @@
  *
  */
 
-package icu.h2l.login.auth.online;
+package icu.h2l.login.auth.online.iface
 
-import com.google.inject.Inject;
-import com.velocitypowered.api.event.Subscribe;
-import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
-import com.velocitypowered.api.proxy.ProxyServer;
-import icu.h2l.login.auth.online.main.AuthYggdPlugin;
+import com.velocitypowered.api.proxy.Player
+import icu.h2l.api.player.HyperZonePlayer
+import io.netty.channel.Channel
+import java.util.*
 
-public final class AuthYggdBootstrap {
-    private final AuthYggdPlugin delegate;
+interface YggdrasilAuthFlow {
+    fun startYggdrasilAuth(
+        channel: Channel,
+        username: String,
+        uuid: UUID,
+        serverId: String,
+        playerIp: String? = null
+    )
 
-    @Inject
-    public AuthYggdBootstrap(ProxyServer server) {
-        this.delegate = new AuthYggdPlugin(server);
-    }
+    fun registerWaitingAreaPlayer(player: Player, waitingAreaPlayer: HyperZonePlayer)
 
-    @Subscribe
-    public void onEnable(ProxyInitializeEvent event) {
-        this.delegate.onEnable(event);
-    }
+    fun clearPlayerCacheOnDisconnect(player: Player)
 }
-

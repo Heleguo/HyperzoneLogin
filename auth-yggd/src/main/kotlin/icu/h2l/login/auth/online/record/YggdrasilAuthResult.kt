@@ -19,25 +19,41 @@
  *
  */
 
-package icu.h2l.login.auth.online;
+package icu.h2l.login.auth.online.record
 
-import com.google.inject.Inject;
-import com.velocitypowered.api.event.Subscribe;
-import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
-import com.velocitypowered.api.proxy.ProxyServer;
-import icu.h2l.login.auth.online.main.AuthYggdPlugin;
+import com.velocitypowered.api.util.GameProfile
 
-public final class AuthYggdBootstrap {
-    private final AuthYggdPlugin delegate;
+/**
+ * Yggdrasil验证结果
+ */
+sealed class YggdrasilAuthResult {
+    /**
+     * 验证成功
+     */
+    data class Success(
+        val profile: GameProfile,
+        val entryId: String,
+        val serverUrl: String
+    ) : YggdrasilAuthResult()
 
-    @Inject
-    public AuthYggdBootstrap(ProxyServer server) {
-        this.delegate = new AuthYggdPlugin(server);
-    }
+    /**
+     * 验证失败
+     */
+    data class Failed(
+        val reason: String,
+        val statusCode: Int? = null
+    ) : YggdrasilAuthResult()
 
-    @Subscribe
-    public void onEnable(ProxyInitializeEvent event) {
-        this.delegate.onEnable(event);
-    }
+    /**
+     * 验证超时
+     */
+    object Timeout : YggdrasilAuthResult()
+
+    /**
+     * 没有配置的Entry
+     */
+    object NoEntriesConfigured : YggdrasilAuthResult()
+
+    val isSuccess: Boolean
+        get() = this is Success
 }
-

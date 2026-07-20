@@ -24,7 +24,7 @@ package icu.h2l.login.auth.online.listener
 import com.velocitypowered.api.event.PostOrder
 import com.velocitypowered.api.event.Subscribe
 import icu.h2l.api.event.auth.LoginReUuidEvent
-import icu.h2l.login.auth.online.YggdrasilHyperZoneCredential
+import icu.h2l.login.auth.online.credential.YggdrasilHyperZoneCredential
 
 /**
  * 响应 ReUuid 事件，销毁旧 Yggdrasil 凭证并以清除 UUID 建议的新凭证重新提交。

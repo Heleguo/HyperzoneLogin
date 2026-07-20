@@ -30,7 +30,7 @@ import icu.h2l.api.log.HyperZoneDebugType
 import icu.h2l.api.log.debug
 import icu.h2l.api.player.HyperZonePlayer
 import icu.h2l.api.player.getChannel
-import icu.h2l.login.auth.online.YggdrasilAuthFlow
+import icu.h2l.login.auth.online.iface.YggdrasilAuthFlow
 import io.netty.channel.Channel
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap

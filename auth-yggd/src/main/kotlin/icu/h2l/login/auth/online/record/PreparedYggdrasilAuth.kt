@@ -19,25 +19,12 @@
  *
  */
 
-package icu.h2l.login.auth.online;
+package icu.h2l.login.auth.online.record
 
-import com.google.inject.Inject;
-import com.velocitypowered.api.event.Subscribe;
-import com.velocitypowered.api.event.proxy.ProxyInitializeEvent;
-import com.velocitypowered.api.proxy.ProxyServer;
-import icu.h2l.login.auth.online.main.AuthYggdPlugin;
+import icu.h2l.login.auth.online.credential.YggdrasilHyperZoneCredential
 
-public final class AuthYggdBootstrap {
-    private final AuthYggdPlugin delegate;
-
-    @Inject
-    public AuthYggdBootstrap(ProxyServer server) {
-        this.delegate = new AuthYggdPlugin(server);
-    }
-
-    @Subscribe
-    public void onEnable(ProxyInitializeEvent event) {
-        this.delegate.onEnable(event);
-    }
-}
-
+data class PreparedYggdrasilAuth(
+    val result: YggdrasilAuthResult,
+    val credentialToSubmit: YggdrasilHyperZoneCredential? = null,
+    val shouldOverVerify: Boolean = false
+)

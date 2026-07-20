@@ -24,7 +24,7 @@ package icu.h2l.login.auth.online.listener
 import com.velocitypowered.api.proxy.Player
 import icu.h2l.api.event.connection.OpenStartAuthEvent
 import icu.h2l.api.player.HyperZonePlayer
-import icu.h2l.login.auth.online.YggdrasilAuthFlow
+import icu.h2l.login.auth.online.iface.YggdrasilAuthFlow
 import io.netty.channel.Channel
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertSame

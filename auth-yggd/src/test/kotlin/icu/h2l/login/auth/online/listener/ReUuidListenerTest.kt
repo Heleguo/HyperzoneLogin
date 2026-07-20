@@ -27,7 +27,7 @@ import icu.h2l.api.db.table.ProfileTable
 import icu.h2l.api.event.auth.LoginReUuidEvent
 import icu.h2l.api.player.HyperZonePlayer
 import icu.h2l.api.profile.HyperZoneCredential
-import icu.h2l.login.auth.online.YggdrasilHyperZoneCredential
+import icu.h2l.login.auth.online.credential.YggdrasilHyperZoneCredential
 import icu.h2l.login.auth.online.db.EntryDatabaseHelper
 import icu.h2l.login.auth.online.db.EntryTableManager
 import net.kyori.adventure.text.Component
