@@ -27,10 +27,9 @@ import icu.h2l.api.db.HyperZoneDatabaseManager
 import icu.h2l.api.db.Profile
 import icu.h2l.api.db.table.ProfileTable
 import icu.h2l.api.player.HyperZonePlayer
-import icu.h2l.api.player.HyperZonePlayerAccessor
 import icu.h2l.api.profile.HyperZoneCredential
 import icu.h2l.api.profile.HyperZoneProfileService
-import icu.h2l.login.auth.online.config.entry.EntryConfig
+import icu.h2l.login.auth.online.config.EntryConfig
 import icu.h2l.login.auth.online.db.EntryTableManager
 import icu.h2l.login.auth.online.manager.EntryConfigManager
 import net.kyori.adventure.text.Component
@@ -74,7 +73,6 @@ class YggdrasilAuthModuleTest {
             entryConfigManager = entryConfigManager,
             databaseManager = databaseManager,
             entryTableManager = entryTableManager,
-            playerAccessor = interfaceStub(HyperZonePlayerAccessor::class.java),
             profileService = profileService
         )
     }
@@ -281,6 +279,5 @@ class YggdrasilAuthModuleTest {
         override fun getAttachedGameProfile(): GameProfile = temporaryProfile
     }
 }
-
 
 

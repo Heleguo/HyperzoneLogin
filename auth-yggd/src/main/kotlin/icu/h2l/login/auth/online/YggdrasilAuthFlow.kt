@@ -19,22 +19,23 @@
  *
  */
 
-package icu.h2l.login.auth.online.events
+package icu.h2l.login.auth.online
 
-import icu.h2l.login.auth.online.config.EntryConfig
+import com.velocitypowered.api.proxy.Player
+import icu.h2l.api.player.HyperZonePlayer
+import io.netty.channel.Channel
+import java.util.*
 
-/**
- * Entry 注册事件
- * 当 Entry 配置被加载时触发，用于通知其他组件进行相应的注册操作
- */
-data class EntryRegisterEvent(
-    /**
-     * Entry 配置名称
-     */
-    val configName: String,
+interface YggdrasilAuthFlow {
+    fun startYggdrasilAuth(
+        channel: Channel,
+        username: String,
+        uuid: UUID,
+        serverId: String,
+        playerIp: String? = null
+    )
 
-    /**
-     * Entry 配置对象
-     */
-    val entryConfig: EntryConfig
-)
+    fun registerWaitingAreaPlayer(player: Player, waitingAreaPlayer: HyperZonePlayer)
+
+    fun clearPlayerCacheOnDisconnect(player: Player)
+}

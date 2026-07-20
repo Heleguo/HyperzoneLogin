@@ -28,6 +28,8 @@ import icu.h2l.api.message.HyperZoneModuleMessageResources
 import icu.h2l.api.module.HyperSubModule
 import icu.h2l.api.profile.HyperZoneProfileServiceProvider
 import icu.h2l.login.auth.online.db.EntryTableManager
+import icu.h2l.login.auth.online.listener.AuthListener
+import icu.h2l.login.auth.online.listener.ReUuidListener
 import icu.h2l.login.auth.online.manager.EntryConfigManager
 
 class YggdrasilSubModule : HyperSubModule {
@@ -59,13 +61,12 @@ class YggdrasilSubModule : HyperSubModule {
             entryConfigManager = entryConfigManager,
             databaseManager = databaseManager,
             entryTableManager = entryTableManager,
-            playerAccessor = api.hyperZonePlayers,
             profileService = HyperZoneProfileServiceProvider.get()
         )
-        val yggdrasilEventListener = YggdrasilEventListener(yggdrasilAuthModule)
+        val authListener = AuthListener(yggdrasilAuthModule)
 
-        proxy.eventManager.register(api, yggdrasilEventListener)
-        proxy.eventManager.register(api, YggdrasilReUuidListener())
+        proxy.eventManager.register(api, authListener)
+        proxy.eventManager.register(api, ReUuidListener())
 
         this.entryConfigManager = entryConfigManager
         this.entryTableManager = entryTableManager
