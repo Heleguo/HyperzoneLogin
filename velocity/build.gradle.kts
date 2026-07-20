@@ -29,7 +29,7 @@ plugins {
     id("icu.h2l.runtime-dependencies")
 }
 
-val bstatsRelocatedClasspath by configurations.creating {
+val bstatsRelocatedClasspath = configurations.create("bstatsRelocatedClasspath") {
     isCanBeConsumed = false
     isCanBeResolved = true
 }
