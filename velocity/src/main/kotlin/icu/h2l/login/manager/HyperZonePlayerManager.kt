@@ -28,6 +28,7 @@ import icu.h2l.api.event.connection.OpenPreLoginEvent
 import icu.h2l.api.player.HyperZonePlayer
 import icu.h2l.api.player.HyperZonePlayerAccessor
 import icu.h2l.api.player.getChannel
+import icu.h2l.api.util.RemapUtils
 import icu.h2l.login.HyperZoneLoginMain
 import icu.h2l.login.listener.PlayerAreaLifecycleListener
 import icu.h2l.login.player.VelocityHyperZonePlayer
@@ -44,8 +45,12 @@ object HyperZonePlayerManager : HyperZonePlayerAccessor {
         create(event.channel, event.userName, event.uuid, event.isOnline)
     }
 
-    override fun create(channel: Channel, userName: String, uuid: UUID, isOnline: Boolean): HyperZonePlayer {
-        val createdPlayer = VelocityHyperZonePlayer(userName, uuid, isOnline)
+    override fun create(channel: Channel, userName: String, uuid: UUID?, isOnline: Boolean): HyperZonePlayer {
+        val finalUuid = uuid ?: run {
+            val prefix = HyperZoneLoginMain.getCoreConfig().remap.prefix
+            RemapUtils.genUUID(userName, prefix)
+        }
+        val createdPlayer = VelocityHyperZonePlayer(userName, finalUuid, isOnline)
         val existing = playersByPlayer.putIfAbsent(channel, createdPlayer)
         if (existing != null) {
             throw IllegalStateException("重复创建 HyperZonePlayer：channel=$channel clientOriginal=$userName")

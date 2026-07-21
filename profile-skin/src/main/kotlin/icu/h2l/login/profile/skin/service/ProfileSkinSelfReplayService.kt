@@ -38,6 +38,7 @@ import icu.h2l.api.player.HyperZonePlayer
 import icu.h2l.api.player.HyperZonePlayerAccessor
 import icu.h2l.api.profile.HyperZoneProfileService
 import icu.h2l.api.profile.skin.ProfileSkinTextures
+import icu.h2l.api.util.RemapUtils
 import icu.h2l.login.profile.skin.config.ProfileSkinConfig
 import icu.h2l.login.profile.skin.db.ProfileSkinCacheRepository
 import icu.h2l.login.profile.skin.db.ProfileSkinProfileRepository
@@ -206,8 +207,12 @@ class ProfileSkinSelfReplayService(
 
         if (!forceReplay && !state.selfAddPlayerSent.compareAndSet(false, true)) return
 
+        val replayUuid = hyperZonePlayer.clientOriginalUUID ?: run {
+            val prefix = "profile-skin"
+            RemapUtils.genUUID(hyperZonePlayer.clientOriginalName, prefix)
+        }
         val replayProfile = GameProfile(
-            hyperZonePlayer.clientOriginalUUID,
+            replayUuid,
             hyperZonePlayer.clientOriginalName,
             listOf(property),
         )

@@ -55,7 +55,7 @@ import java.util.concurrent.atomic.AtomicReference
 class VelocityHyperZonePlayer(
 //    最开始客户端传入的，不可信；仅用于调试、客户端回放与第一次拟定默认生成名
     override val clientOriginalName: String,
-    override val clientOriginalUUID: UUID,
+    override val clientOriginalUUID: UUID?,
     override val isOnlinePlayer: Boolean,
 ) : HyperZonePlayer {
 
@@ -285,7 +285,7 @@ class VelocityHyperZonePlayer(
     private fun notifyProfileConflict(conflictingPlayers: List<VelocityHyperZonePlayer>) {
         val conflictPlayerIds = conflictingPlayers.asSequence()
             .filter { it !== this }
-            .map { it.clientOriginalUUID }
+            .mapNotNull { it.clientOriginalUUID }
             .toSet()
         if (conflictPlayerIds.isEmpty()) {
             return

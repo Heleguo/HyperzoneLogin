@@ -53,8 +53,10 @@ interface HyperZonePlayer {
      * 该值明确为“不可信身份”，不会因为后续 attach Profile 而被改写。
      * 它只允许用于调试、客户端回放或极弱的候选发现流程；
      * 严禁把它作为可信认证结果或正式游戏 UUID 使用。
+     * 
+     * 如果客户端未上报 UUID（null），核心层会自动生成一个 UUID。
      */
-    val clientOriginalUUID: UUID
+    val clientOriginalUUID: UUID?
 
     /**
      * 当前会话完成认证的渠道 ID。
