@@ -182,7 +182,7 @@ class LoginCommandTest {
         override fun create(
             channel: io.netty.channel.Channel,
             userName: String,
-            uuid: UUID,
+            uuid: UUID?,
             isOnline: Boolean
         ): HyperZonePlayer {
             return hyperZonePlayer
@@ -215,4 +215,3 @@ class LoginCommandTest {
         }
     }
 }
-
