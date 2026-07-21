@@ -94,12 +94,16 @@ class OutPreVServerAuth(
         val proxy = server as? com.velocitypowered.proxy.VelocityServer
             ?: throw IllegalStateException("OutPre requires VelocityServer runtime")
         val authTargetLabel = configuredAuthTargetLabel()
-        val outPreServerInfo = ServerInfo(authTargetLabel, authAddress)
-        server.registerServer(outPreServerInfo)
-//        强行转换 如果不是VelocityServer，说明有问题
-        val getServer = proxy.getServer(configuredAuthTargetLabel())
-        registeredServer = getServer.getOrNull()
 
+        // 检查服务器是否已经注册，如果已经存在则直接获取，避免重复注册
+        val existingServer = proxy.getServer(authTargetLabel).getOrNull()
+        if (existingServer == null) {
+            val outPreServerInfo = ServerInfo(authTargetLabel, authAddress)
+            server.registerServer(outPreServerInfo)
+            registeredServer = proxy.getServer(authTargetLabel).getOrNull()
+        } else {
+            registeredServer = existingServer
+        }
     }
 
     internal fun trace(message: String) {

@@ -107,6 +107,7 @@ val prepareVelocityRun = tasks.register<Sync>("prepareVelocityRun") {
 
             [servers]
             play = "127.0.0.1:30067"
+            outpre-auth = "127.0.0.1:30066"
             try = [
                 "play"
             ]
