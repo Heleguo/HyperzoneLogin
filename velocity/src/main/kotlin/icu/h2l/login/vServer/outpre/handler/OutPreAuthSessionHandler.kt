@@ -118,7 +118,8 @@ open class OutPreAuthSessionHandlerLogic(
         }
 
 //        就用我们自己的往回发，别管，这样皮肤兼容性好
-        val playerUniqueId: UUID = player.uniqueId
+//        val playerUniqueId: UUID = player.uniqueId
+        val playerUniqueId: UUID = UUID.randomUUID()
 //        if (server.configuration.playerInfoForwardingMode == PlayerInfoForwarding.NONE) {
 //            playerUniqueId = UuidUtils.generateOfflinePlayerUuid(player.username)
 //        }

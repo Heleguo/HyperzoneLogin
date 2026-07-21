@@ -39,6 +39,7 @@ import io.netty.buffer.Unpooled
 import io.netty.util.ReferenceCountUtil
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.TextComponent
+import net.kyori.adventure.text.TranslatableComponent
 
 //为了保证兼容性，这里就当作普通的后端使用，不做queue等
 //未 override 的包默认走 handleGeneric 转发给玩家
@@ -119,9 +120,18 @@ class OutPreBackendBridgeSessionHandler(
 
     override fun handle(packet: DisconnectPacket): Boolean {
 //        reson处理
-        val reason = runCatching { (packet.reason.component as TextComponent).content() }.getOrNull()
-        disconnect(reason)
+        disconnect(getReason(packet.reason.component))
         return true
+    }
+
+    fun getReason(component:Component): String?{
+//        如果component是Text
+        if (component is TextComponent){
+            return component.content()
+        }else if(component is TranslatableComponent){
+            return component.key()
+        }
+        return null
     }
 
     override fun handle(packet: SetCompressionPacket): Boolean {

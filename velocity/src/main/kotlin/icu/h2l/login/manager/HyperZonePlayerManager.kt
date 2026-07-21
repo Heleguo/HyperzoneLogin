@@ -37,7 +37,7 @@ import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
 object HyperZonePlayerManager : HyperZonePlayerAccessor {
-    private val playersByPlayer = ConcurrentHashMap<Channel, VelocityHyperZonePlayer>()
+    private val playersByChannel = ConcurrentHashMap<Channel, VelocityHyperZonePlayer>()
 
     @Subscribe(priority = Short.MIN_VALUE)
     fun onPreLoginChannelInit(event: OpenPreLoginEvent) {
@@ -51,7 +51,7 @@ object HyperZonePlayerManager : HyperZonePlayerAccessor {
             RemapUtils.genUUID(userName, prefix)
         }
         val createdPlayer = VelocityHyperZonePlayer(userName, finalUuid, isOnline)
-        val existing = playersByPlayer.putIfAbsent(channel, createdPlayer)
+        val existing = playersByChannel.putIfAbsent(channel, createdPlayer)
         if (existing != null) {
             throw IllegalStateException("重复创建 HyperZonePlayer：channel=$channel clientOriginal=$userName")
         }
@@ -67,16 +67,16 @@ object HyperZonePlayerManager : HyperZonePlayerAccessor {
     }
 
     override fun getByChannel(channel: Channel): HyperZonePlayer {
-        return playersByPlayer[channel]
+        return playersByChannel[channel]
             ?: throw IllegalStateException("未找到对应的 HyperZonePlayer：channel=$channel")
     }
 
     fun getByChannelOrNull(channel: Channel): VelocityHyperZonePlayer? {
-        return playersByPlayer[channel]
+        return playersByChannel[channel]
     }
 
     fun remove(player: Player) {
-        playersByPlayer.remove(player.getChannel())?.let { removedPlayer ->
+        playersByChannel.remove(player.getChannel())?.let { removedPlayer ->
             runCatching {
                 HyperZoneLoginMain.getInstance().profileService.clear(removedPlayer)
             }

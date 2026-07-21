@@ -84,6 +84,7 @@ internal class BridgeWaitingAreaJoinSession(
         )
         bridge.connect().whenCompleteAsync({ _, throwable ->
             if (throwable != null) {
+                owner.trace(throwable.stackTraceToString())
                 val messages = HyperZoneLoginMain.getInstance().messageService
                 owner.clearInitialSession(player.getChannel(), state)
                 hyperPlayer.resumeMessageDelivery()
