@@ -137,7 +137,7 @@ class MlDataMigrator(
                 }
 
                 @Suppress("DEPRECATION")
-                SchemaUtils.createMissingTablesAndColumns(floodgateAuthTable)
+                SchemaUtils.createMissingTablesAndColumns(floodgateAuthTable, withLogs = false)
 
                 for (sourceUser in sourceUsers) {
                     val profileUuid = sourceUser.inGameProfileUuid

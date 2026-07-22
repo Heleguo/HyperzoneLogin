@@ -48,8 +48,8 @@ class FloodgateLoginProfileReplaceListener {
             return
         }
 
-        val targetProfile: GameProfile = if (hyperPlayer.isInWaitingArea()) {
-            event.profile
+        val targetProfile: GameProfile = if (!hyperPlayer.hasAttachedProfile()) {
+            hyperPlayer.getTemporaryGameProfile()
         } else {
             runCatching { hyperPlayer.getApplyGameProfile() }.getOrElse { throwable ->
                 debug(HyperZoneDebugType.FLOODGATE) {
@@ -86,4 +86,3 @@ class FloodgateLoginProfileReplaceListener {
         private const val FLOODGATE_CHANNEL_ID = "floodgate"
     }
 }
-

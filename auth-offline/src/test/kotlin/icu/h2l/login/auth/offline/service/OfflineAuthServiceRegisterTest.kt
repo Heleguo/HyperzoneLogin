@@ -221,18 +221,46 @@ class OfflineAuthServiceRegisterTest {
     fun `join prompts no longer advertise direct register binding when creation is unavailable`() {
         insertProfile()
 
-        every { hyperZonePlayer.isInWaitingArea() } returns true
+        every { hyperZonePlayer.hasAttachedProfile() } returns false
         every { profileService.getAttachedProfile(hyperZonePlayer) } returns PROFILE
 
         val prompts = service.getJoinPrompts(player)
 
         assertTrue(prompts.contains(OfflineAuthMessages.REGISTER_REQUEST))
-        assertEquals(1, prompts.size)
+        assertTrue(prompts.contains(OfflineAuthMessages.LOGIN_OTHER_USERNAME_PROMPT))
+        assertEquals(2, prompts.size)
+    }
+
+    @Test
+    fun `login supports explicitly choosing another offline username`() {
+        insertProfile()
+        repository.create(
+            name = NORMALIZED_NAME,
+            passwordHash = hashPassword(VALID_PASSWORD),
+            hashFormat = "sha256",
+            profileId = PROFILE.id
+        )
+
+        every { hyperZonePlayer.hasAttachedProfile() } returns false
+        every { hyperZonePlayer.clientOriginalName } returns OTHER_NAME
+
+        val result = service.loginAs(player, USERNAME, VALID_PASSWORD)
+
+        assertTrue(result.success)
+        assertEquals(OfflineAuthMessages.LOGIN_SUCCESS, result.message)
+        verify(exactly = 1) {
+            hyperZonePlayer.submitCredential(match {
+                it.channelId == "offline" &&
+                    it.credentialId == NORMALIZED_NAME &&
+                    it.getBoundProfileId() == PROFILE.id
+            })
+        }
+        verify(exactly = 1) { hyperZonePlayer.overVerify() }
     }
 
     @Test
     fun `login without explicit username gives a hint when current connection name is unregistered`() {
-        every { hyperZonePlayer.isInWaitingArea() } returns true
+        every { hyperZonePlayer.hasAttachedProfile() } returns false
         every { hyperZonePlayer.clientOriginalName } returns OTHER_NAME
         every { profileService.getAttachedProfile(hyperZonePlayer) } returns null
 
@@ -341,7 +369,7 @@ class OfflineAuthServiceRegisterTest {
         override fun create(
             channel: io.netty.channel.Channel,
             userName: String,
-            uuid: UUID,
+            uuid: UUID?,
             isOnline: Boolean
         ): HyperZonePlayer {
             return hyperZonePlayer
@@ -374,8 +402,6 @@ class OfflineAuthServiceRegisterTest {
         }
     }
 }
-
-
 
 
 

@@ -138,8 +138,7 @@ class FloodgateAuthServiceTest {
         floodgateApiHolder.trustedUuids += userUuid
         every { playerAccessor.create(channel, "BedrockUser", userUuid, any()) } returns hyperPlayer
         every { hyperPlayer.clientOriginalName } returns "BedrockUser"
-        every { hyperPlayer.isInWaitingArea() } returns true
-        every { hyperPlayer.isVerified() } returns false
+        every { hyperPlayer.hasAttachedProfile() } returns false
         every { hyperPlayer.getSubmittedCredentials() } answers { submittedCredentials.toList() }
         every { hyperPlayer.submitCredential(any()) } answers {
             submittedCredentials += firstArg<HyperZoneCredential>()
@@ -199,8 +198,7 @@ class FloodgateAuthServiceTest {
         floodgateApiHolder.trustedUuids += userUuid
         every { playerAccessor.create(channel, "BedrockUser", userUuid, any()) } returns hyperPlayer
         every { hyperPlayer.clientOriginalName } returns "BedrockUser"
-        every { hyperPlayer.isInWaitingArea() } returns true
-        every { hyperPlayer.isVerified() } returns false
+        every { hyperPlayer.hasAttachedProfile() } returns false
         every { hyperPlayer.getSubmittedCredentials() } answers { submittedCredentials.toList() }
         every { hyperPlayer.submitCredential(any()) } answers {
             submittedCredentials += firstArg<HyperZoneCredential>()
@@ -246,8 +244,7 @@ class FloodgateAuthServiceTest {
         floodgateApiHolder.trustedUuids += userUuid
         every { playerAccessor.create(channel, "BedrockUser", userUuid, any()) } returns hyperPlayer
         every { hyperPlayer.clientOriginalName } returns "BedrockUser"
-        every { hyperPlayer.isInWaitingArea() } returns true
-        every { hyperPlayer.isVerified() } returns false
+        every { hyperPlayer.hasAttachedProfile() } returns false
         every { hyperPlayer.getSubmittedCredentials() } answers { submittedCredentials.toList() }
         every { hyperPlayer.submitCredential(any()) } answers {
             submittedCredentials += firstArg<HyperZoneCredential>()
@@ -301,8 +298,7 @@ class FloodgateAuthServiceTest {
     fun `complete returns unhandled when neither floodgate session nor credential exists`() {
         val hyperPlayer = mockk<HyperZonePlayer>()
         every { hyperPlayer.clientOriginalName } returns "BedrockUser"
-        every { hyperPlayer.isInWaitingArea() } returns true
-        every { hyperPlayer.isVerified() } returns false
+        every { hyperPlayer.hasAttachedProfile() } returns false
         every { hyperPlayer.getSubmittedCredentials() } returns emptyList()
         every { profileService.getAttachedProfile(hyperPlayer) } returns null
 
@@ -365,6 +361,5 @@ class FloodgateAuthServiceTest {
         }
     }
 }
-
 
 

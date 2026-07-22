@@ -116,7 +116,7 @@ class LoginCommandTest {
             profileId = PROFILE.id
         )
 
-        every { hyperZonePlayer.isInWaitingArea() } returns true
+        every { hyperZonePlayer.hasAttachedProfile() } returns false
         every { profileService.getAttachedProfile(hyperZonePlayer) } returns null
         every { invocation.source() } returns player
         every { invocation.arguments() } returns arrayOf(VALID_PASSWORD)
@@ -125,6 +125,28 @@ class LoginCommandTest {
 
         verify(exactly = 1) { hyperZonePlayer.overVerify() }
         verify(exactly = 1) { player.sendMessage(OfflineAuthMessages.LOGIN_SUCCESS) }
+    }
+
+    @Test
+    fun `explicit username syntax logs in the selected offline account`() {
+        insertProfile()
+        repository.create(
+            name = NORMALIZED_NAME,
+            passwordHash = hashPassword(VALID_PASSWORD),
+            hashFormat = "sha256",
+            profileId = PROFILE.id
+        )
+
+        every { hyperZonePlayer.hasAttachedProfile() } returns false
+        every { hyperZonePlayer.clientOriginalName } returns OTHER_NAME
+        every { profileService.getAttachedProfile(hyperZonePlayer) } returns null
+        every { invocation.source() } returns player
+        every { invocation.arguments() } returns emptyArray()
+
+        command.execute(invocation)
+
+        verify(exactly = 0) { hyperZonePlayer.overVerify() }
+        verify(exactly = 1) { player.sendMessage(OfflineAuthMessages.LOGIN_USAGE) }
     }
 
     @Test
@@ -160,7 +182,7 @@ class LoginCommandTest {
         override fun create(
             channel: io.netty.channel.Channel,
             userName: String,
-            uuid: UUID,
+            uuid: UUID?,
             isOnline: Boolean
         ): HyperZonePlayer {
             return hyperZonePlayer
@@ -193,5 +215,3 @@ class LoginCommandTest {
         }
     }
 }
-
-
